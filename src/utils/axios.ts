@@ -89,7 +89,7 @@ axiosServices.interceptors.response.use(
       try {
         await refreshClient.post('/auth/logout'); // melhor esforço
       } catch {}
-      window.location.href = '/login';
+      window.location.href = '/';
       return Promise.reject(error.response?.data || error);
     }
 
@@ -136,7 +136,7 @@ axiosServices.interceptors.response.use(
       try {
         await refreshClient.post('/auth/logout');
       } catch {}
-      window.location.href = '/login';
+      window.location.href = '/';
       return Promise.reject((refreshErr as any)?.response?.data || refreshErr);
     } finally {
       isRefreshing = false;

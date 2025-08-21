@@ -59,7 +59,7 @@ export default function NavUser() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate(`/login`, {
+      navigate(`/`, {
         state: {
           from: ''
         }

@@ -54,7 +54,7 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
     <>
       <Formik
         initialValues={{
-          email: 'admin@local.dev',
+          email: 'codehs07@gmail.com',
           password: 'Admin@123456!',
           submit: null
         }}
