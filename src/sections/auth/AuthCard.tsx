@@ -11,15 +11,25 @@ export default function AuthCard({ children, ...other }: MainCardProps) {
   const theme = useTheme();
 
   return (
-    <MainCard
-      sx={{ maxWidth: { xs: 400, sm: 475 }, margin: { xs: 2.5, md: 3 }, '& > *': { flexGrow: 1, flexBasis: '50%' } }}
-      content={false}
-      {...other}
-      border={false}
-      boxShadow
-      shadow={theme.customShadows.z1}
-    >
-      <Box sx={{ p: { xs: 2, sm: 3, md: 4, xl: 5 } }}>{children}</Box>
-    </MainCard>
+    <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto' }}>
+      <MainCard
+        sx={{
+          maxWidth: { xs: 420, sm: 520 },
+          margin: { xs: 2.5, md: 3 },
+          '& > *': { flexGrow: 1, flexBasis: '50%' },
+          borderRadius: 3,
+          backdropFilter: 'blur(6px)',
+          overflow: 'hidden',
+          background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.85)' : '#2e2e2ecc'
+        }}
+        content={false}
+        {...other}
+        border={false}
+        boxShadow
+        shadow={theme.customShadows.z1}
+      >
+        <Box sx={{ p: { xs: 3, sm: 4, md: 5 } }}>{children}</Box>
+      </MainCard>
+    </Box>
   );
 }

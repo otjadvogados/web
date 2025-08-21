@@ -3,7 +3,7 @@ import { styled } from '@mui/material/styles';
 import AppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
 
 // project imports
-import { DRAWER_WIDTH } from 'config';
+import { DRAWER_WIDTH, BRAND_GOLD } from 'config';
 
 // ==============================|| HEADER - APP BAR STYLED ||============================== //
 
@@ -13,6 +13,8 @@ interface Props extends MuiAppBarProps {
 
 const AppBarStyled = styled(AppBar, { shouldForwardProp: (prop) => prop !== 'open' })<Props>(({ theme }) => ({
   zIndex: theme.zIndex.drawer + 1,
+  borderBottom: `2px solid ${BRAND_GOLD}`,
+  backgroundColor: theme.palette.background.paper,
   transition: theme.transitions.create(['width', 'margin'], {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen

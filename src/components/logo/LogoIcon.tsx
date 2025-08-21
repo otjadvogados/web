@@ -2,8 +2,7 @@
 import { useTheme } from '@mui/material/styles';
 
 // project imports
-import { ThemeMode } from 'config';
-import logoIcon from 'assets/images/logo/otj.webp';
+import logoIcon from 'assets/images/logo/simple-otj.png';
 
 // ==============================|| LOGO ICON SVG ||============================== //
 
@@ -11,6 +10,6 @@ export default function LogoIcon() {
   const theme = useTheme();
 
   return (
-    <img src={logoIcon} alt="Otj" width="100" />
+    <img src={logoIcon} alt="OTJ" width="35" height="35" style={{ objectFit: 'contain' }} />
   );
 }

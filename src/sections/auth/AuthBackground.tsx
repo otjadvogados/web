@@ -1,40 +1,38 @@
 // material-ui
 import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-
-// project imports
-import { ThemeDirection, ThemeMode } from 'config';
-import logoImage from 'assets/images/logo/otj.webp';
-
-// ==============================|| FUNDO DE AUTENTICAÇÃO COM IMAGEM DESFOCADA ||============================== //
+import { ThemeDirection } from 'config';
+import { getBrandColors } from 'config';
 
 export default function AuthBackground() {
   const theme = useTheme();
+  const colors = getBrandColors(theme.palette.mode === 'dark');
 
   return (
     <Box
       sx={{
         position: 'absolute',
-        filter: 'blur(18px)',
+        inset: 0,
         zIndex: -1,
-        bottom: 0,
         transform: theme.direction === ThemeDirection.RTL ? 'rotate(180deg)' : 'inherit',
-        height: 'calc(100vh - 175px)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
+        display: 'grid',
+        placeItems: 'center',
+        background: `linear-gradient(135deg, ${colors.ivory} 0%, ${theme.palette.background.paper} 45%, ${colors.ivory} 100%)`,
+        overflow: 'hidden'
       }}
     >
-      <img 
-        src={logoImage} 
-        alt="Otj Background" 
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          opacity: 0.3
-        }}
-      />
+
+      {/* faixa diagonal navy translúcida para dar profundidade */}
+      <Box sx={{
+        position: 'absolute',
+        right: '-20vw',
+        top: 0,
+        width: '70vw',
+        height: '100%',
+        transform: 'skewX(-15deg)',
+        background: `${colors.navy}10`,
+        display: { xs: 'none', md: 'block' }
+      }} />
     </Box>
   );
 }
