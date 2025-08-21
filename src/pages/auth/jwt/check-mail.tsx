@@ -11,22 +11,22 @@ import useAuth from 'hooks/useAuth';
 import AnimateButton from 'components/@extended/AnimateButton';
 import AuthWrapper from 'sections/auth/AuthWrapper';
 
-// ================================|| JWT - CHECK MAIL ||================================ //
+// ================================|| JWT - VERIFICAR E-MAIL ||================================ //
 
 export default function CheckMail() {
   const { isLoggedIn } = useAuth();
 
   const [searchParams] = useSearchParams();
-  const auth = searchParams.get('auth'); // get auth and set route based on that
+  const auth = searchParams.get('auth'); // pega auth e define a rota baseada nisso
 
   return (
     <AuthWrapper>
       <Grid container spacing={3}>
         <Grid size={12}>
           <Box sx={{ mb: { xs: -0.5, sm: 0.5 } }}>
-            <Typography variant="h3">Hi, Check Your Mail</Typography>
+            <Typography variant="h3">Olá, verifique seu e-mail</Typography>
             <Typography color="secondary" sx={{ mb: 0.5, mt: 1.25 }}>
-              We have sent a password recover instructions to your email.
+              Enviamos as instruções de recuperação de senha para o seu e-mail.
             </Typography>
           </Box>
         </Grid>
@@ -42,7 +42,7 @@ export default function CheckMail() {
               variant="contained"
               color="primary"
             >
-              Sign in
+              Entrar
             </Button>
           </AnimateButton>
         </Grid>

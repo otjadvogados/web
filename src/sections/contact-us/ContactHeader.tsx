@@ -14,7 +14,7 @@ import { ThemeDirection } from 'config';
 // assets
 import worldMap from 'assets/images/contact/worldMap.png';
 
-// ==============================|| CONTACT US - HEADER ||============================== //
+// ==============================|| CONTATO - CABEÇALHO ||============================== //
 
 export default function ContactHeader() {
   const downSM = useMediaQuery((theme) => theme.breakpoints.down('sm'));
@@ -65,9 +65,9 @@ export default function ContactHeader() {
                   ...theme.applyStyles('dark', { color: 'text.primary' })
                 })}
               >
-                Talk to our{' '}
+                Fale com nosso{' '}
                 <Typography variant="h2" component="span" color="primary" sx={{ cursor: 'pointer' }}>
-                  Expert
+                  Especialista
                 </Typography>
               </Typography>
               <Typography color="text.secondary" sx={{ textAlign: downSM ? 'center' : 'left' }}>
@@ -76,7 +76,7 @@ export default function ContactHeader() {
             </Stack>
           </Box>
           <Box sx={{ width: { xs: 320, sm: 320, md: 500, lg: 600 } }}>
-            <CardMedia component="img" src={worldMap} alt="mantis" />
+            <CardMedia component="img" src={worldMap} alt="otj" />
           </Box>
         </Stack>
       </Container>

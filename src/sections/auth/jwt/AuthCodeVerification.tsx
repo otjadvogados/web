@@ -14,20 +14,20 @@ import OtpInput from 'react-otp-input';
 // project imports
 import AnimateButton from 'components/@extended/AnimateButton';
 
-// ============================|| JWT - CODE VERIFICATION ||============================ //
+// ============================|| JWT - VERIFICAÇÃO DE CÓDIGO ||============================ //
 
 export default function AuthCodeVerification() {
   return (
     <Formik
       initialValues={{ otp: '' }}
       validationSchema={Yup.object({
-        otp: Yup.string().length(4, 'OTP must be exactly 4 digits').required('OTP is required')
+        otp: Yup.string().length(4, 'O código deve ter exatamente 4 dígitos').required('O código é obrigatório')
       })}
       onSubmit={(values, { resetForm }) => {
         resetForm();
         console.log(values);
 
-        // reset focus after submission
+        // remove o foco após o envio
         const activeElement = document.activeElement as HTMLElement | null;
         if (activeElement) activeElement.blur();
       }}
@@ -93,15 +93,15 @@ export default function AuthCodeVerification() {
             <Grid size={12}>
               <AnimateButton>
                 <Button disableElevation fullWidth size="large" type="submit" variant="contained">
-                  Continue
+                  Continuar
                 </Button>
               </AnimateButton>
             </Grid>
             <Grid size={12}>
               <Stack direction="row" sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <Typography>Did not receive the email? Check your spam filter, or</Typography>
+                <Typography>Não recebeu o e-mail? Verifique sua caixa de spam ou</Typography>
                 <Typography variant="body1" sx={{ minWidth: 85, ml: 2, textDecoration: 'none', cursor: 'pointer' }} color="primary">
-                  Resend code
+                  Reenviar código
                 </Typography>
               </Stack>
             </Grid>

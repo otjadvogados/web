@@ -35,7 +35,7 @@ import { StringColorProps } from 'types/password';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
 import EyeInvisibleOutlined from '@ant-design/icons/EyeInvisibleOutlined';
 
-// ============================|| JWT - REGISTER ||============================ //
+// ============================|| JWT - REGISTRO ||============================ //
 
 export default function AuthRegister() {
   const { register } = useAuth();
@@ -76,13 +76,13 @@ export default function AuthRegister() {
           submit: null
         }}
         validationSchema={Yup.object().shape({
-          firstname: Yup.string().max(255).required('First Name is required'),
-          lastname: Yup.string().max(255).required('Last Name is required'),
-          email: Yup.string().email('Must be a valid email').max(255).required('Email is required'),
+          firstname: Yup.string().max(255).required('O primeiro nome é obrigatório'),
+          lastname: Yup.string().max(255).required('O sobrenome é obrigatório'),
+          email: Yup.string().email('Deve ser um e-mail válido').max(255).required('O e-mail é obrigatório'),
           password: Yup.string()
-            .required('Password is required')
-            .test('no-leading-trailing-whitespace', 'Password cannot start or end with spaces', (value) => value === value.trim())
-            .max(32, 'Password must be less than 32 characters')
+            .required('A senha é obrigatória')
+            .test('no-leading-trailing-whitespace', 'A senha não pode começar ou terminar com espaços', (value) => value === value.trim())
+            .max(32, 'A senha deve ter no máximo 32 caracteres')
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
@@ -93,7 +93,7 @@ export default function AuthRegister() {
               setSubmitting(false);
               openSnackbar({
                 open: true,
-                message: 'Your registration has been successfully completed.',
+                message: 'Seu cadastro foi concluído com sucesso.',
                 variant: 'alert',
                 alert: {
                   color: 'success'
@@ -117,7 +117,7 @@ export default function AuthRegister() {
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="firstname-signup">First Name*</InputLabel>
+                  <InputLabel htmlFor="firstname-signup">Primeiro Nome*</InputLabel>
                   <OutlinedInput
                     id="firstname-login"
                     type="firstname"
@@ -125,7 +125,7 @@ export default function AuthRegister() {
                     name="firstname"
                     onBlur={handleBlur}
                     onChange={handleChange}
-                    placeholder="John"
+                    placeholder="João"
                     fullWidth
                     error={Boolean(touched.firstname && errors.firstname)}
                   />
@@ -138,7 +138,7 @@ export default function AuthRegister() {
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="lastname-signup">Last Name*</InputLabel>
+                  <InputLabel htmlFor="lastname-signup">Sobrenome*</InputLabel>
                   <OutlinedInput
                     fullWidth
                     error={Boolean(touched.lastname && errors.lastname)}
@@ -148,7 +148,7 @@ export default function AuthRegister() {
                     name="lastname"
                     onBlur={handleBlur}
                     onChange={handleChange}
-                    placeholder="Doe"
+                    placeholder="Silva"
                   />
                 </Stack>
                 {touched.lastname && errors.lastname && (
@@ -159,7 +159,7 @@ export default function AuthRegister() {
               </Grid>
               <Grid size={12}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="company-signup">Company</InputLabel>
+                  <InputLabel htmlFor="company-signup">Empresa</InputLabel>
                   <OutlinedInput
                     fullWidth
                     error={Boolean(touched.company && errors.company)}
@@ -168,7 +168,7 @@ export default function AuthRegister() {
                     name="company"
                     onBlur={handleBlur}
                     onChange={handleChange}
-                    placeholder="Demo Inc."
+                    placeholder="Exemplo Ltda."
                   />
                 </Stack>
                 {touched.company && errors.company && (
@@ -179,7 +179,7 @@ export default function AuthRegister() {
               </Grid>
               <Grid size={12}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="email-signup">Email Address*</InputLabel>
+                  <InputLabel htmlFor="email-signup">Endereço de e-mail*</InputLabel>
                   <OutlinedInput
                     fullWidth
                     error={Boolean(touched.email && errors.email)}
@@ -189,7 +189,7 @@ export default function AuthRegister() {
                     name="email"
                     onBlur={handleBlur}
                     onChange={handleChange}
-                    placeholder="demo@company.com"
+                    placeholder="exemplo@empresa.com"
                   />
                 </Stack>
                 {touched.email && errors.email && (
@@ -200,7 +200,7 @@ export default function AuthRegister() {
               </Grid>
               <Grid size={12}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="password-signup">Password</InputLabel>
+                  <InputLabel htmlFor="password-signup">Senha</InputLabel>
                   <OutlinedInput
                     fullWidth
                     error={Boolean(touched.password && errors.password)}
@@ -216,7 +216,7 @@ export default function AuthRegister() {
                     endAdornment={
                       <InputAdornment position="end">
                         <IconButton
-                          aria-label="toggle password visibility"
+                          aria-label="alternar visibilidade da senha"
                           onClick={handleClickShowPassword}
                           onMouseDown={handleMouseDownPassword}
                           edge="end"
@@ -249,13 +249,13 @@ export default function AuthRegister() {
               </Grid>
               <Grid size={12}>
                 <Typography variant="body2">
-                  By Signing up, you agree to our &nbsp;
+                  Ao se cadastrar, você concorda com os nossos &nbsp;
                   <Link variant="subtitle2" component={RouterLink} to="#">
-                    Terms of Service
+                    Termos de Serviço
                   </Link>
-                  &nbsp; and &nbsp;
+                  &nbsp; e com a &nbsp;
                   <Link variant="subtitle2" component={RouterLink} to="#">
-                    Privacy Policy
+                    Política de Privacidade
                   </Link>
                 </Typography>
               </Grid>
@@ -267,7 +267,7 @@ export default function AuthRegister() {
               <Grid size={12}>
                 <AnimateButton>
                   <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="primary">
-                    Create Account
+                    Criar Conta
                   </Button>
                 </AnimateButton>
               </Grid>

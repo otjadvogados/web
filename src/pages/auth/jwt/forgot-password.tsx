@@ -10,20 +10,20 @@ import useAuth from 'hooks/useAuth';
 import AuthWrapper from 'sections/auth/AuthWrapper';
 import AuthForgotPassword from 'sections/auth/jwt/AuthForgotPassword';
 
-// ================================|| JWT - FORGOT PASSWORD ||================================ //
+// ================================|| JWT - ESQUECI MINHA SENHA ||================================ //
 
 export default function ForgotPassword() {
   const { isLoggedIn } = useAuth();
 
   const [searchParams] = useSearchParams();
-  const auth = searchParams.get('auth'); // get auth and set route based on that
+  const auth = searchParams.get('auth'); // pega auth e define a rota baseada nisso
 
   return (
     <AuthWrapper>
       <Grid container spacing={3}>
         <Grid size={12}>
           <Stack direction="row" sx={{ alignItems: 'baseline', justifyContent: 'space-between', mb: { xs: -0.5, sm: 0.5 } }}>
-            <Typography variant="h3">Forgot Password</Typography>
+            <Typography variant="h3">Esqueci Minha Senha</Typography>
             <Typography
               component={Link}
               to={isLoggedIn ? '/auth/login' : auth ? `/${auth}/login?auth=jwt` : '/login'}
@@ -31,7 +31,7 @@ export default function ForgotPassword() {
               sx={{ textDecoration: 'none' }}
               color="primary"
             >
-              Back to Login
+              Voltar para o Login
             </Typography>
           </Stack>
         </Grid>

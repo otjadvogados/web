@@ -33,7 +33,7 @@ import { StringColorProps } from 'types/password';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
 import EyeInvisibleOutlined from '@ant-design/icons/EyeInvisibleOutlined';
 
-// ============================|| JWT - RESET PASSWORD ||============================ //
+// ============================|| JWT - REDEFINIR SENHA ||============================ //
 
 export default function AuthResetPassword() {
   const navigate = useNavigate();
@@ -56,7 +56,7 @@ export default function AuthResetPassword() {
   };
 
   const [searchParams] = useSearchParams();
-  const auth = searchParams.get('auth'); // get auth and set route based on that
+  const auth = searchParams.get('auth'); // pega auth e define rota baseado nisso
 
   useEffect(() => {
     changePassword('');
@@ -70,19 +70,19 @@ export default function AuthResetPassword() {
         submit: null
       }}
       validationSchema={Yup.object().shape({
-        password: Yup.string().max(255).required('Password is required'),
+        password: Yup.string().max(255).required('A senha é obrigatória'),
         confirmPassword: Yup.string()
-          .required('Confirm Password is required')
-          .test('confirmPassword', 'Both Password must be match!', (confirmPassword, yup) => yup.parent.password === confirmPassword)
+          .required('A confirmação de senha é obrigatória')
+          .test('confirmPassword', 'As senhas devem ser iguais!', (confirmPassword, yup) => yup.parent.password === confirmPassword)
       })}
       onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
         try {
-          // password reset
+          // redefinição de senha
           setStatus({ success: true });
           setSubmitting(false);
           openSnackbar({
             open: true,
-            message: 'Successfully reset password.',
+            message: 'Senha redefinida com sucesso.',
             variant: 'alert',
             alert: {
               color: 'success'
@@ -105,7 +105,7 @@ export default function AuthResetPassword() {
           <Grid container spacing={3}>
             <Grid size={12}>
               <Stack sx={{ gap: 1 }}>
-                <InputLabel htmlFor="password-reset">Password</InputLabel>
+                <InputLabel htmlFor="password-reset">Senha</InputLabel>
                 <OutlinedInput
                   fullWidth
                   error={Boolean(touched.password && errors.password)}
@@ -121,7 +121,7 @@ export default function AuthResetPassword() {
                   endAdornment={
                     <InputAdornment position="end">
                       <IconButton
-                        aria-label="toggle password visibility"
+                        aria-label="alternar visibilidade da senha"
                         onClick={handleClickShowPassword}
                         onMouseDown={handleMouseDownPassword}
                         edge="end"
@@ -131,7 +131,7 @@ export default function AuthResetPassword() {
                       </IconButton>
                     </InputAdornment>
                   }
-                  placeholder="Enter password"
+                  placeholder="Digite sua senha"
                 />
               </Stack>
               {touched.password && errors.password && (
@@ -154,7 +154,7 @@ export default function AuthResetPassword() {
             </Grid>
             <Grid size={12}>
               <Stack sx={{ gap: 1 }}>
-                <InputLabel htmlFor="confirm-password-reset">Confirm Password</InputLabel>
+                <InputLabel htmlFor="confirm-password-reset">Confirmar Senha</InputLabel>
                 <OutlinedInput
                   fullWidth
                   error={Boolean(touched.confirmPassword && errors.confirmPassword)}
@@ -164,7 +164,7 @@ export default function AuthResetPassword() {
                   name="confirmPassword"
                   onBlur={handleBlur}
                   onChange={handleChange}
-                  placeholder="Enter confirm password"
+                  placeholder="Digite a confirmação da senha"
                 />
               </Stack>
               {touched.confirmPassword && errors.confirmPassword && (
@@ -182,7 +182,7 @@ export default function AuthResetPassword() {
             <Grid size={12}>
               <AnimateButton>
                 <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="primary">
-                  Reset Password
+                  Redefinir Senha
                 </Button>
               </AnimateButton>
             </Grid>

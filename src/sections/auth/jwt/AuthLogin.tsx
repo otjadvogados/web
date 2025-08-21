@@ -3,8 +3,6 @@ import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 
 // material-ui
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import FormHelperText from '@mui/material/FormHelperText';
 import Grid from '@mui/material/Grid';
 import Link from '@mui/material/Link';
@@ -34,8 +32,6 @@ import EyeInvisibleOutlined from '@ant-design/icons/EyeInvisibleOutlined';
 // ============================|| JWT - LOGIN ||============================ //
 
 export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
-  const [checked, setChecked] = React.useState(false);
-
   const { login } = useAuth();
 
   const [showPassword, setShowPassword] = React.useState(false);
@@ -59,11 +55,11 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
           submit: null
         }}
         validationSchema={Yup.object().shape({
-          email: Yup.string().email('Must be a valid email').max(255).required('Email is required'),
+          email: Yup.string().email('Deve ser um e-mail válido').max(255).required('O e-mail é obrigatório'),
           password: Yup.string()
-            .required('Password is required')
-            .test('no-leading-trailing-whitespace', 'Password cannot start or end with spaces', (value) => value === value.trim())
-            .max(32, 'Password must be less than 32 characters')
+            .required('A senha é obrigatória')
+            .test('no-leading-trailing-whitespace', 'A senha não pode começar ou terminar com espaços', (value) => value === value.trim())
+            .max(32, 'A senha deve ter no máximo 32 caracteres')
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
@@ -85,7 +81,7 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
             <Grid container spacing={3}>
               <Grid size={12}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="email-login">Email Address</InputLabel>
+                  <InputLabel htmlFor="email-login">Endereço de e-mail</InputLabel>
                   <OutlinedInput
                     id="email-login"
                     type="email"
@@ -93,7 +89,7 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
                     name="email"
                     onBlur={handleBlur}
                     onChange={handleChange}
-                    placeholder="Enter email address"
+                    placeholder="Digite seu e-mail"
                     fullWidth
                     error={Boolean(touched.email && errors.email)}
                   />
@@ -106,7 +102,7 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
               </Grid>
               <Grid size={12}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="password-login">Password</InputLabel>
+                  <InputLabel htmlFor="password-login">Senha</InputLabel>
                   <OutlinedInput
                     fullWidth
                     error={Boolean(touched.password && errors.password)}
@@ -119,7 +115,7 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
                     endAdornment={
                       <InputAdornment position="end">
                         <IconButton
-                          aria-label="toggle password visibility"
+                          aria-label="alternar visibilidade da senha"
                           onClick={handleClickShowPassword}
                           onMouseDown={handleMouseDownPassword}
                           edge="end"
@@ -129,7 +125,7 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
                         </IconButton>
                       </InputAdornment>
                     }
-                    placeholder="Enter password"
+                    placeholder="Digite sua senha"
                   />
                 </Stack>
                 {touched.password && errors.password && (
@@ -139,26 +135,14 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
                 )}
               </Grid>
               <Grid sx={{ mt: -1 }} size={12}>
-                <Stack direction="row" sx={{ gap: 2, alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={checked}
-                        onChange={(event) => setChecked(event.target.checked)}
-                        name="checked"
-                        color="primary"
-                        size="small"
-                      />
-                    }
-                    label={<Typography variant="h6">Keep me sign in</Typography>}
-                  />
+                <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
                   <Link
                     variant="h6"
                     component={RouterLink}
                     to={isDemo ? '/auth/forgot-password' : auth ? `/${auth}/forgot-password?auth=jwt` : '/forgot-password'}
                     color="text.primary"
                   >
-                    Forgot Password?
+                    Esqueceu sua senha?
                   </Link>
                 </Stack>
               </Grid>
@@ -170,7 +154,7 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
               <Grid size={12}>
                 <AnimateButton>
                   <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="primary">
-                    Login
+                    Entrar
                   </Button>
                 </AnimateButton>
               </Grid>

@@ -18,7 +18,7 @@ import MainCard from 'components/MainCard';
 // assets
 import coming from 'assets/images/maintenance/coming-soon.png';
 
-// ==============================|| COMING SOON - TIMER ||============================== //
+// ==============================|| EM BREVE - TIMER ||============================== //
 
 const TimerBox = ({ count, label }: { count: number; label: string }) => {
   const downSM = useMediaQuery((theme: Theme) => theme.breakpoints.down('sm'));
@@ -39,7 +39,7 @@ const TimerBox = ({ count, label }: { count: number; label: string }) => {
   );
 };
 
-// ==============================|| COMING SOON - MAIN ||============================== //
+// ==============================|| EM BREVE - PRINCIPAL ||============================== //
 
 export default function ComingSoon() {
   const time = new Date();
@@ -52,36 +52,36 @@ export default function ComingSoon() {
       <Grid size={12}>
         <Stack sx={{ gap: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Box sx={{ height: { xs: 310, sm: 420 }, width: { xs: 360, sm: 'auto' }, my: 2 }}>
-            <CardMedia component="img" src={coming} alt="mantis" sx={{ height: 1 }} />
+            <CardMedia component="img" src={coming} alt="otj" sx={{ height: 1 }} />
           </Box>
           <Typography align="center" variant="h1">
-            Coming Soon
+            Em Breve
           </Typography>
           <Typography align="center" color="text.secondary">
-            Something new is on its way
+            Algo novo está a caminho
           </Typography>
         </Stack>
       </Grid>
       <Grid sx={{ width: { xs: '95%', md: '40%' } }} size={12}>
         <Stack direction="row" sx={{ gap: { xs: 1, sm: 2 }, alignItems: 'center', justifyContent: 'center' }}>
-          <TimerBox count={days} label="day" />
+          <TimerBox count={days} label="dias" />
           <Typography variant="h1"> : </Typography>
-          <TimerBox count={hours} label="hour" />
+          <TimerBox count={hours} label="horas" />
           <Typography variant="h1"> : </Typography>
           <TimerBox count={minutes} label="min" />
           <Typography variant="h1"> : </Typography>
-          <TimerBox count={seconds} label="sec" />
+          <TimerBox count={seconds} label="seg" />
         </Stack>
       </Grid>
       <Grid sx={{ width: { xs: 340, md: '40%', lg: '30%' } }} size={12}>
         <Stack sx={{ gap: 2, mt: 2 }}>
           <Typography align="center" color="text.secondary">
-            Be the first to be notified when Mantis launches.
+            Seja o primeiro a ser notificado quando a OTJ for lançada.
           </Typography>
           <Stack direction="row" sx={{ gap: 1 }}>
-            <TextField fullWidth placeholder="Email Address" />
+            <TextField fullWidth placeholder="Endereço de e-mail" />
             <Button variant="contained" sx={{ width: '50%' }}>
-              Notify Me
+              Notifique-me
             </Button>
           </Stack>
         </Stack>

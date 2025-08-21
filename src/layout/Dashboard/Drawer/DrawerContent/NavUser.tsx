@@ -51,7 +51,6 @@ const ExpandMore = styled(IconButton, {
 
 export default function NavUser() {
   const navigate = useNavigate();
-
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
 
@@ -59,11 +58,7 @@ export default function NavUser() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate(`/`, {
-        state: {
-          from: ''
-        }
-      });
+      navigate(`/`, { state: { from: '' } });
     } catch (err) {
       console.error(err);
     }
@@ -93,7 +88,7 @@ export default function NavUser() {
               aria-haspopup="true"
               aria-expanded={open ? 'true' : undefined}
               onClick={handleClick}
-              aria-label="show more"
+              aria-label="mostrar mais"
             >
               <RightOutlined style={{ fontSize: '0.625rem' }} />
             </ExpandMore>
@@ -103,7 +98,7 @@ export default function NavUser() {
           <ListItemAvatar>
             <Avatar alt="Avatar" src={avatar1} sx={{ ...(drawerOpen && { width: 46, height: 46 }) }} />
           </ListItemAvatar>
-          <ListItemText primary={user?.name} secondary="UI/UX Designer" />
+          <ListItemText primary={user?.name} secondary="Designer UI/UX" />
         </ListItem>
       </List>
       <Menu
@@ -115,12 +110,12 @@ export default function NavUser() {
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <MenuItem onClick={handleLogout}>Logout</MenuItem>
+        <MenuItem onClick={handleLogout}>Sair</MenuItem>
         <MenuItem component={Link} to="#!" onClick={handleClose}>
-          Profile
+          Perfil
         </MenuItem>
         <MenuItem component={Link} to="#!" onClick={handleClose}>
-          My account
+          Minha conta
         </MenuItem>
       </Menu>
     </Box>

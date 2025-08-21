@@ -10,7 +10,7 @@ import useAuth from 'hooks/useAuth';
 import AuthWrapper from 'sections/auth/AuthWrapper';
 import AuthLogin from 'sections/auth/jwt/AuthLogin';
 
-// ================================|| JWT - LOGIN ||================================ //
+// ================================|| JWT - ENTRAR ||================================ //
 
 export default function Login() {
   const { isLoggedIn } = useAuth();
@@ -23,8 +23,7 @@ export default function Login() {
       <Grid container spacing={3}>
         <Grid size={12}>
           <Stack direction="row" sx={{ alignItems: 'baseline', justifyContent: 'space-between', mb: { xs: -0.5, sm: 0.5 } }}>
-            <Typography variant="h3">Login</Typography>
-
+            <Typography variant="h3">Entrar</Typography>
           </Stack>
         </Grid>
         <Grid size={12}>

@@ -58,7 +58,7 @@ export default function MegaMenuSection() {
           bgcolor: open ? 'grey.100' : 'transparent',
           ...theme.applyStyles('dark', { bgcolor: open ? 'background.default' : 'transparent' })
         })}
-        aria-label="open profile"
+        aria-label="abrir perfil"
         ref={anchorRef}
         aria-controls={open ? 'profile-grow' : undefined}
         aria-haspopup="true"
@@ -110,10 +110,10 @@ export default function MegaMenuSection() {
                       <Box sx={{ p: 4.5, pb: 3 }}>
                         <Stack sx={(theme) => ({ color: 'background.paper', ...theme.applyStyles('dark', { color: 'text.primary' }) })}>
                           <Typography variant="h2" sx={{ fontSize: '1.875rem', mb: 1 }}>
-                            Explore Components
+                            Explore Componentes
                           </Typography>
                           <Typography variant="h6">
-                            Try our pre made component pages to check how it feels and suits as per your need.
+                            Experimente nossas páginas de componentes prontas para verificar como elas se adaptam às suas necessidades.
                           </Typography>
                           <Stack direction="row" sx={{ alignItems: 'flex-end', justifyContent: 'space-between', mt: -1 }}>
                             <AnimateButton>
@@ -130,10 +130,10 @@ export default function MegaMenuSection() {
                                 to="#!"
                                 target="_blank"
                               >
-                                View All
+                                Ver Todos
                               </Button>
                             </AnimateButton>
-                            <CardMedia component="img" src={imageChart} alt="Chart" sx={{ mr: -2.5, mb: -2.5, width: 124 }} />
+                            <CardMedia component="img" src={imageChart} alt="Gráfico" sx={{ mr: -2.5, mb: -2.5, width: 124 }} />
                           </Stack>
                         </Stack>
                       </Box>
@@ -158,7 +158,7 @@ export default function MegaMenuSection() {
                               subheader={
                                 <ListSubheader id="nested-list-user">
                                   <Typography variant="subtitle1" color="text.primary">
-                                    Authentication
+                                    Autenticação
                                   </Typography>
                                 </ListSubheader>
                               }
@@ -167,26 +167,26 @@ export default function MegaMenuSection() {
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Login" />
+                                <ListItemText primary="Entrar" />
                               </ListItemButton>
-              
+  
                               <ListItemButton disableRipple component={Link} target="_blank" to="/reset-password">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Reset Password" />
+                                <ListItemText primary="Redefinir Senha" />
                               </ListItemButton>
                               <ListItemButton disableRipple component={Link} target="_blank" to="/forgot-password">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Forgot Password" />
+                                <ListItemText primary="Esqueci a Senha" />
                               </ListItemButton>
                               <ListItemButton disableRipple component={Link} target="_blank" to="/code-verification">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Verification Code" />
+                                <ListItemText primary="Código de Verificação" />
                               </ListItemButton>
                             </List>
                           </Grid>
@@ -197,7 +197,7 @@ export default function MegaMenuSection() {
                               subheader={
                                 <ListSubheader id="nested-list-user">
                                   <Typography variant="subtitle1" color="text.primary">
-                                    Other Pages
+                                    Outras Páginas
                                   </Typography>
                                 </ListSubheader>
                               }
@@ -206,37 +206,37 @@ export default function MegaMenuSection() {
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="About us" />
+                                <ListItemText primary="Sobre nós" />
                               </ListItemButton>
                               <ListItemButton disableRipple component={Link} target="_blank" to="/contact-us">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Contact us" />
+                                <ListItemText primary="Contato" />
                               </ListItemButton>
                               <ListItemButton disableRipple component={Link} to="#!">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Pricing" />
+                                <ListItemText primary="Preços" />
                               </ListItemButton>
                               <ListItemButton disableRipple component={Link} to="#!">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Payment" />
+                                <ListItemText primary="Pagamento" />
                               </ListItemButton>
                               <ListItemButton disableRipple component={Link} target="_blank" to="/maintenance/under-construction">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Construction" />
+                                <ListItemText primary="Em Construção" />
                               </ListItemButton>
                               <ListItemButton disableRipple component={Link} target="_blank" to="/maintenance/coming-soon">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Coming Soon" />
+                                <ListItemText primary="Em Breve" />
                               </ListItemButton>
                             </List>
                           </Grid>
@@ -247,7 +247,7 @@ export default function MegaMenuSection() {
                               subheader={
                                 <ListSubheader id="nested-list-user">
                                   <Typography variant="subtitle1" color="text.primary">
-                                    SAAS Pages
+                                    Páginas SAAS
                                   </Typography>
                                 </ListSubheader>
                               }
@@ -256,13 +256,13 @@ export default function MegaMenuSection() {
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="404 Error" />
+                                <ListItemText primary="Erro 404" />
                               </ListItemButton>
                               <ListItemButton disableRipple component={Link} to="#!">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
                                 </ListItemIcon>
-                                <ListItemText primary="Landing" />
+                                <ListItemText primary="Landing Page" />
                               </ListItemButton>
                             </List>
                           </Grid>

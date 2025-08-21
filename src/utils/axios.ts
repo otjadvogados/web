@@ -11,7 +11,7 @@ const axiosServices = axios.create({
 // ---------- Helpers
 const getLang = () => {
   try {
-    const cfg = localStorage.getItem('mantis-react-ts-config');
+    const cfg = localStorage.getItem('otj-react-ts-config');
     if (cfg) {
       const parsed = JSON.parse(cfg);
       return parsed?.i18n || import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';

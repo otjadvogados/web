@@ -5,7 +5,7 @@ import Box from '@mui/material/Box';
 // project imports
 import MainCard, { MainCardProps } from 'components/MainCard';
 
-// ==============================|| AUTHENTICATION - CARD WRAPPER ||============================== //
+// ==============================|| AUTENTICAÇÃO - ENVOLTÓRIO DO CARD ||============================== //
 
 export default function AuthCard({ children, ...other }: MainCardProps) {
   const theme = useTheme();

@@ -21,7 +21,7 @@ import { openSnackbar } from 'api/snackbar';
 // types
 import { SnackbarProps } from 'types/snackbar';
 
-// ============================|| JWT - FORGOT PASSWORD ||============================ //
+// ============================|| JWT - ESQUECI MINHA SENHA ||============================ //
 
 export default function AuthForgotPassword() {
   const navigate = useNavigate();
@@ -39,7 +39,7 @@ export default function AuthForgotPassword() {
           submit: null
         }}
         validationSchema={Yup.object().shape({
-          email: Yup.string().email('Must be a valid email').max(255).required('Email is required')
+          email: Yup.string().email('Deve ser um e-mail válido').max(255).required('O e-mail é obrigatório')
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
@@ -49,7 +49,7 @@ export default function AuthForgotPassword() {
                 setSubmitting(false);
                 openSnackbar({
                   open: true,
-                  message: 'Check mail for reset password link',
+                  message: 'Verifique seu e-mail para o link de redefinição de senha',
                   variant: 'alert',
                   alert: {
                     color: 'success'
@@ -59,10 +59,10 @@ export default function AuthForgotPassword() {
                   navigate(isLoggedIn ? '/auth/check-mail' : auth ? `/${auth}/check-mail?auth=jwt` : '/check-mail', { replace: true });
                 }, 1500);
 
-                // WARNING: do not set any formik state here as formik might be already destroyed here. You may get following error by doing so.
-                // Warning: Can't perform a React state update on an unmounted component. This is a no-op, but it indicates a memory leak in your application.
-                // To fix, cancel all subscriptions and asynchronous tasks in a useEffect cleanup function.
-                // github issue: https://github.com/formium/formik/issues/2430
+                // AVISO: não defina nenhum estado do formik aqui, pois o formik já pode ter sido destruído.
+                // Isso pode gerar o erro: "Warning: Can't perform a React state update on an unmounted component."
+                // Para corrigir, cancele assinaturas e tarefas assíncronas em um cleanup do useEffect.
+                // Issue: https://github.com/formium/formik/issues/2430
               },
               (err: any) => {
                 setStatus({ success: false });
@@ -83,7 +83,7 @@ export default function AuthForgotPassword() {
             <Grid container spacing={3}>
               <Grid size={12}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="email-forgot">Email Address</InputLabel>
+                  <InputLabel htmlFor="email-forgot">Endereço de e-mail</InputLabel>
                   <OutlinedInput
                     fullWidth
                     error={Boolean(touched.email && errors.email)}
@@ -93,7 +93,7 @@ export default function AuthForgotPassword() {
                     name="email"
                     onBlur={handleBlur}
                     onChange={handleChange}
-                    placeholder="Enter email address"
+                    placeholder="Digite seu e-mail"
                   />
                 </Stack>
                 {touched.email && errors.email && (
@@ -108,12 +108,12 @@ export default function AuthForgotPassword() {
                 </Grid>
               )}
               <Grid sx={{ mb: -2 }} size={12}>
-                <Typography variant="caption">Do not forgot to check SPAM box.</Typography>
+                <Typography variant="caption">Não esqueça de verificar sua caixa de SPAM.</Typography>
               </Grid>
               <Grid size={12}>
                 <AnimateButton>
                   <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="primary">
-                    Send Password Reset Email
+                    Enviar e-mail de redefinição de senha
                   </Button>
                 </AnimateButton>
               </Grid>

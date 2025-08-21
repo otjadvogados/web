@@ -24,7 +24,7 @@ interface Props {
   children: ReactElement;
 }
 
-// ==============================|| AUTHENTICATION - WRAPPER ||============================== //
+// ==============================|| AUTENTICAÇÃO - ENVOLTÓRIO ||============================== //
 
 export default function AuthWrapper({ children }: Props) {
   const { isLoggedIn } = useAuth();
@@ -52,19 +52,18 @@ export default function AuthWrapper({ children }: Props) {
               {!isLoggedIn && authParam && (
                 <Box sx={{ maxWidth: { xs: 400, lg: 475 }, margin: { xs: 2.5, md: 3 }, '& > *': { flexGrow: 1, flexBasis: '50%' } }}>
                   <Alert variant="border" color="primary" icon={<ExclamationCircleOutlined />}>
-                    <Typography variant="h5">View Only</Typography>
+                    <Typography variant="h5">Somente Visualização</Typography>
                     <Typography variant="h6">
-                      This page is view-only. To make it fully functional, please read the documentation provided{' '}
+                      Esta página está em modo de visualização. Para torná-la totalmente funcional, leia a documentação disponível{' '}
                       <Link href={documentationLink} target="_blank">
-                        here
+                        aqui
                       </Link>{' '}
-                      after purchasing the theme.
+                      após adquirir o tema.
                     </Typography>
                   </Alert>
                 </Box>
               )}
               <AuthCard>{children}</AuthCard>
-
             </Grid>
           </Grid>
         </Grid>

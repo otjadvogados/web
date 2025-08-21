@@ -45,7 +45,7 @@ const actionSX = {
   transform: 'none'
 };
 
-// ==============================|| HEADER CONTENT - NOTIFICATION ||============================== //
+// ==============================|| HEADER CONTENT - NOTIFICAÇÕES ||============================== //
 
 export default function Notification() {
   const downMD = useMediaQuery((theme) => theme.breakpoints.down('md'));
@@ -74,7 +74,7 @@ export default function Notification() {
           bgcolor: open ? 'grey.100' : 'transparent',
           ...theme.applyStyles('dark', { bgcolor: open ? 'background.default' : 'transparent' })
         })}
-        aria-label="open profile"
+        aria-label="abrir notificações"
         ref={anchorRef}
         aria-controls={open ? 'profile-grow' : undefined}
         aria-haspopup="true"
@@ -98,14 +98,14 @@ export default function Notification() {
             <Paper sx={(theme) => ({ boxShadow: theme.customShadows.z1, width: '100%', minWidth: 285, maxWidth: { xs: 285, md: 420 } })}>
               <ClickAwayListener onClickAway={handleClose}>
                 <MainCard
-                  title="Notification"
+                  title="Notificações"
                   elevation={0}
                   border={false}
                   content={false}
                   secondary={
                     <>
                       {read > 0 && (
-                        <Tooltip title="Mark as all read">
+                        <Tooltip title="Marcar todas como lidas">
                           <IconButton color="success" size="small" onClick={() => setRead(0)}>
                             <CheckCircleOutlined style={{ fontSize: '1.15rem' }} />
                           </IconButton>
@@ -133,7 +133,7 @@ export default function Notification() {
                       selected={read > 0}
                       secondaryAction={
                         <Typography variant="caption" noWrap>
-                          3:00 AM
+                          3:00
                         </Typography>
                       }
                     >
@@ -145,14 +145,14 @@ export default function Notification() {
                       <ListItemText
                         primary={
                           <Typography variant="h6">
-                            It&apos;s{' '}
+                            Hoje é aniversário de{' '}
                             <Typography component="span" variant="subtitle1">
-                              Cristina danny&apos;s
-                            </Typography>{' '}
-                            birthday today.
+                              Cristina Danny
+                            </Typography>
+                            .
                           </Typography>
                         }
-                        secondary="2 min ago"
+                        secondary="há 2 min"
                       />
                     </ListItem>
                     <ListItem
@@ -160,7 +160,7 @@ export default function Notification() {
                       divider
                       secondaryAction={
                         <Typography variant="caption" noWrap>
-                          6:00 AM
+                          6:00
                         </Typography>
                       }
                     >
@@ -175,10 +175,10 @@ export default function Notification() {
                             <Typography component="span" variant="subtitle1">
                               Aida Burg
                             </Typography>{' '}
-                            commented your post.
+                            comentou no seu post.
                           </Typography>
                         }
-                        secondary="5 August"
+                        secondary="5 de Agosto"
                       />
                     </ListItem>
                     <ListItem
@@ -187,7 +187,7 @@ export default function Notification() {
                       selected={read > 0}
                       secondaryAction={
                         <Typography variant="caption" noWrap>
-                          2:45 PM
+                          14:45
                         </Typography>
                       }
                     >
@@ -199,13 +199,13 @@ export default function Notification() {
                       <ListItemText
                         primary={
                           <Typography variant="h6">
-                            Your Profile is Complete &nbsp;
+                            Seu perfil está completo em &nbsp;
                             <Typography component="span" variant="subtitle1">
                               60%
-                            </Typography>{' '}
+                            </Typography>
                           </Typography>
                         }
-                        secondary="7 hours ago"
+                        secondary="há 7 horas"
                       />
                     </ListItem>
                     <ListItem
@@ -213,7 +213,7 @@ export default function Notification() {
                       divider
                       secondaryAction={
                         <Typography variant="caption" noWrap>
-                          9:10 PM
+                          21:10
                         </Typography>
                       }
                     >
@@ -226,20 +226,20 @@ export default function Notification() {
                             <Typography component="span" variant="subtitle1">
                               Cristina Danny
                             </Typography>{' '}
-                            invited to join{' '}
+                            convidou você para a{' '}
                             <Typography component="span" variant="subtitle1">
-                              Meeting.
+                              reunião.
                             </Typography>
                           </Typography>
                         }
-                        secondary="Daily scrum meeting time"
+                        secondary="Horário da reunião diária de scrum"
                       />
                     </ListItem>
                     <ListItemButton sx={{ textAlign: 'center', py: `${12}px !important` }}>
                       <ListItemText
                         primary={
                           <Typography variant="h6" color="primary">
-                            View All
+                            Ver Todas
                           </Typography>
                         }
                       />

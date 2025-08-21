@@ -16,7 +16,7 @@ import { APP_DEFAULT_PATH } from 'config';
 // assets
 import error500 from 'assets/images/maintenance/Error500.png';
 
-// ==============================|| ERROR 500 - MAIN ||============================== //
+// ==============================|| ERRO 500 - PRINCIPAL ||============================== //
 
 export default function Error500() {
   const downSM = useMediaQuery((theme: Theme) => theme.breakpoints.down('sm'));
@@ -26,16 +26,16 @@ export default function Error500() {
       <Grid size={12}>
         <Stack sx={{ alignItems: 'center', justifyContent: 'center' }}>
           <Box sx={{ width: { xs: 350, sm: 396 }, my: 2 }}>
-            <CardMedia component="img" src={error500} alt="mantis" />
+            <CardMedia component="img" src={error500} alt="otj" />
           </Box>
           <Typography align="center" variant={downSM ? 'h2' : 'h1'}>
-            Internal Server Error
+            Erro Interno do Servidor
           </Typography>
           <Typography color="text.secondary" variant="body2" align="center" sx={{ width: { xs: '73%', sm: '70%' }, mt: 1 }}>
-            Server error 500. we fixing the problem. please try again at a later stage.
+            Erro 500 no servidor. Estamos corrigindo o problema. Por favor, tente novamente mais tarde.
           </Typography>
           <Button component={Link} to={APP_DEFAULT_PATH} variant="contained" sx={{ textTransform: 'none', mt: 4 }}>
-            Back To Home
+            Voltar para Início
           </Button>
         </Stack>
       </Grid>

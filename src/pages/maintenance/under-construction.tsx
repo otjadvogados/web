@@ -14,7 +14,7 @@ import { APP_DEFAULT_PATH } from 'config';
 // assets
 import construction from 'assets/images/maintenance/under-construction.svg';
 
-// ==============================|| UNDER CONSTRUCTION - MAIN ||============================== //
+// ==============================|| PÁGINA EM CONSTRUÇÃO - PRINCIPAL ||============================== //
 
 export default function UnderConstruction() {
   return (
@@ -22,16 +22,16 @@ export default function UnderConstruction() {
       <Grid size={12}>
         <Stack sx={{ gap: 2, alignItems: 'center', justifyContent: 'center' }}>
           <Box sx={{ width: { xs: 300, sm: 480 }, my: 2 }}>
-            <CardMedia component="img" src={construction} alt="mantis" sx={{ height: 'auto' }} />
+            <CardMedia component="img" src={construction} alt="otj" sx={{ height: 'auto' }} />
           </Box>
           <Typography align="center" variant="h1">
-            Under Construction
+            Página em Construção
           </Typography>
           <Typography color="text.secondary" align="center" sx={{ width: '85%' }}>
-            Hey! Please check out this site later. We are doing some maintenance on it right now.
+            Ei! Por favor, volte mais tarde. Estamos realizando algumas manutenções no site agora mesmo.
           </Typography>
           <Button component={Link} to={APP_DEFAULT_PATH} variant="contained">
-            Back To Home
+            Voltar para a Página Inicial
           </Button>
         </Stack>
       </Grid>

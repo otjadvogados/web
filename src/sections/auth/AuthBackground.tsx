@@ -5,7 +5,7 @@ import Box from '@mui/material/Box';
 // project imports
 import { ThemeDirection, ThemeMode } from 'config';
 
-// ==============================|| AUTH BLUR BACK SVG ||============================== //
+// ==============================|| FUNDO DE AUTENTICAÇÃO COM SVG DESFOCADO ||============================== //
 
 export default function AuthBackground() {
   const theme = useTheme();
