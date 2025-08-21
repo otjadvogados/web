@@ -1,12 +1,12 @@
+import { Theme } from '@mui/material/styles';
+
 // ==============================|| OVERRIDES - DRAWER ||============================== //
 
-export default function Drawer() {
+export default function Drawer(theme: Theme) {
   return {
     MuiDrawer: {
       styleOverrides: {
-        paper: {
-          backgroundImage: 'none'
-        }
+        paper: { backgroundImage: 'none', borderRadius: theme.shape.borderRadius }
       }
     }
   };

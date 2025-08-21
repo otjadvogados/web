@@ -46,33 +46,11 @@ export default function Chip(theme: Theme) {
   return {
     MuiChip: {
       styleOverrides: {
-        root: {
-          borderRadius: 4,
-          '&:active': {
-            boxShadow: 'none'
-          },
-          '&.MuiChip-colorPrimary': getColor({ color: 'primary', theme }),
-          '&.MuiChip-colorSecondary': getColor({ color: 'secondary', theme }),
-          '&.MuiChip-colorError': getColor({ color: 'error', theme }),
-          '&.MuiChip-colorInfo': getColor({ color: 'info', theme }),
-          '&.MuiChip-colorSuccess': getColor({ color: 'success', theme }),
-          '&.MuiChip-colorWarning': getColor({ color: 'warning', theme })
-        },
-        sizeLarge: {
-          fontSize: '1rem',
-          height: 40
-        },
-        light: {
-          ...defaultLightChip,
-          '&.MuiChip-lightPrimary': getColorStyle({ color: 'primary', theme }),
-          '&.MuiChip-lightSecondary': getColorStyle({ color: 'secondary', theme }),
-          '&.MuiChip-lightError': getColorStyle({ color: 'error', theme }),
-          '&.MuiChip-lightInfo': getColorStyle({ color: 'info', theme }),
-          '&.MuiChip-lightSuccess': getColorStyle({ color: 'success', theme }),
-          '&.MuiChip-lightWarning': getColorStyle({ color: 'warning', theme })
-        },
+        root: { borderRadius: theme.shape.borderRadius, fontWeight: 500 },
+        sizeLarge: { fontSize: '1rem', height: 40 },
+        light: { border: 0, ...defaultLightChip },
         combined: {
-          border: '1px solid',
+          border: 0,
           ...defaultLightChip,
           '&.MuiChip-combinedPrimary': getColorStyle({ color: 'primary', theme }),
           '&.MuiChip-combinedSecondary': getColorStyle({ color: 'secondary', theme }),

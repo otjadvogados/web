@@ -19,9 +19,7 @@ function getColorStyle({ color, theme }: ExtendedStyleProps) {
     '& .dot': {
       backgroundColor: main
     },
-    '&:hover': {
-      backgroundColor: lighter
-    },
+    '&:hover': { backgroundColor: 'transparent' },
     '&.Mui-focusVisible': {
       outline: `2px solid ${dark}`,
       outlineOffset: -4

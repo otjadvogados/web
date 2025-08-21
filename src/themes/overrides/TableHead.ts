@@ -9,10 +9,8 @@ export default function TableHead(theme: Theme) {
       styleOverrides: {
         root: {
           backgroundColor: theme.palette.grey[50],
-          borderTop: '1px solid',
-          borderTopColor: theme.palette.divider,
-          borderBottom: '2px solid',
-          borderBottomColor: theme.palette.divider
+          borderTop: 0,
+          borderBottom: 0
         }
       }
     }

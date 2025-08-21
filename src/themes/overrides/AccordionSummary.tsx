@@ -15,11 +15,7 @@ export default function AccordionSummary(theme: Theme) {
         expandIcon: <RightOutlined style={{ fontSize: '0.75rem' }} />
       },
       styleOverrides: {
-        root: {
-          backgroundColor: palette.secondary.lighter,
-          flexDirection: 'row-reverse',
-          minHeight: 46
-        },
+        root: { backgroundColor: palette.background.paper, flexDirection: 'row-reverse', minHeight: 44 },
         expandIconWrapper: {
           '&.Mui-expanded': {
             transform: 'rotate(90deg)'

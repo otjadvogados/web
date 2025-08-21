@@ -9,8 +9,7 @@ export default function AccordionDetails(theme: Theme) {
       styleOverrides: {
         root: {
           padding: theme.spacing(2),
-          borderTop: '1px solid',
-          borderTopColor: theme.palette.secondary.light
+          borderTop: 0
         }
       }
     }

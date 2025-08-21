@@ -42,21 +42,15 @@ function getColorStyle({ color, theme }: ExtendedStyleProps) {
 
 // ==============================|| OVERRIDES - BUTTON ||============================== //
 
-export default function Button(theme: Theme) {
+export default function Fab(theme: Theme) {
   return {
     MuiFab: {
       styleOverrides: {
         root: {
-          fontWeight: 400,
-          '&.Mui-disabled': {
-            backgroundColor: theme.palette.grey[200]
-          },
-          '&.MuiFab-primary': getColorStyle({ color: 'primary', theme }),
-          '&.MuiFab-secondary': getColorStyle({ color: 'secondary', theme }),
-          '&.Mui-error': getColorStyle({ color: 'error', theme }),
-          '&.MuiFab-success': getColorStyle({ color: 'success', theme }),
-          '&.MuiFab-info': getColorStyle({ color: 'info', theme }),
-          '&.MuiFab-warning': getColorStyle({ color: 'warning', theme }),
+          fontWeight: 500,
+          borderRadius: theme.shape.borderRadius,
+          boxShadow: 'none',
+          '&.Mui-disabled': { backgroundColor: theme.palette.grey[200] },
           '&::after': {
             content: '""',
             display: 'block',
@@ -65,19 +59,30 @@ export default function Button(theme: Theme) {
             top: 0,
             width: '100%',
             height: '100%',
-            borderRadius: 4,
+            borderRadius: theme.shape.borderRadius,
             opacity: 0,
             transition: 'all 0.5s'
           },
-
           '&:active::after': {
             position: 'absolute',
-            borderRadius: 4,
+            borderRadius: theme.shape.borderRadius,
             left: 0,
             top: 0,
             opacity: 1,
             transition: '0s'
           }
+        },
+        sizeSmall: {
+          width: 40,
+          height: 40
+        },
+        sizeMedium: {
+          width: 48,
+          height: 48
+        },
+        sizeLarge: {
+          width: 56,
+          height: 56
         }
       }
     }

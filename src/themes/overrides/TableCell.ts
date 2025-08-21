@@ -4,23 +4,7 @@ import { Theme } from '@mui/material/styles';
 // ==============================|| OVERRIDES - TABLE CELL ||============================== //
 
 export default function TableCell(theme: Theme) {
-  const commonCell = {
-    '&:not(:last-of-type)': {
-      position: 'relative',
-      '&.MuiTableCell-stickyHeader': {
-        position: 'sticky'
-      },
-      '&:after': {
-        position: 'absolute',
-        content: '""',
-        backgroundColor: theme.palette.divider,
-        width: 1,
-        height: 'calc(100% - 30px)',
-        right: 0,
-        top: 16
-      }
-    }
-  };
+  const commonCell = {};
 
   return {
     MuiTableCell: {

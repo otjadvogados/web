@@ -31,7 +31,7 @@ export interface MainCardProps {
 }
 
 export default function MainCard({
-  border = true,
+  border = false,
   boxShadow,
   children,
   subheader,

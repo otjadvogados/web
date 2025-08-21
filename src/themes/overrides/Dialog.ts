@@ -1,9 +1,9 @@
 // material-ui
-import { alpha } from '@mui/material/styles';
+import { alpha, Theme } from '@mui/material/styles';
 
 // ==============================|| OVERRIDES - DIALOG ||============================== //
 
-export default function Dialog() {
+export default function Dialog(theme: Theme) {
   return {
     MuiDialog: {
       styleOverrides: {
@@ -12,9 +12,7 @@ export default function Dialog() {
             backgroundColor: alpha('#000', 0.7)
           }
         },
-        paper: {
-          backgroundImage: 'none'
-        }
+        paper: { backgroundImage: 'none', borderRadius: theme.shape.borderRadius }
       }
     }
   };

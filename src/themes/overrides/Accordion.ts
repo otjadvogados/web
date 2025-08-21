@@ -13,8 +13,7 @@ export default function Accordion(theme: Theme) {
       },
       styleOverrides: {
         root: {
-          border: '1px solid',
-          borderColor: theme.palette.secondary.light,
+          border: 0,
           '&:not(:last-child)': {
             borderBottom: 0
           },

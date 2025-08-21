@@ -68,10 +68,8 @@ export default function PaginationItem(theme: Theme) {
     MuiPaginationItem: {
       styleOverrides: {
         root: {
-          '&:focus-visible': {
-            outline: `2px solid ${theme.palette.secondary.dark}`,
-            outlineOffset: 2
-          }
+          borderRadius: theme.shape.borderRadius,
+          '&:focus-visible': { outline: `2px solid ${theme.palette.primary[400]}`, outlineOffset: 2 }
         },
         text: {
           '&.Mui-selected': {
@@ -97,8 +95,7 @@ export default function PaginationItem(theme: Theme) {
           }
         },
         combined: {
-          border: '1px solid',
-          borderColor: theme.palette.divider,
+          border: 0,
           '&.MuiPaginationItem-ellipsis': {
             border: 'none'
           },

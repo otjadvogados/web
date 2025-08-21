@@ -10,10 +10,10 @@ export default function ListItemButton(theme: Theme) {
         root: {
           '&.Mui-selected': {
             color: theme.palette.primary.main,
-            ...theme.applyStyles('dark', { color: theme.palette.primary.darker }),
-            '& .MuiListItemIcon-root': {
-              color: theme.palette.primary.main
-            }
+            backgroundColor: theme.palette.action.selected
+          },
+          '& .MuiListItemIcon-root': {
+            color: theme.palette.primary.main
           }
         }
       }
