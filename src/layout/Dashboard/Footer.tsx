@@ -13,7 +13,7 @@ export default function Footer() {
         </Link>
       </Typography>
       <Stack direction="row" sx={{ gap: 1.5, alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link href="https://www.otjadvogados.adv.br/about-us/" target="_blank" variant="caption" color="text.primary">
+        <Link href="https://www.otjadvogados.adv.br/o-escritorio/" target="_blank" variant="caption" color="text.primary">
           Sobre nós
         </Link>
         <Link href="https://www.otjadvogados.adv.br/privacy/" target="_blank" variant="caption" color="text.primary">
