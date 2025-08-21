@@ -4,7 +4,7 @@ import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 
-// ==============================|| FOOTER - AUTHENTICATION ||============================== //
+// ==============================|| FOOTER - AUTENTICAÇÃO ||============================== //
 
 export default function AuthFooter() {
   return (
@@ -14,9 +14,9 @@ export default function AuthFooter() {
         sx={{ gap: 2, justifyContent: { xs: 'center', sm: 'space-between', textAlign: { xs: 'center', sm: 'inherit' } } }}
       >
         <Typography variant="subtitle2" color="secondary">
-          © Made with love by Team{' '}
-          <Link href="https://codedthemes.com/" target="_blank" underline="hover">
-            CodedThemes
+          © Feito pela equipe{' '}
+          <Link href="https://swiftsoft.com.br/" target="_blank" underline="hover">
+            Swift Soft
           </Link>
         </Typography>
 
@@ -29,7 +29,7 @@ export default function AuthFooter() {
             target="_blank"
             underline="hover"
           >
-            Terms and Conditions
+            Termos e Condições
           </Typography>
           <Typography
             variant="subtitle2"
@@ -39,7 +39,7 @@ export default function AuthFooter() {
             target="_blank"
             underline="hover"
           >
-            Privacy Policy
+            Política de Privacidade
           </Typography>
         </Stack>
       </Stack>

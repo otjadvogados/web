@@ -61,8 +61,8 @@ const config: DefaultConfigProps = {
   menuOrientation: MenuOrientation.VERTICAL,
   miniDrawer: false,
   container: true,
-  mode: ThemeMode.LIGHT,
-  presetColor: 'default',
+  mode: ThemeMode.DARK,
+  presetColor: 'theme1',
   themeDirection: ThemeDirection.LTR
 };
 
