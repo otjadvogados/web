@@ -13,10 +13,10 @@ export default function AuthFooter() {
         direction={{ xs: 'column', sm: 'row' }}
         sx={{ gap: 2, justifyContent: { xs: 'center', sm: 'space-between', textAlign: { xs: 'center', sm: 'inherit' } } }}
       >
-        <Typography variant="subtitle2" color="secondary">
-          © Feito pela equipe{' '}
-          <Link href="https://swiftsoft.com.br/" target="_blank" underline="hover">
-            Swift Soft
+        <Typography variant="caption">
+          &copy; Todos os direitos reservados{' '}
+          <Link href="https://www.otjadvogados.adv.br/" target="_blank" underline="hover">
+            OTJ Advogados Associados
           </Link>
         </Typography>
 
