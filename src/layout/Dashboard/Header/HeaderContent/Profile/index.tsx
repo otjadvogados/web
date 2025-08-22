@@ -25,6 +25,7 @@ import Transitions from 'components/@extended/Transitions';
 import IconButton from 'components/@extended/IconButton';
 
 import useAuth from 'hooks/useAuth';
+import SessionTimer from 'components/SessionTimer';
 
 // assets
 import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
@@ -61,7 +62,7 @@ export default function Profile() {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const { logout, user } = useAuth();
+  const { logout, user, expiresIn } = useAuth();
   const handleLogout = async () => {
     try {
       await logout();
@@ -114,7 +115,7 @@ export default function Profile() {
         <Stack direction="row" sx={{ gap: 1.25, alignItems: 'center', p: 0.5 }}>
           <Avatar alt="profile user" src={avatar1} size="sm" />
           <Typography variant="subtitle1" sx={{ textTransform: 'capitalize' }}>
-            {user?.name}
+            {user?.name || 'Usuário'}
           </Typography>
         </Stack>
       </ButtonBase>
@@ -147,9 +148,9 @@ export default function Profile() {
                         <Stack direction="row" sx={{ gap: 1.25, alignItems: 'center' }}>
                           <Avatar alt="profile user" src={avatar1} sx={{ width: 32, height: 32 }} />
                           <Stack>
-                            <Typography variant="h6">{user?.name}</Typography>
+                            <Typography variant="h6">{user?.name || 'Usuário'}</Typography>
                             <Typography variant="body2" color="text.secondary">
-                              Advogado
+                              {user?.role || 'Advogado'}
                             </Typography>
                           </Stack>
                         </Stack>
@@ -164,7 +165,12 @@ export default function Profile() {
                     </Grid>
                   </CardContent>
 
-                  <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                  {/* Timer da sessão */}
+                  {expiresIn && (
+                    <SessionTimer expiresIn={expiresIn} />
+                  )}
+
+                  <Box>
                     <Tabs variant="fullWidth" value={value} onChange={handleChange} aria-label="profile tabs">
                       <Tab
                         sx={{

@@ -1,11 +1,14 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const apiBaseURL = import.meta.env.VITE_APP_API_URL || 'http://localhost:22211';
+// Helpers simples p/ token em memória/localStorage
+const KEY = 'serviceToken';
+export const getToken = () => localStorage.getItem(KEY);
+export const setToken = (t?: string) => (t ? localStorage.setItem(KEY, t) : null);
+export const clearToken = () => localStorage.removeItem(KEY);
 
-const axiosServices = axios.create({
-  baseURL: apiBaseURL,
-  withCredentials: true // mantém cookies p/ refresh
-  // ❌ remova xsrfCookieName/xsrfHeaderName – não usamos double submit
+const api = axios.create({
+  baseURL: import.meta.env.VITE_APP_API_URL || 'http://localhost:22211',
+  withCredentials: true // envia/recebe o cookie 'rt' nas chamadas ao /auth/refresh
 });
 
 // ---------- Helpers
@@ -20,141 +23,156 @@ const getLang = () => {
   return import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
 };
 
-const setAuthHeader = (token?: string | null) => {
-  if (token) {
-    axiosServices.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete axiosServices.defaults.headers.common['Authorization'];
+// helper para forçar re-login
+const forceRelogin = () => {
+  try { 
+    clearToken(); 
+  } catch {}
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
   }
 };
 
-// ---------- Request Interceptor
-axiosServices.interceptors.request.use(
-  async (config) => {
-    const accessToken = localStorage.getItem('serviceToken');
+// Endpoints públicos (não autenticados) que NÃO devem tentar refresh nem redirecionar ao receber 401
+const PUBLIC_401_NO_REDIR = [
+  '/auth/verify',
+  '/auth/unlock',
+  '/auth/approve-device',
+  '/auth/reject-device',
+  '/auth/report-login',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/token/check',
+  '/auth/test-email-config',
+  '/auth/clear-email-dedupe'
+];
 
-    // 🔐 header p/ seu guard CSRF baseado em headers
-    (config.headers as any)['X-Requested-With'] = 'XMLHttpRequest';
+// mensagens que exigem re-login imediato
+const RELOGIN_HINTS = [
+  'sua sessão foi encerrada por um novo login', // PT
+  'session was closed by a new login',          // EN (caso apareça)
+  'token_version',                              // token version mismatch
+  'revoked'                                     // refresh/access revogado
+];
 
-    if (accessToken) {
-      (config.headers as any)['Authorization'] = `Bearer ${accessToken}`;
-    }
-
-    // Idioma (opcional)
-    const lang = getLang();
-    (config.headers as any)['Accept-Language'] = lang;
-    (config.headers as any)['x-lang'] = lang;
-
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// ---------- Refresh logic (single flight + queue)
-let isRefreshing = false;
-let refreshQueue: Array<(token: string | null) => void> = [];
-
-const processQueue = (token: string | null) => {
-  refreshQueue.forEach((cb) => cb(token));
-  refreshQueue = [];
-};
-
-const refreshClient = axios.create({
-  baseURL: apiBaseURL,
-  withCredentials: true
+// ——— Request: injeta Bearer
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const at = getToken();
+  if (at) config.headers.Authorization = `Bearer ${at}`;
+  
+  // 🔐 header p/ seu guard CSRF baseado em headers
+  config.headers['X-Requested-With'] = 'XMLHttpRequest';
+  
+  // Idioma (opcional)
+  const lang = getLang();
+  config.headers['Accept-Language'] = lang;
+  config.headers['x-lang'] = lang;
+  
+  return config;
 });
 
-// ---------- Response Interceptor
-axiosServices.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError<any>) => {
-    const originalRequest: any = error.config || {};
+// ——— Response: 401 => tenta /auth/refresh com X-Requested-With
+let isRefreshing = false;
+let queue: Array<(t?: string) => void> = [];
+const flushQueue = (t?: string) => { queue.forEach(cb => cb(t)); queue = []; };
 
-    // Se não for 401, repasse o erro normalmente
-    if (!error.response || error.response.status !== 401) {
-      return Promise.reject(error.response?.data || error);
+api.interceptors.response.use(
+  (r) => r,
+  async (error: AxiosError) => {
+    const { response, config } = error;
+    if (!response || !config) throw error;
+
+    const url = String(config.url || '');
+    const msg = String((response.data as any)?.message || '').toLowerCase();
+
+    // 1) Se for endpoint público, NÃO tentar refresh nem redirecionar
+    if (PUBLIC_401_NO_REDIR.some((p) => url.includes(p))) {
+      throw error;
     }
 
-    // Evita tentar refresh em /auth/login, /auth/refresh e /auth/logout
-    const url = (originalRequest.url || '') as string;
-    if (url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/logout')) {
-      return Promise.reject(error.response?.data || error);
-    }
+    // 2) Só entrar na lógica de refresh se a request original tinha Bearer
+    const hadAuthHeader = !!(config.headers as any)?.Authorization;
 
-    // Se já tentamos retry nesta request, não faça loop infinito
-    if (originalRequest._retry) {
-      // logout client-side
-      localStorage.removeItem('serviceToken');
-      setAuthHeader(null);
-      try {
-        await refreshClient.post('/auth/logout'); // melhor esforço
-      } catch {}
-      window.location.href = '/';
-      return Promise.reject(error.response?.data || error);
-    }
+    if (response.status === 401) {
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/logout');
+      const mustForceRelogin = RELOGIN_HINTS.some((s) => msg.includes(s));
 
-    originalRequest._retry = true;
+      // Se não havia Authorization (rota pública) ou é endpoint "auth" ou mensagem manda relogar -> não tente refresh
+      if (!hadAuthHeader || isAuthEndpoint || mustForceRelogin) {
+        // Para rotas públicas sem Authorization, apenas propaga o erro
+        if (!hadAuthHeader && !mustForceRelogin && !url.includes('/auth/')) {
+          throw error;
+        }
+        // Para sessão encerrada/rotas auth, força login
+        forceRelogin();
+        throw error;
+      }
 
-    // fila enquanto atualiza
-    if (isRefreshing) {
-      return new Promise((resolve, reject) => {
-        refreshQueue.push((token) => {
-          if (!token) {
-            reject(error);
-            return;
+      // Evitar loop
+      if ((config as any)._retry) {
+        forceRelogin();
+        throw error;
+      }
+      (config as any)._retry = true;
+
+      // Single-flight de refresh
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const { data } = await api.post('/auth/refresh', null, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          });
+          const newAT = data?.data?.accessToken ?? data?.serviceToken;
+          if (newAT) {
+            setToken(newAT);
+            flushQueue(newAT);
+          } else {
+            clearToken();
+            flushQueue(undefined);
+            forceRelogin();
           }
-          originalRequest.headers = originalRequest.headers || {};
-          originalRequest.headers['Authorization'] = `Bearer ${token}`;
-          resolve(axiosServices(originalRequest));
+        } catch (e) {
+          clearToken();
+          flushQueue(undefined);
+          // refresh falhou => agora sim redireciona
+          forceRelogin();
+          throw e;
+        } finally {
+          isRefreshing = false;
+        }
+      }
+
+      // Aguarda refresh e repete a original
+      return new Promise((resolve, reject) => {
+        queue.push((t) => {
+          if (!t) return reject(error);
+          config.headers = config.headers || {};
+          (config.headers as any).Authorization = `Bearer ${t}`;
+          resolve(api(config));
         });
       });
     }
 
-    isRefreshing = true;
-
-    try {
-      // chama refresh (usa cookie httpOnly rt)
-      const { data } = await refreshClient.post('/auth/refresh');
-      const newToken = data?.serviceToken as string;
-      if (!newToken) throw new Error('No serviceToken from refresh');
-
-      // salva e reaplica token
-      localStorage.setItem('serviceToken', newToken);
-      setAuthHeader(newToken);
-
-      processQueue(newToken);
-
-      // refaz a request original com o novo token
-      originalRequest.headers = originalRequest.headers || {};
-      originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-      return axiosServices(originalRequest);
-    } catch (refreshErr) {
-      processQueue(null);
-      // logout total
-      localStorage.removeItem('serviceToken');
-      setAuthHeader(null);
-      try {
-        await refreshClient.post('/auth/logout');
-      } catch {}
-      window.location.href = '/';
-      return Promise.reject((refreshErr as any)?.response?.data || refreshErr);
-    } finally {
-      isRefreshing = false;
+    if (response.status === 403) {
+      // apenas propaga
+      throw error;
     }
+
+    throw error;
   }
 );
 
 // --------- Export helpers & fetchers
-export default axiosServices;
+export default api;
 
-export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
+export const fetcher = async (args: string | [string, any]) => {
   const [url, config] = Array.isArray(args) ? args : [args];
-  const res = await axiosServices.get(url, { ...config });
+  const res = await api.get(url, { ...config });
   return res.data;
 };
 
-export const fetcherPost = async (args: string | [string, AxiosRequestConfig]) => {
+export const fetcherPost = async (args: string | [string, any]) => {
   const [url, config] = Array.isArray(args) ? args : [args];
-  const res = await axiosServices.post(url, { ...(config as any) });
+  const res = await api.post(url, { ...(config as any) });
   return res.data;
 };

@@ -1,5 +1,5 @@
 // action - state management
-import { REGISTER, LOGIN, LOGOUT } from './actions';
+import { REGISTER, LOGIN, LOGOUT, UPDATE_PROFILE } from './actions';
 
 // types
 import { AuthProps, AuthActionProps } from 'types/auth';
@@ -23,12 +23,13 @@ const auth = (state = initialState, action: AuthActionProps) => {
       };
     }
     case LOGIN: {
-      const { user } = action.payload!;
+      const { user, expiresIn } = action.payload!;
       return {
         ...state,
         isLoggedIn: true,
         isInitialized: true,
-        user
+        user,
+        expiresIn
       };
     }
     case LOGOUT: {
@@ -37,6 +38,13 @@ const auth = (state = initialState, action: AuthActionProps) => {
         isInitialized: true,
         isLoggedIn: false,
         user: null
+      };
+    }
+    case UPDATE_PROFILE: {
+      const { user } = action.payload!;
+      return {
+        ...state,
+        user
       };
     }
     default: {

@@ -12,11 +12,18 @@ const icons = { DesktopOutlined };
 // ==============================|| MENU ITEMS - CENTRAL DE DISPOSITIVOS ||============================== //
 
 const devicesCenter: NavItemType = {
-  id: 'devices',
-  title: 'Central de Dispositivos',
+  id: 'devices-group',
+  title: 'devices',
   type: 'group',
-  url: '/devices',
-  icon: icons.DesktopOutlined
+  children: [
+    {
+      id: 'devices',
+      title: 'devices-center',
+      type: 'item',
+      url: '/devices',
+      icon: icons.DesktopOutlined
+    }
+  ]
 };
 
 export default devicesCenter;

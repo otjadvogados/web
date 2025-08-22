@@ -8,6 +8,9 @@ import List from '@mui/material/List';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 
+// third-party
+import { FormattedMessage } from 'react-intl';
+
 // project imports
 import NavItem from './NavItem';
 import NavGroup from './NavGroup';
@@ -82,10 +85,17 @@ export default function Navigation() {
             item={item}
           />
         );
+      case 'item':
+        return (
+          <List key={item.id} sx={{ zIndex: 0, ...(isHorizontal && { mt: 0.5 }) }}>
+            {!isHorizontal && index !== 0 && <Divider sx={{ my: 0.5 }} />}
+            <NavItem item={item} level={1} isParents setSelectedID={setSelectedID} />
+          </List>
+        );
       default:
         return (
           <Typography key={item.id} variant="h6" color="error" align="center">
-            Fix - Navigation Group
+            <FormattedMessage id="fix-navigation-group" />
           </Typography>
         );
     }

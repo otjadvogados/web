@@ -5,6 +5,9 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 
+// third-party
+import { FormattedMessage } from 'react-intl';
+
 // assets
 import CommentOutlined from '@ant-design/icons/CommentOutlined';
 import LockOutlined from '@ant-design/icons/LockOutlined';
@@ -22,7 +25,7 @@ export default function SettingTab() {
           <ListItemIcon>
             <CommentOutlined />
           </ListItemIcon>
-          <ListItemText primary="Central de Dispositivos" />
+          <ListItemText primary={<FormattedMessage id="devices-center" />} />
         </ListItemButton>
       </Link>
     </List>

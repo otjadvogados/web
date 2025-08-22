@@ -3,6 +3,7 @@ import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import { useNavigate } from 'react-router-dom';
 
 // assets
 import EditOutlined from '@ant-design/icons/EditOutlined';
@@ -18,9 +19,10 @@ interface Props {
 // ==============================|| HEADER PROFILE - PROFILE TAB ||============================== //
 
 export default function ProfileTab({ handleLogout }: Props) {
+  const navigate = useNavigate();
   return (
     <List component="nav" sx={{ p: 0, '& .MuiListItemIcon-root': { minWidth: 32 } }}>
-      <ListItemButton>
+      <ListItemButton onClick={() => navigate('/account')}>
         <ListItemIcon>
           <EditOutlined />
         </ListItemIcon>

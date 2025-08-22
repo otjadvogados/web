@@ -1,13 +1,14 @@
 import React, { createContext, useEffect, useReducer } from 'react';
 
 // reducer - state management
-import { LOGIN, LOGOUT } from 'contexts/auth-reducer/actions';
+import { LOGIN, LOGOUT, UPDATE_PROFILE } from 'contexts/auth-reducer/actions';
 import authReducer from 'contexts/auth-reducer/auth';
 
 // project imports
 import Loader from 'components/Loader';
 import axios from 'utils/axios';
 import { AuthProps, JWTContextType } from 'types/auth';
+import { clearToken } from 'utils/axios';
 
 // constant
 const initialState: AuthProps = {
@@ -39,17 +40,25 @@ export const JWTProvider = ({ children }: { children: React.ReactElement }) => {
         if (serviceToken) {
           // não decodifique para decidir — pergunte ao backend
           const response = await axios.get('/auth/me');
-          const { user } = response.data;
+          
+          // Baseado nos dados fornecidos, a API retorna { data: {...}, expiresIn: {...} }
+          const { data: userData, expiresIn } = response.data;
+          
+
 
           dispatch({
             type: LOGIN,
-            payload: { isLoggedIn: true, user }
+            payload: { isLoggedIn: true, user: userData, expiresIn }
           });
         } else {
           dispatch({ type: LOGOUT });
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        
+        // O interceptor do axios já cuida do redirecionamento para 401
+        // Aqui apenas limpamos o estado local
+        clearToken();
         dispatch({ type: LOGOUT });
       }
     };
@@ -57,15 +66,28 @@ export const JWTProvider = ({ children }: { children: React.ReactElement }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    // chama seu backend real
-    const response = await axios.post('/auth/login', { email, password });
-    const { serviceToken, user } = response.data;
+    try {
+      // chama seu backend real
+      const response = await axios.post('/auth/login', { email, password });
+      
+      // A API retorna { serviceToken, user, expiresIn }
+      const { serviceToken, user: userData, expiresIn } = response.data;
 
-    setSession(serviceToken);
-    dispatch({
-      type: LOGIN,
-      payload: { isLoggedIn: true, user }
-    });
+      // Garante que o userData existe e tem a estrutura correta
+      if (!userData) {
+        throw new Error('Dados do usuário não encontrados na resposta');
+      }
+
+      setSession(serviceToken);
+      dispatch({
+        type: LOGIN,
+        payload: { isLoggedIn: true, user: userData, expiresIn }
+      });
+    } catch (error: any) {
+      // Extrai a mensagem de erro da API ou usa uma mensagem padrão
+      const errorMessage = error.response?.data?.message || error.message || 'Erro ao fazer login';
+      throw new Error(errorMessage);
+    }
   };
 
   // register/resetPassword podem continuar mock ou apontar para seus endpoints reais, se existirem
@@ -84,13 +106,21 @@ export const JWTProvider = ({ children }: { children: React.ReactElement }) => {
       const response = await axios.post('/auth/forgot-password', { email });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erro ao enviar e-mail de redefinição de senha');
+      // Extrai a mensagem de erro da API ou usa uma mensagem padrão
+      const errorMessage = error.response?.data?.message || error.message || 'Erro ao enviar e-mail de redefinição de senha';
+      throw new Error(errorMessage);
     }
   };
 
-  const updateProfile = () => {};
+  const updateProfile = (userData: any) => {
+    dispatch({
+      type: UPDATE_PROFILE,
+      payload: { isLoggedIn: true, user: userData }
+    });
+  };
 
-  if (state.isInitialized !== undefined && !state.isInitialized) {
+  // Só mostra o loader se ainda não foi inicializado
+  if (!state.isInitialized) {
     return <Loader />;
   }
 

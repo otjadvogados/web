@@ -208,12 +208,7 @@ export default function MegaMenuSection() {
                                 </ListItemIcon>
                                 <ListItemText primary="Sobre nós" />
                               </ListItemButton>
-                              <ListItemButton disableRipple component={Link} target="_blank" to="/contact-us">
-                                <ListItemIcon>
-                                  <Dot size={7} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Contato" />
-                              </ListItemButton>
+
                               <ListItemButton disableRipple component={Link} to="#!">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />

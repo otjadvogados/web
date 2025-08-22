@@ -134,7 +134,7 @@ export default function AuthResetPassword() {
         } catch (err: any) {
           console.error(err);
           setStatus({ success: false });
-          setErrors({ submit: err.response?.data?.message || 'Link inválido ou expirado.' });
+          setErrors({ submit: err.message || 'Link inválido ou expirado.' });
           setSubmitting(false);
         }
       }}

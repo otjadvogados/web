@@ -14,10 +14,13 @@ const MaintenanceError500 = Loadable(lazy(() => import('pages/maintenance/500'))
 const MaintenanceUnderConstruction = Loadable(lazy(() => import('pages/maintenance/under-construction')));
 const MaintenanceComingSoon = Loadable(lazy(() => import('pages/maintenance/coming-soon')));
 
-const AppContactUS = Loadable(lazy(() => import('pages/contact-us')));
+
 
 // NOVO: Central de Dispositivos
 const DevicesCenter = Loadable(lazy(() => import('pages/security/devices-center')));
+
+// NOVO: Configurações da Conta
+const AccountSettings = Loadable(lazy(() => import('pages/account')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -31,6 +34,10 @@ const MainRoutes = {
         {
           path: 'devices',
           element: <DevicesCenter />
+        },
+        {
+          path: 'account',
+          element: <AccountSettings />
         }
       ]
     },
@@ -56,16 +63,7 @@ const MainRoutes = {
         }
       ]
     },
-    {
-      path: '/',
-      element: <SimpleLayout layout={SimpleLayoutType.SIMPLE} />,
-      children: [
-        {
-          path: 'contact-us',
-          element: <AppContactUS />
-        }
-      ]
-    }
+
   ]
 };
 

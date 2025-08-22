@@ -1,14 +1,14 @@
 // assets
 import DollarOutlined from '@ant-design/icons/DollarOutlined';
 import LoginOutlined from '@ant-design/icons/LoginOutlined';
-import PhoneOutlined from '@ant-design/icons/PhoneOutlined';
 import RocketOutlined from '@ant-design/icons/RocketOutlined';
+import UserOutlined from '@ant-design/icons/UserOutlined';
 
 // type
 import { NavItemType } from 'types/menu';
 
 // icons
-const icons = { DollarOutlined, LoginOutlined, PhoneOutlined, RocketOutlined };
+const icons = { DollarOutlined, LoginOutlined, RocketOutlined, UserOutlined };
 
 // ==============================|| MENU ITEMS - PAGES ||============================== //
 
@@ -54,13 +54,13 @@ const pages: NavItemType = {
         }
       ]
     },
+
     {
-      id: 'contact-us',
-      title: 'contact-us',
+      id: 'account',
+      title: 'my-account',
       type: 'item',
-      url: '/contact-us',
-      icon: icons.PhoneOutlined,
-      target: true
+      url: '/account',
+      icon: icons.UserOutlined
     }
   ]
 };

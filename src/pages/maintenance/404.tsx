@@ -100,9 +100,7 @@ export default function Error404() {
             <Button component={Link} to={APP_DEFAULT_PATH} variant="contained">
               Voltar ao início
             </Button>
-            <Button component={Link} to="/contact-us" variant="outlined" color="inherit">
-              Fale conosco
-            </Button>
+
           </Stack>
         </Stack>
       </Grid>

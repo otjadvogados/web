@@ -19,7 +19,7 @@ type CanRemove = {
   resetPassword?: (email: string) => Promise<{ message: string }>;
 };
 
-type UserProfile = {
+export type UserProfile = {
   id?: string;
   email?: string;
   avatar?: string;
@@ -27,6 +27,12 @@ type UserProfile = {
   name?: string;
   role?: string;
   tier?: string;
+  // 👇 opcionais, caso o backend envie
+  cpf?: string;
+  birthdate?: string;
+  phone?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export interface AuthProps {
@@ -34,6 +40,11 @@ export interface AuthProps {
   isInitialized?: boolean;
   user?: UserProfile | null;
   token?: string | null;
+  expiresIn?: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
 }
 
 export interface AuthActionProps {
@@ -51,9 +62,14 @@ export type JWTContextType = CanRemove & {
   isLoggedIn: boolean;
   isInitialized?: boolean;
   user?: UserProfile | null | undefined;
+  expiresIn?: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
   logout: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   resetPassword: (email: string) => Promise<{ message: string }>;
-  updateProfile: VoidFunction;
+  updateProfile: (userData: UserProfile) => void;
 };

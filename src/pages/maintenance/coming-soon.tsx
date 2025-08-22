@@ -51,9 +51,6 @@ export default function ComingSoon() {
     <Grid container spacing={4} direction="column" alignItems="center" justifyContent="center" sx={{ minHeight: '100vh', py: 2 }}>
       <Grid size={12}>
         <Stack sx={{ gap: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Box sx={{ height: { xs: 310, sm: 420 }, width: { xs: 360, sm: 'auto' }, my: 2 }}>
-            <CardMedia component="img" src={coming} alt="otj" sx={{ height: 1 }} />
-          </Box>
           <Typography align="center" variant="h1">
             Em Breve
           </Typography>

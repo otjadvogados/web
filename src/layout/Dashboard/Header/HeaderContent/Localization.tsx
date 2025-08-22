@@ -91,6 +91,18 @@ export default function Localization() {
                     borderRadius: 0.5
                   }}
                 >
+                  <ListItemButton selected={i18n === 'pt-BR'} onClick={() => handleListItemClick('pt-BR')}>
+                    <ListItemText
+                      primary={
+                        <Grid container>
+                          <Typography color="text.primary">Português</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: '8px' }}>
+                            (Brasil)
+                          </Typography>
+                        </Grid>
+                      }
+                    />
+                  </ListItemButton>
                   <ListItemButton selected={i18n === 'en'} onClick={() => handleListItemClick('en')}>
                     <ListItemText
                       primary={
