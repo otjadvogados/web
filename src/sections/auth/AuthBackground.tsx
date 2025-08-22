@@ -17,7 +17,6 @@ export default function AuthBackground() {
         transform: theme.direction === ThemeDirection.RTL ? 'rotate(180deg)' : 'inherit',
         display: 'grid',
         placeItems: 'center',
-        background: `linear-gradient(135deg, ${colors.ivory} 0%, ${theme.palette.background.paper} 45%, ${colors.ivory} 100%)`,
         overflow: 'hidden'
       }}
     >

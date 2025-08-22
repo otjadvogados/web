@@ -83,7 +83,14 @@ export const JWTProvider = ({ children }: { children: React.ReactElement }) => {
     dispatch({ type: LOGOUT });
   };
 
-  const resetPassword = async () => Promise.resolve();
+  const resetPassword = async (email: string) => {
+    try {
+      const response = await axios.post('/auth/forgot-password', { email });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erro ao enviar e-mail de redefinição de senha');
+    }
+  };
 
   const updateProfile = () => {};
 

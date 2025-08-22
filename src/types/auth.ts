@@ -16,7 +16,7 @@ type CanRemove = {
   resendCodeRegister?: (email: string) => Promise<void>;
   newPassword?: (email: string, code: string, password: string) => Promise<void>;
   updatePassword?: (password: string) => Promise<void>;
-  resetPassword?: (email: string) => Promise<void>;
+  resetPassword?: (email: string) => Promise<{ message: string }>;
 };
 
 type UserProfile = {
@@ -56,7 +56,7 @@ export type JWTContextType = CanRemove & {
   logout: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<{ message: string }>;
   updateProfile: VoidFunction;
 };
 

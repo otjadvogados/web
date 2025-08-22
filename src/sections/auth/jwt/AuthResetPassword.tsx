@@ -1,5 +1,5 @@
 import { useEffect, useState, SyntheticEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 // material-ui
 import Button from '@mui/material/Button';
@@ -21,6 +21,7 @@ import { Formik } from 'formik';
 import useAuth from 'hooks/useAuth';
 import IconButton from 'components/@extended/IconButton';
 import AnimateButton from 'components/@extended/AnimateButton';
+import axios from 'utils/axios';
 
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
 import { openSnackbar } from 'api/snackbar';
@@ -56,11 +57,31 @@ export default function AuthResetPassword() {
   };
 
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const auth = searchParams.get('auth'); // pega auth e define rota baseado nisso
+
+  // Função para obter token do hash da URL
+  const getTokenFromHash = () => {
+    const params = new URLSearchParams(location.hash.replace(/^#/, ''));
+    return params.get('token');
+  };
+
+  // Função para validar senha forte
+  const validatePassword = (password: string) => {
+    return password.length >= 8 &&
+           /[A-Z]/.test(password) &&
+           /[a-z]/.test(password) &&
+           /[0-9]/.test(password) &&
+           /[^A-Za-z0-9]/.test(password);
+  };
 
   useEffect(() => {
     changePassword('');
-  }, []);
+    // Limpa o hash da URL se existir
+    if (location.hash) {
+      window.history.replaceState(null, '', location.pathname);
+    }
+  }, [location.hash]);
 
   return (
     <Formik
@@ -70,19 +91,39 @@ export default function AuthResetPassword() {
         submit: null
       }}
       validationSchema={Yup.object().shape({
-        password: Yup.string().max(255).required('A senha é obrigatória'),
+        password: Yup.string()
+          .max(255)
+          .required('A senha é obrigatória')
+          .test('password-strength', 'A senha não atende aos requisitos', function(value) {
+            if (!value) return true; // Deixa o required cuidar disso
+            return validatePassword(value);
+          }),
         confirmPassword: Yup.string()
           .required('A confirmação de senha é obrigatória')
           .test('confirmPassword', 'As senhas devem ser iguais!', (confirmPassword, yup) => yup.parent.password === confirmPassword)
       })}
       onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
         try {
-          // redefinição de senha
+          const token = getTokenFromHash();
+          
+          if (!token) {
+            setErrors({ submit: 'Link inválido.' });
+            setSubmitting(false);
+            return;
+          }
+
+          // Faz a requisição para o backend
+          const response = await axios.post('/auth/reset-password', {
+            token,
+            password: values.password
+          });
+
           setStatus({ success: true });
           setSubmitting(false);
+          
           openSnackbar({
             open: true,
-            message: 'Senha redefinida com sucesso.',
+            message: response.data?.message || 'Senha atualizada com sucesso!',
             variant: 'alert',
             alert: {
               color: 'success'
@@ -95,7 +136,7 @@ export default function AuthResetPassword() {
         } catch (err: any) {
           console.error(err);
           setStatus({ success: false });
-          setErrors({ submit: err.message });
+          setErrors({ submit: err.response?.data?.message || 'Link inválido ou expirado.' });
           setSubmitting(false);
         }
       }}
@@ -105,7 +146,7 @@ export default function AuthResetPassword() {
           <Grid container spacing={3}>
             <Grid size={12}>
               <Stack sx={{ gap: 1 }}>
-                <InputLabel htmlFor="password-reset">Senha</InputLabel>
+                <InputLabel htmlFor="password-reset">Nova senha</InputLabel>
                 <OutlinedInput
                   fullWidth
                   error={Boolean(touched.password && errors.password)}
@@ -131,7 +172,7 @@ export default function AuthResetPassword() {
                       </IconButton>
                     </InputAdornment>
                   }
-                  placeholder="Digite sua senha"
+                  placeholder="Sua nova senha"
                 />
               </Stack>
               {touched.password && errors.password && (
@@ -139,6 +180,9 @@ export default function AuthResetPassword() {
                   {errors.password}
                 </FormHelperText>
               )}
+              <FormHelperText sx={{ mt: 1, fontSize: '0.75rem', color: 'text.secondary' }}>
+                Mínimo 8 caracteres, com maiúscula, minúscula, número e símbolo.
+              </FormHelperText>
               <FormControl fullWidth sx={{ mt: 2 }}>
                 <Grid container spacing={2} alignItems="center">
                   <Grid>
@@ -154,7 +198,7 @@ export default function AuthResetPassword() {
             </Grid>
             <Grid size={12}>
               <Stack sx={{ gap: 1 }}>
-                <InputLabel htmlFor="confirm-password-reset">Confirmar Senha</InputLabel>
+                <InputLabel htmlFor="confirm-password-reset">Confirmar senha</InputLabel>
                 <OutlinedInput
                   fullWidth
                   error={Boolean(touched.confirmPassword && errors.confirmPassword)}
@@ -164,7 +208,7 @@ export default function AuthResetPassword() {
                   name="confirmPassword"
                   onBlur={handleBlur}
                   onChange={handleChange}
-                  placeholder="Digite a confirmação da senha"
+                  placeholder="Confirme a senha"
                 />
               </Stack>
               {touched.confirmPassword && errors.confirmPassword && (
@@ -181,9 +225,9 @@ export default function AuthResetPassword() {
             )}
             <Grid size={12}>
               <AnimateButton>
-                <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="primary">
-                  Redefinir Senha
-                </Button>
+                              <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="primary">
+                Atualizar senha
+              </Button>
               </AnimateButton>
             </Grid>
           </Grid>

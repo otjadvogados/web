@@ -12,6 +12,9 @@ const JwtAuthResetPassword = Loadable(lazy(() => import('pages/auth/jwt/reset-pa
 const JwtAuthCodeVerification = Loadable(lazy(() => import('pages/auth/jwt/code-verification')));
 const JwtAuthCheckMail = Loadable(lazy(() => import('pages/auth/jwt/check-mail')));
 
+// approve device
+const ApproveDevice = Loadable(lazy(() => import('pages/auth/approve-device')));
+
 // ==============================|| AUTH ROUTING ||============================== //
 
 const LoginRoutes = {
@@ -29,7 +32,8 @@ const LoginRoutes = {
             { path: 'forgot-password', element: <JwtAuthForgotPassword /> },
             { path: 'check-mail', element: <JwtAuthCheckMail /> },
             { path: 'reset-password', element: <JwtAuthResetPassword /> },
-            { path: 'code-verification', element: <JwtAuthCodeVerification /> }
+            { path: 'code-verification', element: <JwtAuthCodeVerification /> },
+            { path: 'approve-device', element: <ApproveDevice /> }
           ]
         }
       ]

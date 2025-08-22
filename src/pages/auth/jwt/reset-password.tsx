@@ -15,8 +15,8 @@ export default function ResetPassword() {
       <Grid container spacing={3}>
         <Grid size={12}>
           <Stack sx={{ gap: 1, mb: { xs: -0.5, sm: 0.5 } }}>
-            <Typography variant="h3">Redefinir Senha</Typography>
-            <Typography color="secondary">Por favor, escolha sua nova senha</Typography>
+            <Typography variant="h3">Definir nova senha</Typography>
+            <Typography color="secondary">Crie uma senha forte para sua conta.</Typography>
           </Stack>
         </Grid>
         <Grid size={12}>

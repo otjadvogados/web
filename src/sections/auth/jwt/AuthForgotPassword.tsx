@@ -43,33 +43,22 @@ export default function AuthForgotPassword() {
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
-            await resetPassword?.(values.email).then(
-              () => {
-                setStatus({ success: true });
-                setSubmitting(false);
-                openSnackbar({
-                  open: true,
-                  message: 'Verifique seu e-mail para o link de redefinição de senha',
-                  variant: 'alert',
-                  alert: {
-                    color: 'success'
-                  }
-                } as SnackbarProps);
-                setTimeout(() => {
-                  navigate(isLoggedIn ? '/auth/check-mail' : auth ? `/${auth}/check-mail?auth=jwt` : '/check-mail', { replace: true });
-                }, 1500);
-
-                // AVISO: não defina nenhum estado do formik aqui, pois o formik já pode ter sido destruído.
-                // Isso pode gerar o erro: "Warning: Can't perform a React state update on an unmounted component."
-                // Para corrigir, cancele assinaturas e tarefas assíncronas em um cleanup do useEffect.
-                // Issue: https://github.com/formium/formik/issues/2430
-              },
-              (err: any) => {
-                setStatus({ success: false });
-                setErrors({ submit: err.message });
-                setSubmitting(false);
+            const response = await resetPassword?.(values.email);
+            
+            setStatus({ success: true });
+            setSubmitting(false);
+            openSnackbar({
+              open: true,
+              message: response.message,
+              variant: 'alert',
+              alert: {
+                color: 'success'
               }
-            );
+            } as SnackbarProps);
+            
+            setTimeout(() => {
+              navigate(isLoggedIn ? '/auth/check-mail' : auth ? `/${auth}/check-mail?auth=jwt` : '/check-mail', { replace: true });
+            }, 1500);
           } catch (err: any) {
             console.error(err);
             setStatus({ success: false });

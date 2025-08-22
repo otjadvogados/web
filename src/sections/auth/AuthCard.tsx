@@ -20,7 +20,6 @@ export default function AuthCard({ children, ...other }: MainCardProps) {
           borderRadius: 3,
           backdropFilter: 'blur(6px)',
           overflow: 'hidden',
-          background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.85)' : '#2e2e2ecc'
         }}
         content={false}
         {...other}
