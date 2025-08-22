@@ -16,8 +16,8 @@ const MaintenanceComingSoon = Loadable(lazy(() => import('pages/maintenance/comi
 
 const AppContactUS = Loadable(lazy(() => import('pages/contact-us')));
 
-// render - sample page
-const SamplePage = Loadable(lazy(() => import('pages/extra-pages/sample-page')));
+// NOVO: Central de Dispositivos
+const DevicesCenter = Loadable(lazy(() => import('pages/security/devices-center')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -29,8 +29,8 @@ const MainRoutes = {
       element: <DashboardLayout />,
       children: [
         {
-          path: 'sample-page',
-          element: <SamplePage />
+          path: 'devices',
+          element: <DevicesCenter />
         }
       ]
     },

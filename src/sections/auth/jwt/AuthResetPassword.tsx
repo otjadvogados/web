@@ -68,11 +68,9 @@ export default function AuthResetPassword() {
 
   // Função para validar senha forte
   const validatePassword = (password: string) => {
-    return password.length >= 8 &&
-           /[A-Z]/.test(password) &&
-           /[a-z]/.test(password) &&
-           /[0-9]/.test(password) &&
-           /[^A-Za-z0-9]/.test(password);
+    return (
+      password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password)
+    );
   };
 
   useEffect(() => {
@@ -94,7 +92,7 @@ export default function AuthResetPassword() {
         password: Yup.string()
           .max(255)
           .required('A senha é obrigatória')
-          .test('password-strength', 'A senha não atende aos requisitos', function(value) {
+          .test('password-strength', 'A senha não atende aos requisitos', function (value) {
             if (!value) return true; // Deixa o required cuidar disso
             return validatePassword(value);
           }),
@@ -105,7 +103,7 @@ export default function AuthResetPassword() {
       onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
         try {
           const token = getTokenFromHash();
-          
+
           if (!token) {
             setErrors({ submit: 'Link inválido.' });
             setSubmitting(false);
@@ -120,7 +118,7 @@ export default function AuthResetPassword() {
 
           setStatus({ success: true });
           setSubmitting(false);
-          
+
           openSnackbar({
             open: true,
             message: response.data?.message || 'Senha atualizada com sucesso!',
@@ -225,9 +223,9 @@ export default function AuthResetPassword() {
             )}
             <Grid size={12}>
               <AnimateButton>
-                              <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="primary">
-                Atualizar senha
-              </Button>
+                <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="primary">
+                  Atualizar senha
+                </Button>
               </AnimateButton>
             </Grid>
           </Grid>

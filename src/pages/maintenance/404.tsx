@@ -59,7 +59,7 @@ export default function Error404() {
         minHeight: '100vh',
         py: { xs: 6, sm: 8 },
         textAlign: 'center',
-        position: 'relative',
+        position: 'relative'
       }}
     >
       {/* número fantasma 404 ao fundo */}

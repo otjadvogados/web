@@ -41,8 +41,6 @@ export interface AuthActionProps {
   payload?: AuthProps;
 }
 
-
-
 export interface InitialLoginContextProps {
   isLoggedIn: boolean;
   isInitialized?: boolean;
@@ -59,5 +57,3 @@ export type JWTContextType = CanRemove & {
   resetPassword: (email: string) => Promise<{ message: string }>;
   updateProfile: VoidFunction;
 };
-
-

@@ -1,22 +1,22 @@
-// This is example of menu item without group for horizontal layout. There will be no children.
+// Central de Dispositivos - menu item para layout horizontal
 
 // assets
-import ChromeOutlined from '@ant-design/icons/ChromeOutlined';
+import DesktopOutlined from '@ant-design/icons/DesktopOutlined';
 
 // type
 import { NavItemType } from 'types/menu';
 
 // icons
-const icons = { ChromeOutlined };
+const icons = { DesktopOutlined };
 
-// ==============================|| MENU ITEMS - SAMPLE PAGE ||============================== //
+// ==============================|| MENU ITEMS - CENTRAL DE DISPOSITIVOS ||============================== //
 
-const samplePage: NavItemType = {
-  id: 'sample-page',
-  title: 'sample-page',
+const devicesCenter: NavItemType = {
+  id: 'devices',
+  title: 'Central de Dispositivos',
   type: 'group',
-  url: '/sample-page',
-  icon: icons.ChromeOutlined
+  url: '/devices',
+  icon: icons.DesktopOutlined
 };
 
-export default samplePage;
+export default devicesCenter;

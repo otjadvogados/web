@@ -44,7 +44,7 @@ export default function AuthForgotPassword() {
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
             const response = await resetPassword?.(values.email);
-            
+
             setStatus({ success: true });
             setSubmitting(false);
             openSnackbar({
@@ -55,7 +55,7 @@ export default function AuthForgotPassword() {
                 color: 'success'
               }
             } as SnackbarProps);
-            
+
             setTimeout(() => {
               navigate(isLoggedIn ? '/auth/check-mail' : auth ? `/${auth}/check-mail?auth=jwt` : '/check-mail', { replace: true });
             }, 1500);

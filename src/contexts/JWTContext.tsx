@@ -1,7 +1,5 @@
 import React, { createContext, useEffect, useReducer } from 'react';
 
-
-
 // reducer - state management
 import { LOGIN, LOGOUT } from 'contexts/auth-reducer/actions';
 import authReducer from 'contexts/auth-reducer/auth';
@@ -10,8 +8,6 @@ import authReducer from 'contexts/auth-reducer/auth';
 import Loader from 'components/Loader';
 import axios from 'utils/axios';
 import { AuthProps, JWTContextType } from 'types/auth';
-
-
 
 // constant
 const initialState: AuthProps = {

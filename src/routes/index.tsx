@@ -19,37 +19,40 @@ const Reset = Loadable(lazy(() => import('pages/auth/reset')));
 
 // ==============================|| ROUTING RENDER ||============================== //
 
-const router = createBrowserRouter([
-  {
-    path: '/approve-device',
-    element: <ApproveDevice />
-  },
-  {
-    path: '/verify',
-    element: <Verify />
-  },
-  {
-    path: '/unlock',
-    element: <Unlock />
-  },
-  {
-    path: '/reject-device',
-    element: <RejectDevice />
-  },
-  {
-    path: '/report-login',
-    element: <ReportLogin />
-  },
-  {
-    path: '/reset',
-    element: <Reset />
-  },
-  LoginRoutes, 
-  MainRoutes,
-  {
-    path: '*',
-    element: <MaintenanceError />
-  }
-], { basename: import.meta.env.VITE_APP_BASE_NAME });
+const router = createBrowserRouter(
+  [
+    {
+      path: '/approve-device',
+      element: <ApproveDevice />
+    },
+    {
+      path: '/verify',
+      element: <Verify />
+    },
+    {
+      path: '/unlock',
+      element: <Unlock />
+    },
+    {
+      path: '/reject-device',
+      element: <RejectDevice />
+    },
+    {
+      path: '/report-login',
+      element: <ReportLogin />
+    },
+    {
+      path: '/reset',
+      element: <Reset />
+    },
+    LoginRoutes,
+    MainRoutes,
+    {
+      path: '*',
+      element: <MaintenanceError />
+    }
+  ],
+  { basename: import.meta.env.VITE_APP_BASE_NAME }
+);
 
 export default router;

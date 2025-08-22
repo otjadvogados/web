@@ -45,7 +45,7 @@ export default function Theme1(colors: PalettesProps, mode: ThemeMode): PaletteT
     '#C99F50', // dark
     '#B08942', // 700
     '#8E6B31', // darker
-    '#6C5022'  // 900
+    '#6C5022' // 900
   ];
   let errorColors = ['#FFE7D3', '#FF805D', '#FF4528', '#DB271D', '#930C1A'];
   let warningColors = ['#FFF6D0', '#FFCF4E', '#FFB814', '#DB970E', '#935B06'];
@@ -63,7 +63,7 @@ export default function Theme1(colors: PalettesProps, mode: ThemeMode): PaletteT
       '#C49D50', // dark
       '#AA8844', // 700
       '#886933', // darker
-      '#665027'  // 900
+      '#665027' // 900
     ];
     errorColors = ['#341d1b', '#b03725', '#dd3f27', '#e9664d', '#fbd6c9'];
     warningColors = ['#342a1a', '#83631a', '#dda116', '#e9ba3a', '#fbefb5'];

@@ -31,9 +31,7 @@ export default function CodeVerification() {
           </Stack>
         </Grid>
         <Grid size={12}>
-          <Typography>
-            Enviamos o código para {email && finalArr.length > 0 ? finalArr.join('') : '****@company.com'}
-          </Typography>
+          <Typography>Enviamos o código para {email && finalArr.length > 0 ? finalArr.join('') : '****@company.com'}</Typography>
         </Grid>
         <Grid size={12}>
           <AuthCodeVerification />

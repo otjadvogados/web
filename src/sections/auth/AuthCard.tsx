@@ -19,7 +19,7 @@ export default function AuthCard({ children, ...other }: MainCardProps) {
           '& > *': { flexGrow: 1, flexBasis: '50%' },
           borderRadius: 3,
           backdropFilter: 'blur(6px)',
-          overflow: 'hidden',
+          overflow: 'hidden'
         }}
         content={false}
         {...other}

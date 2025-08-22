@@ -132,7 +132,10 @@ export default function Button(theme: Theme) {
           }
         },
         text: { boxShadow: 'none', '&:hover': { boxShadow: 'none', backgroundColor: theme.palette.action.hover } },
-        outlinedInherit: { border: `1px solid ${alpha(theme.palette.grey[500], 0.32)}`, '&:hover': { backgroundColor: theme.palette.action.hover } },
+        outlinedInherit: {
+          border: `1px solid ${alpha(theme.palette.grey[500], 0.32)}`,
+          '&:hover': { backgroundColor: theme.palette.action.hover }
+        },
         containedInherit: { color: theme.palette.grey[800], boxShadow: theme.shadows[2], '&:hover': { boxShadow: theme.shadows[4] } },
         light: {
           color: theme.palette.grey[800],

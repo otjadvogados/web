@@ -66,7 +66,8 @@ export default function ContactForm() {
               Lorem ipsum dolor sit amet.
             </Typography>
             <Typography variant="caption" align="center" color="text.secondary" sx={{ maxWidth: '355px' }}>
-              O ponto de partida para o seu próximo projeto com Material-UI © personalizável, ajudando você a criar apps mais rápido e melhor.
+              O ponto de partida para o seu próximo projeto com Material-UI © personalizável, ajudando você a criar apps mais rápido e
+              melhor.
             </Typography>
           </Stack>
         </Grid>

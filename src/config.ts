@@ -19,7 +19,7 @@ export const getBrandColors = (isDark: boolean) => ({
   ivory: isDark ? '#2A2A2A' : BRAND_IVORY
 });
 
-export const APP_DEFAULT_PATH = '/sample-page';
+export const APP_DEFAULT_PATH = '/devices';
 export const HORIZONTAL_MAX_ITEM = 7;
 export const DRAWER_WIDTH = 260;
 export const MINI_DRAWER_WIDTH = 60;

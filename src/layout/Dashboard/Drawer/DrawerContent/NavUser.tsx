@@ -19,7 +19,7 @@ import { useGetMenuMaster } from 'api/menu';
 
 // assets
 import RightOutlined from '@ant-design/icons/RightOutlined';
-import avatar1 from 'assets/images/users/avatar-1.png';
+import avatar1 from 'assets/images/users/avatar.jpg';
 
 interface ExpandMoreProps extends IconButtonProps {
   expand: boolean;

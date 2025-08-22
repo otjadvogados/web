@@ -30,7 +30,7 @@ import useAuth from 'hooks/useAuth';
 import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
-import avatar1 from 'assets/images/users/avatar-1.png';
+import avatar1 from 'assets/images/users/avatar.jpg';
 
 interface TabPanelProps {
   children?: ReactNode;
@@ -149,7 +149,7 @@ export default function Profile() {
                           <Stack>
                             <Typography variant="h6">{user?.name}</Typography>
                             <Typography variant="body2" color="text.secondary">
-                              UI/UX Designer
+                              Advogado
                             </Typography>
                           </Stack>
                         </Stack>
@@ -179,7 +179,7 @@ export default function Profile() {
                           }
                         }}
                         icon={<UserOutlined />}
-                        label="Profile"
+                        label="Perfil"
                         {...a11yProps(0)}
                       />
                       <Tab
@@ -195,7 +195,7 @@ export default function Profile() {
                           }
                         }}
                         icon={<SettingOutlined />}
-                        label="Setting"
+                        label="Ajustes"
                         {...a11yProps(1)}
                       />
                     </Tabs>

@@ -19,13 +19,7 @@ import { checkToken, extractTokenFromUrl, clearTokenFromUrl } from 'utils/token-
 // Ilustração de rejeição
 function RejectIcon({ color, stroke = 2 }: { color: string; stroke?: number }) {
   return (
-    <Box
-      component="svg"
-      role="img"
-      aria-label="Rejeição"
-      viewBox="0 0 240 180"
-      sx={{ width: { xs: 180, sm: 280 }, height: 'auto' }}
-    >
+    <Box component="svg" role="img" aria-label="Rejeição" viewBox="0 0 240 180" sx={{ width: { xs: 180, sm: 280 }, height: 'auto' }}>
       <g fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
         {/* Círculo externo */}
         <circle cx="120" cy="90" r="60" />
@@ -71,16 +65,16 @@ export default function RejectDevice() {
 
         // Chama o endpoint principal
         const response = await axios.post('/auth/reject-device', { token });
-        
+
         // Limpa o token da URL
         clearTokenFromUrl();
-        
+
         setStatus('success');
         setMessage(response.data?.message || 'Dispositivo rejeitado com sucesso!');
       } catch (error: any) {
         // Limpa o token da URL mesmo em caso de erro
         clearTokenFromUrl();
-        
+
         setStatus('error');
         setMessage(error.response?.data?.message || 'Erro na rejeição');
       }
@@ -100,7 +94,7 @@ export default function RejectDevice() {
         minHeight: '100vh',
         py: { xs: 6, sm: 8 },
         textAlign: 'center',
-        position: 'relative',
+        position: 'relative'
       }}
     >
       <Grid size={12} sx={{ position: 'relative' }}>
@@ -114,15 +108,12 @@ export default function RejectDevice() {
       <Grid size={12} sx={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <Stack spacing={2.5} alignItems="center" sx={{ maxWidth: 720, px: 2 }}>
           <Typography variant="h3" sx={{ fontFamily: `'Merriweather', serif`, fontWeight: 700 }}>
-            {status === 'loading' ? 'Processando...' : 
-             status === 'success' ? 'Dispositivo rejeitado!' : 'Erro na rejeição'}
+            {status === 'loading' ? 'Processando...' : status === 'success' ? 'Dispositivo rejeitado!' : 'Erro na rejeição'}
           </Typography>
 
           <Divider flexItem sx={{ width: 120, borderColor: colors.gold, opacity: 0.6 }} />
 
-          <Typography color="text.secondary">
-            {message}
-          </Typography>
+          <Typography color="text.secondary">{message}</Typography>
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ pt: 1 }}>
             <Button component={Link} to="/login" variant="contained">

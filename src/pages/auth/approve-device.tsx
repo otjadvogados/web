@@ -18,27 +18,27 @@ import { checkToken, extractTokenFromUrl, clearTokenFromUrl } from 'utils/token-
 
 // Ilustração de dispositivo aprovado (checkmark em círculo)
 function DeviceApproved({ color, stroke = 2 }: { color: string; stroke?: number }) {
-    return (
-        <Box
-            component="svg"
-            role="img"
-            aria-label="Dispositivo aprovado"
-            viewBox="0 0 240 180"
-            sx={{ width: { xs: 180, sm: 280 }, height: 'auto' }}
-        >
-            <g fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
-                {/* Círculo externo */}
-                <circle cx="120" cy="90" r="60" />
-                {/* Checkmark */}
-                <path d="M85 90l20 20 30-30" />
-                {/* Dispositivo (tablet/phone) */}
-                <rect x="80" y="130" width="80" height="40" rx="4" />
-                <rect x="85" y="135" width="70" height="30" rx="2" fill={color} opacity="0.1" />
-                {/* Tela do dispositivo */}
-                <rect x="90" y="140" width="60" height="20" rx="1" fill={color} opacity="0.2" />
-            </g>
-        </Box>
-    );
+  return (
+    <Box
+      component="svg"
+      role="img"
+      aria-label="Dispositivo aprovado"
+      viewBox="0 0 240 180"
+      sx={{ width: { xs: 180, sm: 280 }, height: 'auto' }}
+    >
+      <g fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
+        {/* Círculo externo */}
+        <circle cx="120" cy="90" r="60" />
+        {/* Checkmark */}
+        <path d="M85 90l20 20 30-30" />
+        {/* Dispositivo (tablet/phone) */}
+        <rect x="80" y="130" width="80" height="40" rx="4" />
+        <rect x="85" y="135" width="70" height="30" rx="2" fill={color} opacity="0.1" />
+        {/* Tela do dispositivo */}
+        <rect x="90" y="140" width="60" height="20" rx="1" fill={color} opacity="0.2" />
+      </g>
+    </Box>
+  );
 }
 
 // ==============================|| APROVAÇÃO DE DISPOSITIVO ||============================== //
@@ -72,16 +72,16 @@ export default function ApproveDevice() {
 
         // Chama o endpoint principal
         const response = await axios.post('/auth/approve-device', { token });
-        
+
         // Limpa o token da URL
         clearTokenFromUrl();
-        
+
         setStatus('success');
         setMessage(response.data?.message || 'Dispositivo aprovado com sucesso!');
       } catch (error: any) {
         // Limpa o token da URL mesmo em caso de erro
         clearTokenFromUrl();
-        
+
         setStatus('error');
         setMessage(error.response?.data?.message || 'Erro na aprovação');
       }
@@ -91,20 +91,20 @@ export default function ApproveDevice() {
   }, []);
 
   return (
-        <Grid
-            container
-            spacing={4}
-            direction="column"
-            alignItems="center"
-            justifyContent="center"
-            sx={{
-                minHeight: '100vh',
-                py: { xs: 6, sm: 8 },
-                textAlign: 'center',
-                position: 'relative',
-            }}
-        >
-                  <Grid size={12} sx={{ position: 'relative' }}>
+    <Grid
+      container
+      spacing={4}
+      direction="column"
+      alignItems="center"
+      justifyContent="center"
+      sx={{
+        minHeight: '100vh',
+        py: { xs: 6, sm: 8 },
+        textAlign: 'center',
+        position: 'relative'
+      }}
+    >
+      <Grid size={12} sx={{ position: 'relative' }}>
         {status === 'loading' ? (
           <CircularProgress size={80} sx={{ color: colors.gold }} />
         ) : (
@@ -115,26 +115,23 @@ export default function ApproveDevice() {
       <Grid size={12} sx={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <Stack spacing={2.5} alignItems="center" sx={{ maxWidth: 720, px: 2 }}>
           <Typography variant="h3" sx={{ fontFamily: `'Merriweather', serif`, fontWeight: 700 }}>
-            {status === 'loading' ? 'Processando...' : 
-             status === 'success' ? 'Dispositivo aprovado!' : 'Erro na aprovação'}
+            {status === 'loading' ? 'Processando...' : status === 'success' ? 'Dispositivo aprovado!' : 'Erro na aprovação'}
           </Typography>
 
           <Divider flexItem sx={{ width: 120, borderColor: colors.gold, opacity: 0.6 }} />
 
-          <Typography color="text.secondary">
-            {message || 'Você já pode tentar fazer login nesse dispositivo.'}
-          </Typography>
+          <Typography color="text.secondary">{message || 'Você já pode tentar fazer login nesse dispositivo.'}</Typography>
 
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ pt: 1 }}>
-                        <Button component={Link} to="/login" variant="contained">
-                            Fazer login
-                        </Button>
-                        <Button component={Link} to={APP_DEFAULT_PATH} variant="outlined" color="inherit">
-                            Voltar ao início
-                        </Button>
-                    </Stack>
-                </Stack>
-            </Grid>
-        </Grid>
-    );
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ pt: 1 }}>
+            <Button component={Link} to="/login" variant="contained">
+              Fazer login
+            </Button>
+            <Button component={Link} to={APP_DEFAULT_PATH} variant="outlined" color="inherit">
+              Voltar ao início
+            </Button>
+          </Stack>
+        </Stack>
+      </Grid>
+    </Grid>
+  );
 }

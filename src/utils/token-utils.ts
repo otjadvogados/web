@@ -16,7 +16,7 @@ export const checkToken = async (type: TokenType, token: string): Promise<TokenC
       type,
       token
     });
-    
+
     return {
       valid: true,
       message: response.data?.message
@@ -31,8 +31,7 @@ export const checkToken = async (type: TokenType, token: string): Promise<TokenC
 
 // Função para extrair token da URL
 export const extractTokenFromUrl = (): string | null => {
-  return new URLSearchParams(location.hash.replace(/^#/, '')).get('t') 
-         ?? new URLSearchParams(location.search).get('token');
+  return new URLSearchParams(location.hash.replace(/^#/, '')).get('t') ?? new URLSearchParams(location.search).get('token');
 };
 
 // Função para limpar token da URL

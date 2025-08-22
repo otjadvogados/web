@@ -19,13 +19,7 @@ import { extractTokenFromUrl, clearTokenFromUrl } from 'utils/token-utils';
 // Ilustração de report
 function ReportIcon({ color, stroke = 2 }: { color: string; stroke?: number }) {
   return (
-    <Box
-      component="svg"
-      role="img"
-      aria-label="Report"
-      viewBox="0 0 240 180"
-      sx={{ width: { xs: 180, sm: 280 }, height: 'auto' }}
-    >
+    <Box component="svg" role="img" aria-label="Report" viewBox="0 0 240 180" sx={{ width: { xs: 180, sm: 280 }, height: 'auto' }}>
       <g fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
         {/* Triângulo de alerta */}
         <path d="M120 40l60 100h-120z" />
@@ -62,16 +56,16 @@ export default function ReportLogin() {
 
         // Chama o endpoint principal (sem precheck por enquanto)
         const response = await axios.post('/auth/report-login', { token });
-        
+
         // Limpa o token da URL
         clearTokenFromUrl();
-        
+
         setStatus('success');
         setMessage(response.data?.message || 'Login reportado com sucesso!');
       } catch (error: any) {
         // Limpa o token da URL mesmo em caso de erro
         clearTokenFromUrl();
-        
+
         setStatus('error');
         setMessage(error.response?.data?.message || 'Erro no report');
       }
@@ -91,7 +85,7 @@ export default function ReportLogin() {
         minHeight: '100vh',
         py: { xs: 6, sm: 8 },
         textAlign: 'center',
-        position: 'relative',
+        position: 'relative'
       }}
     >
       <Grid size={12} sx={{ position: 'relative' }}>
@@ -105,15 +99,12 @@ export default function ReportLogin() {
       <Grid size={12} sx={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <Stack spacing={2.5} alignItems="center" sx={{ maxWidth: 720, px: 2 }}>
           <Typography variant="h3" sx={{ fontFamily: `'Merriweather', serif`, fontWeight: 700 }}>
-            {status === 'loading' ? 'Processando...' : 
-             status === 'success' ? 'Login reportado!' : 'Erro no report'}
+            {status === 'loading' ? 'Processando...' : status === 'success' ? 'Login reportado!' : 'Erro no report'}
           </Typography>
 
           <Divider flexItem sx={{ width: 120, borderColor: colors.gold, opacity: 0.6 }} />
 
-          <Typography color="text.secondary">
-            {message}
-          </Typography>
+          <Typography color="text.secondary">{message}</Typography>
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ pt: 1 }}>
             <Button component={Link} to="/login" variant="contained">

@@ -9,7 +9,5 @@ import logoIcon from 'assets/images/logo/simple-otj.png';
 export default function LogoIcon() {
   const theme = useTheme();
 
-  return (
-    <img src={logoIcon} alt="OTJ" width="35" height="35" style={{ objectFit: 'contain' }} />
-  );
+  return <img src={logoIcon} alt="OTJ" width="35" height="35" style={{ objectFit: 'contain' }} />;
 }

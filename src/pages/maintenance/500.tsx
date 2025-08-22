@@ -100,11 +100,7 @@ export default function Error500() {
             <Button component={Link} to={APP_DEFAULT_PATH} variant="contained">
               Voltar ao início
             </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => window.location.reload()}
-            >
+            <Button variant="outlined" color="inherit" onClick={() => window.location.reload()}>
               Tentar novamente
             </Button>
           </Stack>
