@@ -23,10 +23,50 @@ import { UserProfile } from 'types/auth';
 // helpers
 const unwrapUser = (resp: any) => resp?.data?.data ?? resp?.data?.user ?? resp?.data ?? resp;
 
+// Validação de CPF
+const validateCPF = (cpf: string) => {
+  const cleanCPF = cpf.replace(/\D/g, '');
+  
+  if (cleanCPF.length !== 11) return false;
+  
+  // Verifica se todos os dígitos são iguais
+  if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
+  
+  // Validação do primeiro dígito verificador
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cleanCPF.charAt(i)) * (10 - i);
+  }
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cleanCPF.charAt(9))) return false;
+  
+  // Validação do segundo dígito verificador
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cleanCPF.charAt(i)) * (11 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cleanCPF.charAt(10))) return false;
+  
+  return true;
+};
+
 const baseSchema = Yup.object({
   name: Yup.string().required('Nome é obrigatório').max(120),
   email: Yup.string().email('E-mail inválido').required('E-mail é obrigatório').max(255),
-  cpf: Yup.string().optional(),
+  cpf: Yup.string()
+    .required('CPF é obrigatório')
+    .test('cpf-format', 'CPF deve ter 11 dígitos', (value) => {
+      if (!value) return false;
+      const cleanCPF = value.replace(/\D/g, '');
+      return cleanCPF.length === 11;
+    })
+    .test('cpf-valid', 'CPF inválido', (value) => {
+      if (!value) return false;
+      return validateCPF(value);
+    }),
   birthdate: Yup.string().optional(),
   phone: Yup.string().optional().max(20),
   currentPassword: Yup.string()
@@ -35,7 +75,7 @@ const baseSchema = Yup.object({
 type MeDTO = {
   name: string;
   email: string;
-  cpf?: string;
+  cpf: string; // Agora obrigatório
   birthdate?: string; // ISO yyyy-mm-dd
   phone?: string;
   currentPassword?: string; // só quando trocando email
@@ -207,7 +247,7 @@ export default function PersonalForm() {
 
               <Grid size={{ xs: 12, md: 4 }}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="cpf">CPF (opcional)</InputLabel>
+                  <InputLabel htmlFor="cpf">CPF *</InputLabel>
                   <OutlinedInput
                     id="cpf"
                     name="cpf"
@@ -216,7 +256,7 @@ export default function PersonalForm() {
                     onChange={bindMask('cpf', setFieldValue, formatCPF, cpfRef)}
                     onBlur={handleBlur}
                     error={Boolean(touched.cpf && errors.cpf)}
-                    placeholder="000.000.000-00"
+                    placeholder="000.000.000-00 (obrigatório)"
                     fullWidth
                   />
                   {touched.cpf && errors.cpf && <FormHelperText error>{errors.cpf}</FormHelperText>}

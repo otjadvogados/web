@@ -61,6 +61,13 @@ const pages: NavItemType = {
       type: 'item',
       url: '/account',
       icon: icons.UserOutlined
+    },
+    {
+      id: 'users',
+      title: 'users',
+      type: 'item',
+      url: '/users',
+      icon: icons.UserOutlined
     }
   ]
 };

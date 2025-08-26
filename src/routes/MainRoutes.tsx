@@ -22,6 +22,9 @@ const DevicesCenter = Loadable(lazy(() => import('pages/security/devices-center'
 // NOVO: Configurações da Conta
 const AccountSettings = Loadable(lazy(() => import('pages/account')));
 
+// NOVO: Colaboradores
+const UsersPage = Loadable(lazy(() => import('pages/users')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -38,6 +41,10 @@ const MainRoutes = {
         {
           path: 'account',
           element: <AccountSettings />
+        },
+        {
+          path: 'users',
+          element: <UsersPage />
         }
       ]
     },

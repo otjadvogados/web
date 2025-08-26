@@ -1,85 +1,37 @@
-// material-ui
-import { styled, Theme } from '@mui/material/styles';
-import MuiTooltip, { TooltipProps, tooltipClasses } from '@mui/material/Tooltip';
-import Box from '@mui/material/Box';
+import { forwardRef } from 'react';
+import { useTheme } from '@mui/material/styles';
+import MuiTooltip, { TooltipProps } from '@mui/material/Tooltip';
 
-// project imports
-import getColors from 'utils/getColors';
+// ==============================|| EXTENDED TOOLTIP ||============================== //
 
-// type
-import { ColorProps } from 'types/extended';
+const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(({ children, ...props }, ref) => {
+  const theme = useTheme();
 
-// ==============================|| TOOLTIP - VARIANT ||============================== //
-
-interface TooltipStyleProps {
-  color?: ColorProps | string;
-  labelColor?: ColorProps | string;
-  theme: Theme;
-}
-
-function getVariantStyle({ color, theme, labelColor }: TooltipStyleProps) {
-  const colors = getColors(theme, color as ColorProps);
-  const { main, contrastText } = colors;
-  const colorValue = color ? color : '';
-
-  if (['primary', 'secondary', 'info', 'success', 'warning', 'error'].includes(colorValue)) {
-    return {
-      [`& .${tooltipClasses.tooltip}`]: {
-        background: main,
-        color: labelColor ? labelColor : contrastText
-      },
-      [`& .${tooltipClasses.arrow}`]: {
-        color: main
-      }
-    };
-  } else {
-    return {
-      [`& .${tooltipClasses.tooltip}`]: {
-        background: colorValue,
-        color: labelColor ? labelColor : contrastText,
-        boxShadow: theme.shadows[1]
-      },
-      [`& .${tooltipClasses.arrow}`]: {
-        color: colorValue
-      }
-    };
-  }
-}
-
-// ==============================|| STYLED - TOOLTIP COLOR ||============================== //
-
-interface StyleProps {
-  arrow: TooltipProps['arrow'];
-  labelColor?: ColorProps | string;
-  color?: ColorProps | string;
-}
-
-const TooltipStyle = styled(({ className, ...props }: TooltipProps) => <MuiTooltip {...props} classes={{ popper: className }} />, {
-  shouldForwardProp: (prop) => prop !== 'color' && prop !== 'labelColor'
-})<StyleProps>(({ theme, color, labelColor }) => ({
-  variants: [
-    {
-      props: { color },
-      style: getVariantStyle({ color, theme, labelColor })
-    }
-  ]
-}));
-
-// ==============================|| EXTENDED - TOOLTIP ||============================== //
-
-interface Props extends TooltipProps {
-  color?: ColorProps | string;
-  labelColor?: ColorProps | string;
-  arrow?: boolean;
-  children: TooltipProps['children'];
-}
-
-export default function CustomTooltip({ children, arrow = true, labelColor = '', ...rest }: Props) {
   return (
-    <Box display="flex">
-      <TooltipStyle arrow={arrow} labelColor={labelColor} {...rest}>
-        {children}
-      </TooltipStyle>
-    </Box>
+    <MuiTooltip
+      ref={ref}
+      {...props}
+      arrow
+      placement="top"
+      sx={{
+        '& .MuiTooltip-tooltip': {
+          backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[900],
+          color: theme.palette.mode === 'dark' ? theme.palette.grey[100] : theme.palette.common.white,
+          borderRadius: 4,
+          fontSize: '0.75rem',
+          padding: '8px 12px',
+          boxShadow: theme.shadows[8]
+        },
+        '& .MuiTooltip-arrow': {
+          color: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[900]
+        }
+      }}
+    >
+      {children}
+    </MuiTooltip>
   );
-}
+});
+
+Tooltip.displayName = 'Tooltip';
+
+export default Tooltip;
