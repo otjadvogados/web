@@ -66,11 +66,8 @@ export default function Profile() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate(`/login`, {
-        state: {
-          from: ''
-        }
-      });
+      // Usa window.location.href para evitar conflitos com o interceptor
+      window.location.href = '/login';
     } catch (err) {
       console.error(err);
     }

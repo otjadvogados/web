@@ -67,7 +67,7 @@ export default function SessionTimer({ expiresIn }: SessionTimerProps) {
             variant: 'filled'
           },
           anchorOrigin: { vertical: 'top', horizontal: 'center' }
-        });
+        } as any);
       }
 
       // Verifica se restam 2 minutos (120 segundos) e mostra alerta crítico
@@ -82,7 +82,7 @@ export default function SessionTimer({ expiresIn }: SessionTimerProps) {
             variant: 'filled'
           },
           anchorOrigin: { vertical: 'top', horizontal: 'center' }
-        });
+        } as any);
       }
 
       const hours = Math.floor(remainingSeconds / 3600);
