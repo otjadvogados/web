@@ -25,7 +25,12 @@ export type UserProfile = {
   avatar?: string;
   image?: string;
   name?: string;
-  role?: string;
+  role?: {
+    id: string;
+    name: string;
+    description: string;
+    companyId: string;
+  };
   tier?: string;
   // 👇 opcionais, caso o backend envie
   cpf?: string;
@@ -33,6 +38,19 @@ export type UserProfile = {
   phone?: string;
   createdAt?: string;
   updatedAt?: string;
+  companyId?: string;
+  departments?: Array<{
+    id: string;
+    name: string;
+    description?: string;
+  }>;
+  company?: {
+    id: string;
+    name: string;
+    tradeName: string;
+    website?: string;
+  };
+  rules?: string[];
 };
 
 export interface AuthProps {

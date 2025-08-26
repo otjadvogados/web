@@ -147,7 +147,7 @@ export default function Profile() {
                           <Stack>
                             <Typography variant="h6">{user?.name || 'Usuário'}</Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {user?.role || 'Advogado'}
+                              {user?.role?.name || 'Advogado'}
                             </Typography>
                           </Stack>
                         </Stack>
