@@ -5,12 +5,13 @@ import RocketOutlined from '@ant-design/icons/RocketOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
 import TeamOutlined from '@ant-design/icons/TeamOutlined';
 import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
+import AppstoreOutlined from '@ant-design/icons/AppstoreOutlined';
 
 // type
 import { NavItemType } from 'types/menu';
 
 // icons
-const icons = { DollarOutlined, LoginOutlined, RocketOutlined, UserOutlined, TeamOutlined, SafetyOutlined };
+const icons = { DollarOutlined, LoginOutlined, RocketOutlined, UserOutlined, TeamOutlined, SafetyOutlined, AppstoreOutlined };
 
 // ==============================|| MENU ITEMS - PAGES ||============================== //
 
@@ -80,6 +81,14 @@ const pages: NavItemType = {
       type: 'item',
       icon: icons.SafetyOutlined,
       url: '/roles'
+    },
+    // 👇 NOVO: Departamentos
+    {
+      id: 'departments',
+      title: 'departments',
+      type: 'item',
+      icon: icons.AppstoreOutlined,
+      url: '/departments'
     }
   ]
 };

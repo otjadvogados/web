@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -24,16 +24,16 @@ import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
-import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
+import AppstoreOutlined from '@ant-design/icons/AppstoreOutlined';
 
-import { listRoles, deleteRole, getRole } from '../../api/roles';
-import { RoleRow } from '../../types/roles';
+import { listDepartments, deleteDepartment, getDepartment } from '../../api/departments';
+import { DepartmentRow } from '../../types/departments';
 import { openSnackbar } from '../../api/snackbar';
-import RoleFormDialog from '../../sections/roles/RoleFormDialog';
+import DepartmentFormDialog from '../../sections/departments/DepartmentFormDialog';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 
-export default function RolesPage() {
-  const [items, setItems] = useState<RoleRow[]>([]);
+export default function DepartmentsPage() {
+  const [items, setItems] = useState<DepartmentRow[]>([]);
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
@@ -55,7 +55,7 @@ export default function RolesPage() {
   async function load() {
     try {
       setLoading(true);
-      const res = await listRoles({
+      const res = await listDepartments({
         page: page + 1,
         limit,
         search: search.trim() || undefined,
@@ -65,7 +65,7 @@ export default function RolesPage() {
       setItems(res.data);
       setTotal(res.pagination.total);
     } catch (err: any) {
-      openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao carregar funções', variant: 'alert', alert: { color: 'error' } } as any);
+      openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao carregar departamentos', variant: 'alert', alert: { color: 'error' } } as any);
     } finally {
       setLoading(false);
     }
@@ -82,41 +82,36 @@ export default function RolesPage() {
   const openEdit = async (id: string) => {
     try {
       setEditId(id);
-      const r = await getRole(id);
-      setEditInitial({
-        name: r.name,
-        description: r.description ?? ''
-        // companyId não é editável
-      });
+      const r = await getDepartment(id);
+      setEditInitial({ name: r.name, description: r.description ?? '' });
       setFormOpen(true);
     } catch (err: any) {
-      openSnackbar({ open: true, message: err?.response?.data?.message || 'Não foi possível carregar a função', variant: 'alert', alert: { color: 'error' } } as any);
+      openSnackbar({ open: true, message: err?.response?.data?.message || 'Não foi possível carregar o departamento', variant: 'alert', alert: { color: 'error' } } as any);
     }
   };
 
-  const requestDelete = (r: RoleRow) => {
-    setDeleteTarget({ id: r.id, name: r.name });
+  const requestDelete = (d: DepartmentRow) => {
+    setDeleteTarget({ id: d.id, name: d.name });
     setDeleteOpen(true);
   };
 
-  // Card simples para mobile
-  const RoleCard = ({ role }: { role: RoleRow }) => (
+  const DeptCard = ({ dept }: { dept: DepartmentRow }) => (
     <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
       <Stack spacing={1}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Stack direction="row" spacing={1} alignItems="center">
-            <SafetyOutlined />
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{role.name}</Typography>
+            <AppstoreOutlined />
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{dept.name}</Typography>
           </Stack>
           <Stack direction="row" spacing={0.5}>
-            <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(role.id)}><EditOutlined /></IconButton></Tooltip>
-            <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(role)}><DeleteOutlined /></IconButton></Tooltip>
+            <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(dept.id)}><EditOutlined /></IconButton></Tooltip>
+            <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(dept)}><DeleteOutlined /></IconButton></Tooltip>
           </Stack>
         </Stack>
-        {role.description && <Typography variant="body2" color="text.secondary">{role.description}</Typography>}
+        {dept.description && <Typography variant="body2" color="text.secondary">{dept.description}</Typography>}
         <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="caption" color="text.secondary">Escopo:</Typography>
-          <Chip size="small" label={role.company?.name ?? 'Global'} />
+          <Typography variant="caption" color="text.secondary">Empresa:</Typography>
+          <Chip size="small" label={dept.company?.name ?? '—'} />
         </Stack>
       </Stack>
     </Box>
@@ -125,7 +120,7 @@ export default function RolesPage() {
   return (
     <Grid container spacing={3}>
       <Grid size={12}>
-        <MainCard title="Funções" contentSX={{ p: 0 }}>
+        <MainCard title="Departamentos" contentSX={{ p: 0 }}>
           <Stack direction={isMobile ? 'column' : 'row'} spacing={isMobile ? 2 : 1.5} sx={{ p: 2, pb: 1 }} alignItems={isMobile ? 'stretch' : 'center'}>
             <TextField
               label="Buscar por nome"
@@ -139,7 +134,7 @@ export default function RolesPage() {
                 Buscar
               </Button>
               <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
-                Nova Função
+                Novo Departamento
               </Button>
             </Stack>
           </Stack>
@@ -148,10 +143,10 @@ export default function RolesPage() {
 
           {isMobile ? (
             <Box>
-              {items.map((r) => <RoleCard key={r.id} role={r} />)}
+              {items.map((d) => <DeptCard key={d.id} dept={d} />)}
               {!items.length && (
                 <Stack alignItems="center" sx={{ py: 6 }}>
-                  <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhuma função encontrada.'}</Typography>
+                  <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhum departamento encontrado.'}</Typography>
                 </Stack>
               )}
             </Box>
@@ -166,21 +161,21 @@ export default function RolesPage() {
                    </TableRow>
                  </TableHead>
                 <TableBody>
-                  {items.map((r) => (
-                    <TableRow key={r.id} hover>
+                  {items.map((d) => (
+                    <TableRow key={d.id} hover>
                       <TableCell>
                         <Stack>
-                          <Typography fontWeight={600}>{r.name}</Typography>
-                          {r.createdAt && <Typography variant="caption" color="text.secondary">Criado em {new Date(r.createdAt).toLocaleString()}</Typography>}
+                          <Typography fontWeight={600}>{d.name}</Typography>
+                          {d.createdAt && <Typography variant="caption" color="text.secondary">Criado em {new Date(d.createdAt).toLocaleString()}</Typography>}
                         </Stack>
                       </TableCell>
                                              <TableCell sx={{ maxWidth: 420 }}>
-                         <Typography variant="body2" color="text.secondary">{r.description || '—'}</Typography>
+                         <Typography variant="body2" color="text.secondary">{d.description || '—'}</Typography>
                        </TableCell>
                        <TableCell align="right">
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                          <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(r.id)}><EditOutlined /></IconButton></Tooltip>
-                          <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(r)}><DeleteOutlined /></IconButton></Tooltip>
+                          <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(d.id)}><EditOutlined /></IconButton></Tooltip>
+                          <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(d)}><DeleteOutlined /></IconButton></Tooltip>
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -189,7 +184,7 @@ export default function RolesPage() {
                      <TableRow>
                        <TableCell colSpan={3}>
                          <Stack alignItems="center" sx={{ py: 6 }}>
-                           <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhuma função encontrada.'}</Typography>
+                           <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhum departamento encontrado.'}</Typography>
                          </Stack>
                        </TableCell>
                      </TableRow>
@@ -217,8 +212,7 @@ export default function RolesPage() {
         </MainCard>
       </Grid>
 
-      {/* Dialogo de criar/editar */}
-      <RoleFormDialog
+      <DepartmentFormDialog
         open={formOpen}
         onClose={() => setFormOpen(false)}
         editingId={editId}
@@ -226,7 +220,6 @@ export default function RolesPage() {
         onSaved={load}
       />
 
-      {/* Confirmação de deleção */}
       <ConfirmDeleteDialog
         open={deleteOpen}
         onCancel={() => {
@@ -238,8 +231,8 @@ export default function RolesPage() {
           if (!deleteTarget) return;
           try {
             setDeleting(true);
-            const response = await deleteRole(deleteTarget.id);
-            openSnackbar({ open: true, message: response.message || 'Função removida!', variant: 'alert', alert: { color: 'success' } } as any);
+            const response = await deleteDepartment(deleteTarget.id);
+            openSnackbar({ open: true, message: response.message || 'Departamento removido!', variant: 'alert', alert: { color: 'success' } } as any);
             if (items.length === 1 && page > 0) setPage((p) => p - 1);
             else load();
           } catch (err: any) {
@@ -251,12 +244,8 @@ export default function RolesPage() {
           }
         }}
         loading={deleting}
-        title="Remover função"
-        description={
-          <span>
-            Esta ação <b>não pode ser desfeita</b>. Deseja remover a função <b>{deleteTarget?.name}</b>?
-          </span>
-        }
+        title="Remover departamento"
+        description={<span>Esta ação <b>não pode ser desfeita</b>. Deseja remover o departamento <b>{deleteTarget?.name}</b>?</span>}
       />
     </Grid>
   );
