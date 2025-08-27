@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import useSWR, { mutate } from 'swr';
 
 // types
-import { SnackbarProps } from 'types/snackbar';
+import { SnackbarProps } from '../types/snackbar';
 
 const endpoints = {
   key: 'snackbar'

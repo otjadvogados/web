@@ -1,6 +1,6 @@
-import axios from 'utils/axios';
-import { UsersListResponse, UserRow } from 'types/users';
-import { digitsOnly } from 'utils/mask';
+import api from '../utils/axios';
+import { UsersListResponse, UserRow } from '../types/users';
+import { digitsOnly } from '../utils/mask';
 
 export type ListQuery = {
   page?: number;
@@ -21,7 +21,7 @@ export async function listUsers(q: ListQuery) {
     sortOrder: q.sortOrder || 'desc'
   };
 
-  const res = await axios.get<UsersListResponse>('/users', {
+  const res = await api.get<UsersListResponse>('/users', {
     params,
     headers: { 'Accept-Language': LANG }
   });
@@ -29,7 +29,7 @@ export async function listUsers(q: ListQuery) {
 }
 
 export async function getUser(id: string) {
-  const res = await axios.get<{ message: string; data: UserRow }>(`/users/${id}`, {
+  const res = await api.get<{ message: string; data: UserRow }>(`/users/${id}`, {
     headers: { 'Accept-Language': LANG }
   });
   return res.data.data;
@@ -52,7 +52,7 @@ export async function createUser(payload: CreateUserDTO) {
   if (body.cpf) body.cpf = digitsOnly(body.cpf);
   // roleId é obrigatório, não precisa verificar
 
-  const res = await axios.post(`/users`, body, {
+  const res = await api.post(`/users`, body, {
     headers: { 'Accept-Language': LANG }
   });
   return res.data;
@@ -73,14 +73,14 @@ export async function updateUser(id: string, payload: UpdateUserDTO) {
   const body: any = { ...payload };
   if (typeof body.phone !== 'undefined' && body.phone !== null) body.phone = digitsOnly(body.phone);
   if (typeof body.cpf !== 'undefined' && body.cpf !== null) body.cpf = digitsOnly(body.cpf);
-  const res = await axios.patch(`/users/${id}`, body, {
+  const res = await api.patch(`/users/${id}`, body, {
     headers: { 'Accept-Language': LANG }
   });
   return res.data;
 }
 
 export async function deleteUser(id: string) {
-  const res = await axios.delete(`/users/${id}`, {
+  const res = await api.delete(`/users/${id}`, {
     headers: { 'Accept-Language': LANG }
   });
   return res.data;
@@ -88,21 +88,21 @@ export async function deleteUser(id: string) {
 
 // ---- role (user <-> role) ----
 export async function getUserRole(userId: string) {
-  const res = await axios.get<{ message: string; data: UserRow['role'] }>(`/users/${userId}/role`, {
+  const res = await api.get<{ message: string; data: UserRow['role'] }>(`/users/${userId}/role`, {
     headers: { 'Accept-Language': LANG }
   });
   return res.data.data ?? null;
 }
 
 export async function setUserRole(userId: string, roleId: string) {
-  const res = await axios.put(`/users/${userId}/role/${roleId}`, null, {
+  const res = await api.put(`/users/${userId}/role/${roleId}`, null, {
     headers: { 'Accept-Language': LANG }
   });
   return res.data;
 }
 
 export async function clearUserRole(userId: string) {
-  const res = await axios.delete(`/users/${userId}/role`, {
+  const res = await api.delete(`/users/${userId}/role`, {
     headers: { 'Accept-Language': LANG }
   });
   return res.data;
@@ -122,7 +122,7 @@ export async function listRoles(params: { page?: number; limit?: number; search?
     search: params.search || undefined,
     companyId: params.companyId || undefined
   };
-  const res = await axios.get<RolesListResp>('/roles', {
+  const res = await api.get<RolesListResp>('/roles', {
     params: q,
     headers: { 'Accept-Language': LANG }
   });

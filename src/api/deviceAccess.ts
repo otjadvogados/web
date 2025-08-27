@@ -1,4 +1,4 @@
-import axios from 'utils/axios';
+import api from '../utils/axios';
 
 export type ListKind = 'trusted' | 'blocked'; // confiáveis | bloqueados
 
@@ -49,7 +49,7 @@ export async function fetchDevices(kind: ListKind, q: Query) {
     sortOrder: q.sortOrder || 'desc'
   };
 
-  const res = await axios.get(url, {
+  const res = await api.get(url, {
     params,
     headers: { 'Accept-Language': import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR' }
   });
@@ -66,14 +66,14 @@ export async function fetchDevices(kind: ListKind, q: Query) {
 
 export async function removeDevice(kind: ListKind, deviceId: string) {
   const cfg = base[kind];
-  await axios.delete(`${cfg.root}/${deviceId}`, {
+  await api.delete(`${cfg.root}/${deviceId}`, {
     headers: { 'Accept-Language': import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR' }
   });
 }
 
 export async function restoreDevice(kind: ListKind, deviceId: string) {
   const cfg = base[kind];
-  await axios.post(`${cfg.root}/${deviceId}/restore`, null, {
+  await api.post(`${cfg.root}/${deviceId}/restore`, null, {
     headers: { 'Accept-Language': import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR' }
   });
 }

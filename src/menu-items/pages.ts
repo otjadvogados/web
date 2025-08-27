@@ -72,6 +72,14 @@ const pages: NavItemType = {
       type: 'item',
       icon: icons.TeamOutlined,
       url: '/users'
+    },
+    // 👇 NOVO: Funções (roles)
+    {
+      id: 'roles',
+      title: 'roles',
+      type: 'item',
+      icon: icons.SafetyOutlined,
+      url: '/roles'
     }
   ]
 };
