@@ -3,12 +3,14 @@ import DollarOutlined from '@ant-design/icons/DollarOutlined';
 import LoginOutlined from '@ant-design/icons/LoginOutlined';
 import RocketOutlined from '@ant-design/icons/RocketOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
+import TeamOutlined from '@ant-design/icons/TeamOutlined';
+import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
 
 // type
 import { NavItemType } from 'types/menu';
 
 // icons
-const icons = { DollarOutlined, LoginOutlined, RocketOutlined, UserOutlined };
+const icons = { DollarOutlined, LoginOutlined, RocketOutlined, UserOutlined, TeamOutlined, SafetyOutlined };
 
 // ==============================|| MENU ITEMS - PAGES ||============================== //
 
@@ -62,12 +64,14 @@ const pages: NavItemType = {
       url: '/account',
       icon: icons.UserOutlined
     },
+
+    // 👇 NOVO: submenu "Colaboradores"
     {
-      id: 'users',
+      id: 'collaborators',
       title: 'users',
       type: 'item',
-      url: '/users',
-      icon: icons.UserOutlined
+      icon: icons.TeamOutlined,
+      url: '/users'
     }
   ]
 };

@@ -24,6 +24,7 @@ const AccountSettings = Loadable(lazy(() => import('pages/account')));
 
 // NOVO: Colaboradores
 const UsersPage = Loadable(lazy(() => import('pages/users')));
+const SensitiveFieldsPage = Loadable(lazy(() => import('pages/sensitive-fields')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -45,6 +46,10 @@ const MainRoutes = {
         {
           path: 'users',
           element: <UsersPage />
+        },
+        {
+          path: 'sensitive-fields',
+          element: <SensitiveFieldsPage />
         }
       ]
     },

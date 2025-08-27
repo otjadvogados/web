@@ -22,6 +22,7 @@ import { Formik } from 'formik';
 import { bindMask, formatCPF, formatPhoneBR } from 'utils/mask';
 import { openSnackbar } from 'api/snackbar';
 import { createUser, updateUser, listRoles } from 'api/users';
+import useAuth from 'hooks/useAuth';
 
 type Props = {
   open: boolean;
@@ -52,10 +53,14 @@ type RoleOption = { id: string; name: string; description?: string | null };
 
 export default function UserFormDialog({ open, onClose, editingId, initial, onSaved }: Props) {
   const theme = useTheme();
+  const { user: currentUser, updateProfile } = useAuth();
   const cpfRef = useRef<HTMLInputElement | null>(null);
   const phoneRef = useRef<HTMLInputElement | null>(null);
 
   const isEdit = Boolean(editingId);
+  
+  // Detecta se o usuário atual está sendo editado
+  const isEditingCurrentUser = isEdit && currentUser && editingId && currentUser.id && editingId === currentUser.id;
 
   // ------ verificação de campos sensíveis disponíveis ------
   // Se o campo não vier do backend (undefined), não deve aparecer no formulário
@@ -127,17 +132,31 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
         onSubmit={async (values, { setSubmitting, setErrors }) => {
           try {
             if (isEdit && editingId) {
-                             const response = await updateUser(editingId, {
-                 name: values.name,
-                 email: values.email,
-                 // Campos sensíveis: só envia se estiverem disponíveis no backend
-                 ...(hasPhone ? { phone: values.phone || null } : {}),
-                 ...(hasCPF ? { cpf: values.cpf || null } : {}),
-                 ...(hasBirthdate ? { birthdate: values.birthdate || null } : {}),
-                 ...(values.password ? { password: values.password } : {}),
-                 // 👇 envia o roleId (string para definir/trocar, null para limpar)
-                 ...(values.roleId !== undefined ? { roleId: values.roleId } : {})
-               });
+              const response = await updateUser(editingId, {
+                name: values.name,
+                email: values.email,
+                // Campos sensíveis: só envia se estiverem disponíveis no backend
+                ...(hasPhone ? { phone: values.phone || null } : {}),
+                ...(hasCPF ? { cpf: values.cpf || null } : {}),
+                ...(hasBirthdate ? { birthdate: values.birthdate || null } : {}),
+                ...(values.password ? { password: values.password } : {}),
+                // 👇 envia o roleId (string para definir/trocar, null para limpar)
+                ...(values.roleId !== undefined ? { roleId: values.roleId } : {})
+              });
+              
+              // Se estiver editando o usuário atual, atualiza o contexto
+              if (isEditingCurrentUser && currentUser) {
+                const updatedUser = {
+                  ...currentUser,
+                  name: values.name,
+                  email: values.email,
+                  ...(hasPhone ? { phone: values.phone || undefined } : {}),
+                  ...(hasCPF ? { cpf: values.cpf || undefined } : {}),
+                  ...(hasBirthdate ? { birthdate: values.birthdate || undefined } : {})
+                };
+                updateProfile(updatedUser);
+              }
+              
               openSnackbar({ open: true, message: response.message || 'Colaborador atualizado!', variant: 'alert', alert: { color: 'success' } } as any);
             } else {
                              const response = await createUser({

@@ -16,7 +16,7 @@ function getSizeStyle(size?: SwitchProps['size']): SwitchSizeProps {
   if (size === 'small') return { width: 40, height: 20, base: 20, thumb: 14, trackRadius: 0 };
   if ((size as any) === 'large') return { width: 60, height: 28, base: 32, thumb: 22, trackRadius: 24 };
   // default / 'medium' (ou qualquer valor desconhecido)
-  return { width: 44, height: 20, base: 20, thumb: 16, trackRadius: 0 };
+  return { width: 44, height: 22, base: 20, thumb: 16, trackRadius: 0 };
 }
 
 function switchStyle(theme: Theme, size?: SwitchProps['size']) {

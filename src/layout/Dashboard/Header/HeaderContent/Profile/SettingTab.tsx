@@ -14,6 +14,7 @@ import LockOutlined from '@ant-design/icons/LockOutlined';
 import QuestionCircleOutlined from '@ant-design/icons/QuestionCircleOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
 import UnorderedListOutlined from '@ant-design/icons/UnorderedListOutlined';
+import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
 
 // ==============================|| HEADER PROFILE - SETTING TAB ||============================== //
 
@@ -26,6 +27,15 @@ export default function SettingTab() {
             <CommentOutlined />
           </ListItemIcon>
           <ListItemText primary={<FormattedMessage id="devices-center" />} />
+        </ListItemButton>
+      </Link>
+      
+      <Link underline="none" style={{ color: 'inherit' }} href="/users/sensitive-fields">
+        <ListItemButton>
+          <ListItemIcon>
+            <SafetyOutlined />
+          </ListItemIcon>
+          <ListItemText primary="Dados Sensíveis" />
         </ListItemButton>
       </Link>
     </List>
