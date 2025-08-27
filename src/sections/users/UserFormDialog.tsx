@@ -64,9 +64,10 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
 
   // ------ verificação de campos sensíveis disponíveis ------
   // Se o campo não vier do backend (undefined), não deve aparecer no formulário
-  const hasPhone = initial?.phone !== undefined;
-  const hasCPF = initial?.cpf !== undefined;
-  const hasBirthdate = initial?.birthdate !== undefined;
+  // Para criação de usuário, sempre incluir os campos sensíveis
+  const hasPhone = isEdit ? (initial?.phone !== undefined) : true;
+  const hasCPF = isEdit ? (initial?.cpf !== undefined) : true;
+  const hasBirthdate = isEdit ? (initial?.birthdate !== undefined) : true;
 
   // ------ estado de cargos (autocomplete) ------
   const [roles, setRoles] = useState<RoleOption[]>([]);
@@ -116,18 +117,18 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
       <DialogTitle>{isEdit ? 'Editar colaborador' : 'Novo colaborador'}</DialogTitle>
       <Formik
         enableReinitialize
-                 initialValues={{
-           name: initial?.name || '',
-           email: initial?.email || '',
-           // Campos sensíveis: só inicializam se estiverem disponíveis no backend
-           phone: hasPhone ? (initial?.phone ? formatPhoneBR(String(initial.phone)) : '') : '',
-           cpf: hasCPF ? (initial?.cpf ? formatCPF(String(initial.cpf)) : '') : '',
-           birthdate: hasBirthdate ? (initial?.birthdate ? String(initial.birthdate).slice(0, 10) : '') : '',
-           password: '',
-           confirmPassword: '',
-           // 👇 NOVO (controlamos o id no form)
-           roleId: initial?.roleId ?? null
-         }}
+                         initialValues={{
+          name: initial?.name || '',
+          email: initial?.email || '',
+          // Campos sensíveis: inicializam baseado na disponibilidade
+          phone: hasPhone ? (initial?.phone ? formatPhoneBR(String(initial.phone)) : '') : '',
+          cpf: hasCPF ? (initial?.cpf ? formatCPF(String(initial.cpf)) : '') : '',
+          birthdate: hasBirthdate ? (initial?.birthdate ? String(initial.birthdate).slice(0, 10) : '') : '',
+          password: '',
+          confirmPassword: '',
+          // 👇 NOVO (controlamos o id no form)
+          roleId: initial?.roleId ?? null
+        }}
         validationSchema={schema}
         onSubmit={async (values, { setSubmitting, setErrors }) => {
           try {
@@ -159,17 +160,17 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
               
               openSnackbar({ open: true, message: response.message || 'Colaborador atualizado!', variant: 'alert', alert: { color: 'success' } } as any);
             } else {
-                             const response = await createUser({
-                 name: values.name,
-                 email: values.email,
-                 // Campos sensíveis: só envia se estiverem disponíveis no backend
-                 ...(hasPhone ? { phone: values.phone || null } : {}),
-                 ...(hasCPF ? { cpf: values.cpf || null } : {}),
-                 ...(hasBirthdate ? { birthdate: values.birthdate || null } : {}),
-                 password: values.password,
-                 // 👇 roleId é obrigatório no create
-                 roleId: values.roleId!
-               });
+                                           const response = await createUser({
+                name: values.name,
+                email: values.email,
+                // Campos sensíveis: sempre envia na criação
+                phone: values.phone || null,
+                cpf: values.cpf || null,
+                birthdate: values.birthdate || null,
+                password: values.password,
+                // 👇 roleId é obrigatório no create
+                roleId: values.roleId!
+              });
               openSnackbar({ open: true, message: response.message || 'Colaborador criado!', variant: 'alert', alert: { color: 'success' } } as any);
             }
             onSaved();

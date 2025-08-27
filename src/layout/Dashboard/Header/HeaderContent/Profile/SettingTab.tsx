@@ -30,7 +30,7 @@ export default function SettingTab() {
         </ListItemButton>
       </Link>
       
-      <Link underline="none" style={{ color: 'inherit' }} href="/users/sensitive-fields">
+      <Link underline="none" style={{ color: 'inherit' }} href="/sensitive-fields">
         <ListItemButton>
           <ListItemIcon>
             <SafetyOutlined />

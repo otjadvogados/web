@@ -355,7 +355,7 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell align="right">
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                          <Tooltip title="Definir role">
+                          <Tooltip title="Definir função">
                             <IconButton color="primary" onClick={() => openRole(u)}>
                               <TeamOutlined />
                             </IconButton>
