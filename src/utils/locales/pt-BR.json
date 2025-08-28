@@ -166,5 +166,6 @@
   "users": "Colaboradores",
   "sensitive-fields": "Dados Sensíveis",
   "roles": "Função",
-  "departments": "Departamentos"
+  "departments": "Departamentos",
+  "account-blocks": "Bloqueios de Conta"
 }

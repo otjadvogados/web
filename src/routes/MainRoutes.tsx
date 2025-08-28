@@ -30,6 +30,9 @@ const RolesPage = Loadable(lazy(() => import('pages/roles')));
 // NOVO: Departamentos
 const DepartmentsPage = Loadable(lazy(() => import('pages/departments')));
 
+// NOVO: Bloqueios de Conta
+const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -42,6 +45,11 @@ const MainRoutes = {
         {
           path: 'devices',
           element: <DevicesCenter />
+        },
+        // NOVO: Bloqueios de Conta
+        {
+          path: 'blocks',
+          element: <AccountBlocksPage />
         },
         {
           path: 'account',
