@@ -21,7 +21,7 @@ import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
 export default function SettingTab() {
   return (
     <List component="nav" sx={{ p: 0, '& .MuiListItemIcon-root': { minWidth: 32 } }}>
-      <Link underline="none" style={{ color: 'inherit' }} href="/devices">
+        <Link underline="none" style={{ color: 'inherit' }} href="/devices">
         <ListItemButton>
           <ListItemIcon>
             <CommentOutlined />

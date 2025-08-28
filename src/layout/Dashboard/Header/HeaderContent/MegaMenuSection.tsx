@@ -221,18 +221,7 @@ export default function MegaMenuSection() {
                                 </ListItemIcon>
                                 <ListItemText primary="Pagamento" />
                               </ListItemButton>
-                              <ListItemButton disableRipple component={Link} target="_blank" to="/maintenance/under-construction">
-                                <ListItemIcon>
-                                  <Dot size={7} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Em Construção" />
-                              </ListItemButton>
-                              <ListItemButton disableRipple component={Link} target="_blank" to="/maintenance/coming-soon">
-                                <ListItemIcon>
-                                  <Dot size={7} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Em Breve" />
-                              </ListItemButton>
+
                             </List>
                           </Grid>
                           <Grid size={4}>
@@ -247,12 +236,7 @@ export default function MegaMenuSection() {
                                 </ListSubheader>
                               }
                             >
-                              <ListItemButton disableRipple component={Link} target="_blank" to="/maintenance/404">
-                                <ListItemIcon>
-                                  <Dot size={7} color="secondary" variant="outlined" />
-                                </ListItemIcon>
-                                <ListItemText primary="Erro 404" />
-                              </ListItemButton>
+
                               <ListItemButton disableRipple component={Link} to="#!">
                                 <ListItemIcon>
                                   <Dot size={7} color="secondary" variant="outlined" />
