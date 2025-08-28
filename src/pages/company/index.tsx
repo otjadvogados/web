@@ -25,11 +25,7 @@ import { Formik } from 'formik';
 
 import { Company, getCompany, updateCompany } from '../../api/company';
 import { openSnackbar } from '../../api/snackbar';
-import { formatPhoneBR, formatCNPJ, bindMask } from '../../utils/mask';
-
-function onlyDigits(v?: string | null) {
-  return (v || '').replace(/\D/g, '');
-}
+import { formatPhoneBR, formatCNPJ, bindMask, digitsOnly } from '../../utils/mask';
 
 const schema = Yup.object({
   name: Yup.string().required('Nome é obrigatório').min(2, 'Mínimo 2 caracteres'),
@@ -50,14 +46,14 @@ const schema = Yup.object({
     .nullable()
     .test('phone-digits', 'Telefone deve ter 10 a 11 dígitos', (v) => {
       if (!v) return true;
-      const d = onlyDigits(v);
+      const d = digitsOnly(v);
       return d.length === 10 || d.length === 11;
     }),
   cnpj: Yup.string()
     .nullable()
     .test('cnpj-14', 'CNPJ deve ter exatamente 14 dígitos', (v) => {
       if (!v) return true;
-      return onlyDigits(v).length === 14;
+      return digitsOnly(v).length === 14;
     })
 });
 
@@ -87,8 +83,8 @@ export default function CompanyPage() {
     name: initial?.name || '',
     tradeName: initial?.tradeName ?? '',
     website: initial?.website ?? '',
-    phone: initial?.phone ?? '',
-    cnpj: initial?.cnpj ?? ''
+    phone: initial?.phone ? formatPhoneBR(initial.phone) : '',
+    cnpj: initial?.cnpj ? formatCNPJ(initial.cnpj) : ''
   }), [initial]);
 
   return (
@@ -163,7 +159,6 @@ export default function CompanyPage() {
                       </Stack>
                       <OutlinedInput id="website" name="website" placeholder="https://minhaempresa.com.br" value={values.website} onChange={handleChange} onBlur={handleBlur} error={Boolean(touched.website && errors.website)} />
                       {touched.website && errors.website && <FormHelperText error>{errors.website as string}</FormHelperText>}
-                      <Typography variant="caption" color="text.secondary">Dica: informe com protocolo (https://).</Typography>
                     </Stack>
 
                                          <Stack gap={1}>
@@ -182,7 +177,6 @@ export default function CompanyPage() {
                          error={Boolean(touched.phone && errors.phone)} 
                        />
                        {touched.phone && errors.phone && <FormHelperText error>{errors.phone as string}</FormHelperText>}
-                       <Typography variant="caption" color="text.secondary">Aceita máscara; será salvo apenas com dígitos.</Typography>
                      </Stack>
 
                      <Stack gap={1}>
