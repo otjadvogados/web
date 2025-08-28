@@ -17,28 +17,34 @@ const pages: NavItemType = {
   title: 'pages',
   type: 'group',
   children: [
-     // 👇 Menu "Administração"
-     {
-      id: 'administration',
-      title: 'administration',
-      type: 'collapse',
-      icon: icons.SettingOutlined,
-      isDropdown: true,
-      children: [
-        {
-          id: 'departments',
-          title: 'departments',
-          type: 'item',
-          url: '/departments'
-        },
-        {
-          id: 'roles',
-          title: 'roles',
-          type: 'item',
-          url: '/roles'
-        }
-      ]
-    },
+           // 👇 Menu "Administração"
+      {
+        id: 'administration',
+        title: 'administration',
+        type: 'collapse',
+        icon: icons.SettingOutlined,
+        isDropdown: true,
+        children: [
+          {
+            id: 'company',
+            title: 'company',
+            type: 'item',
+            url: '/company'
+          },
+          {
+            id: 'departments',
+            title: 'departments',
+            type: 'item',
+            url: '/departments'
+          },
+          {
+            id: 'roles',
+            title: 'roles',
+            type: 'item',
+            url: '/roles'
+          }
+        ]
+      },
     // 👇 submenu "Colaboradores"
     {
       id: 'collaborators',

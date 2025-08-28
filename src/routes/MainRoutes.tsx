@@ -30,6 +30,9 @@ const RolesPage = Loadable(lazy(() => import('pages/roles')));
 // NOVO: Departamentos
 const DepartmentsPage = Loadable(lazy(() => import('pages/departments')));
 
+// NOVO: Empresa
+const CompanyPage = Loadable(lazy(() => import('pages/company')));
+
 // NOVO: Bloqueios de Conta
 const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
 
@@ -66,6 +69,10 @@ const MainRoutes = {
         {
           path: 'departments',
           element: <DepartmentsPage />
+        },
+        {
+          path: 'company',
+          element: <CompanyPage />
         },
         {
           path: 'sensitive-fields',

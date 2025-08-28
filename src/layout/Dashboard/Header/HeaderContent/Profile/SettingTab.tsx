@@ -10,10 +10,6 @@ import { FormattedMessage } from 'react-intl';
 
 // assets
 import CommentOutlined from '@ant-design/icons/CommentOutlined';
-import LockOutlined from '@ant-design/icons/LockOutlined';
-import QuestionCircleOutlined from '@ant-design/icons/QuestionCircleOutlined';
-import UserOutlined from '@ant-design/icons/UserOutlined';
-import UnorderedListOutlined from '@ant-design/icons/UnorderedListOutlined';
 import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
 
 // ==============================|| HEADER PROFILE - SETTING TAB ||============================== //
