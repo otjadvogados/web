@@ -162,5 +162,7 @@
   "more-items": "Plus d'éléments",
   "account-blocks": "Blocages de compte",
   "block": "Bloquer",
-  "unblock": "Débloquer"
+  "unblock": "Débloquer",
+  "user-blocked": "Utilisateur bloqué",
+  "user-unverified": "Utilisateur non vérifié"
 }

@@ -169,5 +169,7 @@
   "departments": "Departamentos",
   "account-blocks": "Bloqueios de Conta",
   "block": "Bloquear",
-  "unblock": "Desbloquear"
+  "unblock": "Desbloquear",
+  "user-blocked": "Usuário bloqueado",
+  "user-unverified": "Usuário não verificado"
 }

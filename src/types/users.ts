@@ -23,6 +23,7 @@ export type UserRow = {
   updatedAt: string;
   role?: RoleLite | null;
   departments?: DepartmentLite[];
+  isBlocked?: boolean;            // indica se o usuário está bloqueado
 };
 
 export type UsersListResponse = {

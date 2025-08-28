@@ -162,5 +162,7 @@
   "more-items": "Mai multe elemente",
   "account-blocks": "Blocări de cont",
   "block": "Bloca",
-  "unblock": "Debloca"
+  "unblock": "Debloca",
+  "user-blocked": "Utilizator blocat",
+  "user-unverified": "Utilizator neverificat"
 }

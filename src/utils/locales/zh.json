@@ -162,5 +162,7 @@
   "more-items": "更多项目",
   "account-blocks": "账户封锁",
   "block": "封锁",
-  "unblock": "解锁"
+  "unblock": "解锁",
+  "user-blocked": "用户已封锁",
+  "user-unverified": "用户未验证"
 }

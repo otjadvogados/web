@@ -34,6 +34,7 @@ import { UserRow } from 'types/users';
 import { openSnackbar } from 'api/snackbar';
 import { formatDateOnlyBR, toDateOnly } from 'utils/date';
 import { formatCPF, formatPhoneBR } from 'utils/mask';
+import { FormattedMessage } from 'react-intl';
 
 import UserFormDialog from 'sections/users/UserFormDialog';
 import RolePickerDialog from 'sections/users/RolePickerDialog';
@@ -143,15 +144,48 @@ export default function UsersPage() {
 
   // Componente de card para mobile
   const UserCard = ({ user }: { user: UserRow }) => (
-    <Card sx={{ mb: 2, '&:hover': { boxShadow: 3 } }}>
+         <Card 
+       sx={{ 
+         mb: 2, 
+         '&:hover': { boxShadow: 3 },
+         ...(user.isBlocked && {
+           backgroundColor: 'error.lighter',
+           '& .MuiTypography-root': {
+             color: 'error.contrastText',
+           },
+           '& .MuiChip-root': {
+             backgroundColor: 'error.main',
+             color: 'error.contrastText',
+           }
+         }),
+         ...(!user.emailVerifiedAt && !user.isBlocked && {
+           backgroundColor: 'warning.lighter',
+          //  '& .MuiTypography-root': {
+          //    color: 'warning.contrastText',
+          //  },
+           '& .MuiChip-root': {
+             backgroundColor: 'warning.main',
+             color: 'warning.contrastText',
+           }
+         })
+       }}
+     >
       <CardContent sx={{ p: isSmallMobile ? 1.5 : 2 }}>
         <Stack spacing={1.5}>
           {/* Cabeçalho do card */}
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                {user.name}
-              </Typography>
+                             <Tooltip 
+                 title={
+                   user.isBlocked ? <FormattedMessage id="user-blocked" /> :
+                   !user.emailVerifiedAt ? <FormattedMessage id="user-unverified" /> : ''
+                 }
+                 disableHoverListener={!user.isBlocked && !!user.emailVerifiedAt}
+               >
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {user.name}
+                </Typography>
+              </Tooltip>
               <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-word' }}>
                 {user.email}
               </Typography>
@@ -331,12 +365,43 @@ export default function UsersPage() {
                 </TableHead>
                 <TableBody>
                   {items.map((u) => (
-                    <TableRow key={u.id} hover>
-                      <TableCell>
-                        <Stack>
-                          <Typography fontWeight={600}>{u.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">Criado em {new Date(u.createdAt).toLocaleString()}</Typography>
-                        </Stack>
+                                         <TableRow 
+                       key={u.id} 
+                       hover
+                       sx={{
+                         ...(u.isBlocked && {
+                           backgroundColor: 'error.lighter',
+                           '&:hover': {
+                             backgroundColor: 'error.main',
+                           },
+                           '& .MuiTableCell-root': {
+                             color: 'error.contrastText',
+                           }
+                         }),
+                         ...(!u.emailVerifiedAt && !u.isBlocked && {
+                           backgroundColor: 'warning.lighter',
+                           '&:hover': {
+                             backgroundColor: 'warning.light',
+                           },
+                          //  '& .MuiTableCell-root': {
+                          //    color: 'warning.contrastText',
+                          //  }
+                         })
+                       }}
+                     >
+                                             <TableCell>
+                         <Tooltip 
+                           title={
+                             u.isBlocked ? <FormattedMessage id="user-blocked" /> :
+                             !u.emailVerifiedAt ? <FormattedMessage id="user-unverified" /> : ''
+                           }
+                           disableHoverListener={!u.isBlocked && !!u.emailVerifiedAt}
+                         >
+                          <Stack>
+                            <Typography fontWeight={600}>{u.name}</Typography>
+                            <Typography variant="caption" color="text.secondary">Criado em {new Date(u.createdAt).toLocaleString()}</Typography>
+                          </Stack>
+                        </Tooltip>
                       </TableCell>
                       <TableCell>{u.email}</TableCell>
                       <TableCell>{u.phone ? formatPhoneBR(u.phone) : '-'}</TableCell>
