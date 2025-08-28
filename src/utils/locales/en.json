@@ -161,5 +161,7 @@
   "widgets": "Widgets",
   "more-items": "More Items",
   "users": "Users",
-  "account-blocks": "Account Blocks"
+  "account-blocks": "Account Blocks",
+  "block": "Block",
+  "unblock": "Unblock"
 }

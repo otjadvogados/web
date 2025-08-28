@@ -160,5 +160,7 @@
   "utils": "Utilitare",
   "widgets": "Widgeturi",
   "more-items": "Mai multe elemente",
-  "account-blocks": "Blocări de cont"
+  "account-blocks": "Blocări de cont",
+  "block": "Bloca",
+  "unblock": "Debloca"
 }

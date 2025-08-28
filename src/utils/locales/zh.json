@@ -160,5 +160,7 @@
   "utils": "工具",
   "widgets": "小部件",
   "more-items": "更多项目",
-  "account-blocks": "账户封锁"
+  "account-blocks": "账户封锁",
+  "block": "封锁",
+  "unblock": "解锁"
 }

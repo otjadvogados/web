@@ -167,5 +167,7 @@
   "sensitive-fields": "Dados Sensíveis",
   "roles": "Função",
   "departments": "Departamentos",
-  "account-blocks": "Bloqueios de Conta"
+  "account-blocks": "Bloqueios de Conta",
+  "block": "Bloquear",
+  "unblock": "Desbloquear"
 }

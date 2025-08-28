@@ -24,6 +24,14 @@ export async function blockByEmail(body: { email: string; reason?: string; until
   return res.data;
 }
 
+export async function unblockByEmail(email: string) {
+  const res = await api.delete('/auth/block-by-email', {
+    params: { email },
+    headers: { 'Accept-Language': LANG }
+  });
+  return res.data;
+}
+
 export async function listBlocks(params: {
   page?: number;
   limit?: number;

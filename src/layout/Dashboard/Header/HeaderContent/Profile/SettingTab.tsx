@@ -30,6 +30,15 @@ export default function SettingTab() {
         </ListItemButton>
       </Link>
       
+      <Link underline="none" style={{ color: 'inherit' }} href="/blocks">
+        <ListItemButton>
+          <ListItemIcon>
+            <SafetyOutlined />
+          </ListItemIcon>
+          <ListItemText primary={<FormattedMessage id="account-blocks" />} />
+        </ListItemButton>
+      </Link>
+      
       <Link underline="none" style={{ color: 'inherit' }} href="/sensitive-fields">
         <ListItemButton>
           <ListItemIcon>

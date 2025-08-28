@@ -89,14 +89,6 @@ const pages: NavItemType = {
       type: 'item',
       icon: icons.AppstoreOutlined,
       url: '/departments'
-    },
-    // 👇 NOVO: Bloqueios de conta
-    {
-      id: 'account-blocks',
-      title: 'account-blocks',
-      type: 'item',
-      icon: icons.SafetyOutlined,
-      url: '/blocks'
     }
   ]
 };

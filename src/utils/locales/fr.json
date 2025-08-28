@@ -160,5 +160,7 @@
   "utils": "Utils",
   "widgets": "Widgets",
   "more-items": "Plus d'éléments",
-  "account-blocks": "Blocages de compte"
+  "account-blocks": "Blocages de compte",
+  "block": "Bloquer",
+  "unblock": "Débloquer"
 }

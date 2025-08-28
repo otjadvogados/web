@@ -28,11 +28,12 @@ import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import HistoryOutlined from '@ant-design/icons/HistoryOutlined';
 import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
 
-import { listBlocks, listBlocksHistory, unblockUser } from '../../../api/blocks';
+import { listBlocks, listBlocksHistory, unblockUser, unblockByEmail } from '../../../api/blocks';
 import { BlockRow, BlockHistoryRow } from '../../../types/blocks';
 import { openSnackbar } from '../../../api/snackbar';
 import BlockUserDialog from '../../../sections/blocks/BlockUserDialog';
 import BlockEmailDialog from '../../../sections/blocks/BlockEmailDialog';
+import { FormattedMessage } from 'react-intl';
 
 export default function AccountBlocksPage() {
   // tabs
@@ -212,17 +213,20 @@ export default function AccountBlocksPage() {
                         </TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Tooltip title={r.user?.id ? 'Desbloquear' : 'Desbloqueio por e-mail não disponível'}>
+                            <Tooltip title="Desbloquear">
                               <span>
                                 <IconButton
                                   color="success"
-                                  disabled={!r.user?.id}
                                   onClick={async () => {
                                     try {
-                                      if (!r.user?.id) return;
-                                      await unblockUser(r.user.id);
+                                      if (r.user?.id) {
+                                        await unblockUser(r.user.id);
+                                      } else if (r.email) {
+                                        await unblockByEmail(r.email);
+                                      } else {
+                                        return;
+                                      }
                                       openSnackbar({ open: true, message: 'Conta desbloqueada', variant: 'alert', alert: { color: 'success' } } as any);
-                                      // manter paginação estável
                                       if (items.length === 1 && page > 0) setPage((p) => p - 1);
                                       else loadActive();
                                     } catch (e: any) {
@@ -290,9 +294,9 @@ export default function AccountBlocksPage() {
                     {hItems.map((r) => (
                       <TableRow key={r.id} hover>
                         <TableCell>{fmt(r.createdAt)}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={r.action} />
-                        </TableCell>
+                                                 <TableCell>
+                           <Chip size="small" label={r.action === 'block' ? <FormattedMessage id="block" /> : <FormattedMessage id="unblock" />} />
+                         </TableCell>
                         <TableCell>
                           {r.user ? (
                             <Stack>
