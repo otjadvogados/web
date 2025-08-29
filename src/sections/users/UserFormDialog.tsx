@@ -19,7 +19,7 @@ import { useTheme } from '@mui/material/styles';
 
 import * as Yup from 'yup';
 import { Formik } from 'formik';
-import { bindMask, formatCPF, formatPhoneBR } from 'utils/mask';
+import { bindMask, formatCPF, formatPhoneBR, formatOAB } from 'utils/mask';
 import { openSnackbar } from 'api/snackbar';
 import { createUser, updateUser, listRoles } from 'api/users';
 import useAuth from 'hooks/useAuth';
@@ -33,6 +33,7 @@ type Props = {
     email?: string;
     phone?: string | null;
     cpf?: string | null;
+    oab?: string | null;
     birthdate?: string | null;
     emailVerifiedAt?: string | null; // para controlar se mostra campo de senha
     // 👇 NOVO (para edição)
@@ -55,6 +56,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
   const theme = useTheme();
   const { user: currentUser, updateProfile } = useAuth();
   const cpfRef = useRef<HTMLInputElement | null>(null);
+  const oabRef = useRef<HTMLInputElement | null>(null);
   const phoneRef = useRef<HTMLInputElement | null>(null);
 
   const isEdit = Boolean(editingId);
@@ -67,6 +69,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
   // Para criação de usuário, sempre incluir os campos sensíveis
   const hasPhone = isEdit ? (initial?.phone !== undefined) : true;
   const hasCPF = isEdit ? (initial?.cpf !== undefined) : true;
+  const hasOAB = isEdit ? (initial?.oab !== undefined) : true;
   const hasBirthdate = isEdit ? (initial?.birthdate !== undefined) : true;
 
   // ------ estado de cargos (autocomplete) ------
@@ -98,6 +101,9 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
     // Campos sensíveis: só validam se estiverem disponíveis no backend
     phone: (isEdit && !hasPhone) ? Yup.string().optional() : Yup.string().nullable(),
     cpf: (isEdit && !hasCPF) ? Yup.string().optional() : (isEdit ? Yup.string().nullable() : Yup.string().required('CPF é obrigatório')),
+    oab: (isEdit && !hasOAB) ? Yup.string().optional() : (isEdit ? Yup.string().nullable() : Yup.string().required('OAB é obrigatória').test('oab-format', 'Formato: 000000/UF', (value) =>
+      value ? /^\d{6}\/[A-Z]{2}$/.test(value.toUpperCase()) : false
+    )),
     birthdate: (isEdit && !hasBirthdate) ? Yup.string().optional() : Yup.string().nullable(),
     password: isEdit 
       ? Yup.string().optional().nullable().test('pw', 'Senha fraca', (v) => !v || passwordRules.isValidSync(v))
@@ -123,6 +129,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
           // Campos sensíveis: inicializam baseado na disponibilidade
           phone: hasPhone ? (initial?.phone ? formatPhoneBR(String(initial.phone)) : '') : '',
           cpf: hasCPF ? (initial?.cpf ? formatCPF(String(initial.cpf)) : '') : '',
+          oab: hasOAB ? (initial?.oab ? formatOAB(String(initial.oab)) : '') : '',
           birthdate: hasBirthdate ? (initial?.birthdate ? String(initial.birthdate).slice(0, 10) : '') : '',
           password: '',
           confirmPassword: '',
@@ -139,6 +146,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                 // Campos sensíveis: só envia se estiverem disponíveis no backend
                 ...(hasPhone ? { phone: values.phone || null } : {}),
                 ...(hasCPF ? { cpf: values.cpf || null } : {}),
+                ...(hasOAB ? { oab: values.oab || null } : {}),
                 ...(hasBirthdate ? { birthdate: values.birthdate || null } : {}),
                 ...(values.password ? { password: values.password } : {}),
                 // 👇 envia o roleId (string para definir/trocar, null para limpar)
@@ -153,6 +161,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                   email: values.email,
                   ...(hasPhone ? { phone: values.phone || undefined } : {}),
                   ...(hasCPF ? { cpf: values.cpf || undefined } : {}),
+                  ...(hasOAB ? { oab: values.oab || undefined } : {}),
                   ...(hasBirthdate ? { birthdate: values.birthdate || undefined } : {})
                 };
                 updateProfile(updatedUser);
@@ -166,6 +175,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                 // Campos sensíveis: sempre envia na criação
                 phone: values.phone || null,
                 cpf: values.cpf || null,
+                oab: values.oab || null,
                 birthdate: values.birthdate || null,
                 password: values.password,
                 // 👇 roleId é obrigatório no create
@@ -252,6 +262,26 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                          placeholder={isEdit ? "000.000.000-00" : "000.000.000-00 (obrigatório)"}
                        />
                        {touched.cpf && errors.cpf && <FormHelperText error>{errors.cpf}</FormHelperText>}
+                     </Stack>
+                   </Grid>
+                 )}
+
+                                 {/* OAB - só mostra se o campo estiver disponível no backend */}
+                 {(isEdit ? hasOAB : true) && (
+                   <Grid size={{ xs: 12, md: 4 }}>
+                     <Stack sx={{ gap: 1 }}>
+                       <InputLabel htmlFor="oab">OAB {!isEdit && '*'}</InputLabel>
+                       <OutlinedInput
+                         id="oab"
+                         name="oab"
+                         inputRef={oabRef}
+                         value={values.oab}
+                         onChange={bindMask('oab', setFieldValue, formatOAB, oabRef, { stickToEnd: true })}
+                         onBlur={handleBlur}
+                         error={Boolean(touched.oab && errors.oab)}
+                         placeholder={isEdit ? "000000/SP" : "000000/SP (obrigatório)"}
+                       />
+                       {touched.oab && errors.oab && <FormHelperText error>{errors.oab}</FormHelperText>}
                      </Stack>
                    </Grid>
                  )}

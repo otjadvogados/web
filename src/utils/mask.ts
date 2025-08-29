@@ -1,18 +1,6 @@
 // src/utils/mask.ts
 export const digitsOnly = (s: string) => s.replace(/\D/g, '');
 
-const indexOfNthDigit = (s: string, n: number) => {
-  if (n <= 0) return 0;
-  let count = 0;
-  for (let i = 0; i < s.length; i++) {
-    if (/\d/.test(s[i])) {
-      count++;
-      if (count === n) return i + 1; // pos após o dígito n
-    }
-  }
-  return s.length;
-};
-
 /** CPF progressivo (000.000.000-00) com digitação parcial */
 export const formatCPF = (raw: string) => {
   const d = digitsOnly(raw).slice(0, 11);
@@ -53,40 +41,39 @@ export const formatCNPJ = (raw: string) => {
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
 };
 
+/**
+ * OAB progressivo (000000/SP), tolera digitação parcial,
+ * sempre uppercase para UF e insere "/" quando letras existem.
+ */
+export const formatOAB = (raw: string) => {
+  const clean = raw.replace(/[^0-9A-Za-z]/g, '');
+  const numbers = clean.replace(/\D/g, '').slice(0, 6);
+  const letters = clean.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 2);
+  if (!numbers && !letters) return '';
+  return letters ? `${numbers}/${letters}` : numbers;
+};
+
 type Formatter = (raw: string) => string;
 
 /**
- * Cria um onChange que:
- *  - formata em tempo real
- *  - mantém o caret correto (conta quantos dígitos havia antes do cursor)
- * Use com Formik: passe setFieldValue e o nome do campo.
+ * bindMask com opção de colar o caret no fim (útil para OAB).
  */
 export const bindMask = (
-  name: string,
+  field: string,
   setFieldValue: (field: string, value: any, shouldValidate?: boolean) => void,
   formatter: Formatter,
-  inputRef?: React.RefObject<HTMLInputElement | null>
+  ref?: React.RefObject<HTMLInputElement | null>,
+  opts?: { stickToEnd?: boolean }
 ) => {
   return (e: React.ChangeEvent<HTMLInputElement>) => {
-    const el = e.currentTarget;
-    const before = el.value;
-    const selStart = el.selectionStart ?? before.length;
-
-    const digitsBeforeCaret = digitsOnly(before.slice(0, selStart)).length;
-    const formatted = formatter(before);
-
-    // atualiza o campo do Formik (controlado)
-    setFieldValue(name, formatted, false);
-
-    // reposiciona o caret depois que o React aplicar o valor
-    const target = inputRef?.current ?? el;
+    const formatted = formatter(e.target.value);
+    setFieldValue(field, formatted, false);
+    if (!ref?.current) return;
     requestAnimationFrame(() => {
-      const caret = indexOfNthDigit(formatted, digitsBeforeCaret);
-      try {
-        target.setSelectionRange(caret, caret);
-      } catch {
-        // alguns browsers/inputs podem falhar; tudo bem ignorar
-      }
+      const el = ref.current!;
+      // Para OAB passaremos { stickToEnd: true } -> evita inversão "pr" -> "rp"
+      const pos = opts?.stickToEnd ? el.value.length : el.selectionStart ?? el.value.length;
+      el.setSelectionRange(pos, pos);
     });
   };
 };

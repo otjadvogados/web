@@ -31,6 +31,7 @@ import { RoleRow } from '../../types/roles';
 import { openSnackbar } from '../../api/snackbar';
 import RoleFormDialog from '../../sections/roles/RoleFormDialog';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
+import RoleRulesDrawer from '../../sections/roles/RoleRulesDrawer';
 
 export default function RolesPage() {
   const [items, setItems] = useState<RoleRow[]>([]);
@@ -49,6 +50,15 @@ export default function RolesPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Drawer de Rules
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [rulesRole, setRulesRole] = useState<RoleRow | null>(null);
+
+  const openRules = (r: RoleRow) => {
+    setRulesRole(r);
+    setRulesOpen(true);
+  };
 
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
@@ -111,6 +121,7 @@ export default function RolesPage() {
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(role.id)}><EditOutlined /></IconButton></Tooltip>
             <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(role)}><DeleteOutlined /></IconButton></Tooltip>
+            <Tooltip title="Regras"><IconButton color="primary" onClick={() => openRules(role)}><SafetyOutlined /></IconButton></Tooltip>
           </Stack>
         </Stack>
         {role.description && <Typography variant="body2" color="text.secondary">{role.description}</Typography>}
@@ -181,6 +192,7 @@ export default function RolesPage() {
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                           <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(r.id)}><EditOutlined /></IconButton></Tooltip>
                           <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(r)}><DeleteOutlined /></IconButton></Tooltip>
+                          <Tooltip title="Regras"><IconButton color="primary" onClick={() => openRules(r)}><SafetyOutlined /></IconButton></Tooltip>
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -257,6 +269,14 @@ export default function RolesPage() {
             Esta ação <b>não pode ser desfeita</b>. Deseja remover a função <b>{deleteTarget?.name}</b>?
           </span>
         }
+      />
+
+      {/* Drawer de Regras do Cargo */}
+      <RoleRulesDrawer
+        open={rulesOpen}
+        role={rulesRole}
+        onClose={() => { setRulesOpen(false); setRulesRole(null); }}
+        onChanged={load}
       />
     </Grid>
   );

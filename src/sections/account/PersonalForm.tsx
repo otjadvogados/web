@@ -16,7 +16,7 @@ import { Formik } from 'formik';
 // project
 import axios from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
-import { bindMask, formatCPF, formatPhoneBR, digitsOnly } from 'utils/mask';
+import { bindMask, formatCPF, formatPhoneBR, formatOAB, digitsOnly } from 'utils/mask';
 import useAuth from 'hooks/useAuth';
 import { UserProfile } from 'types/auth';
 
@@ -67,6 +67,11 @@ const baseSchema = Yup.object({
       if (!value) return false;
       return validateCPF(value);
     }),
+  oab: Yup.string()
+    .required('OAB é obrigatória')
+    .test('oab-format', 'Formato: 000000/UF', (value) =>
+      value ? /^\d{6}\/[A-Z]{2}$/.test(value.toUpperCase()) : false
+    ),
   birthdate: Yup.string().optional(),
   phone: Yup.string().optional().max(20),
   currentPassword: Yup.string()
@@ -76,6 +81,7 @@ type MeDTO = {
   name: string;
   email: string;
   cpf: string; // Agora obrigatório
+  oab: string; // OAB obrigatória
   birthdate?: string; // ISO yyyy-mm-dd
   phone?: string;
   currentPassword?: string; // só quando trocando email
@@ -86,6 +92,7 @@ export default function PersonalForm() {
   const { updateProfile } = useAuth();
   const emailOriginal = useRef<string>('');
   const cpfRef = useRef<HTMLInputElement | null>(null);
+  const oabRef = useRef<HTMLInputElement | null>(null);
   const phoneRef = useRef<HTMLInputElement | null>(null);
 
   const schema = baseSchema.shape({
@@ -98,7 +105,7 @@ export default function PersonalForm() {
   return (
     <Formik<MeDTO>
       enableReinitialize
-      initialValues={{ name: '', email: '', cpf: '', birthdate: '', phone: '', currentPassword: '' }}
+      initialValues={{ name: '', email: '', cpf: '', oab: '', birthdate: '', phone: '', currentPassword: '' }}
       validationSchema={schema}
                     onSubmit={async (values, { setSubmitting, setErrors }) => {
         try {
@@ -110,6 +117,13 @@ export default function PersonalForm() {
           // formata CPF se preenchido
           if (values.cpf) {
             payload.cpf = digitsOnly(values.cpf);
+          }
+
+          // formata OAB se preenchida
+          if (values.oab) {
+            const cleanOAB = digitsOnly(values.oab);
+            const uf = values.oab.split('/')[1];
+            payload.oab = `${cleanOAB}/${uf}`;
           }
 
           // formata telefone se preenchido
@@ -132,6 +146,7 @@ export default function PersonalForm() {
           const updatedUser: UserProfile = {
             ...values,
             cpf: values.cpf ? digitsOnly(values.cpf) : undefined,
+            oab: values.oab || undefined,
             phone: values.phone ? digitsOnly(values.phone) : undefined
           };
           
@@ -175,6 +190,7 @@ export default function PersonalForm() {
                 name: u?.name || '',
                 email: u?.email || '',
                 cpf: formatCPF(u?.cpf || ''),                       // formata CPF pra exibição
+                oab: formatOAB(u?.oab || ''),                       // formata OAB pra exibição
                 birthdate: u?.birthdate ? String(u.birthdate).slice(0, 10) : '',
                 phone: formatPhoneBR(u?.phone || ''),               // formata telefone pra exibição
                 currentPassword: ''
@@ -260,6 +276,24 @@ export default function PersonalForm() {
                     fullWidth
                   />
                   {touched.cpf && errors.cpf && <FormHelperText error>{errors.cpf}</FormHelperText>}
+                </Stack>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Stack sx={{ gap: 1 }}>
+                  <InputLabel htmlFor="oab">OAB *</InputLabel>
+                  <OutlinedInput
+                    id="oab"
+                    name="oab"
+                    inputRef={oabRef}
+                    value={values.oab}
+                    onChange={bindMask('oab', setFieldValue, formatOAB, oabRef, { stickToEnd: true })}
+                    onBlur={handleBlur}
+                    error={Boolean(touched.oab && errors.oab)}
+                    placeholder="000000/SP (obrigatório)"
+                    fullWidth
+                  />
+                  {touched.oab && errors.oab && <FormHelperText error>{errors.oab}</FormHelperText>}
                 </Stack>
               </Grid>
 

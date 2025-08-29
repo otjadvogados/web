@@ -34,6 +34,7 @@ export type UserProfile = {
   tier?: string;
   // 👇 opcionais, caso o backend envie
   cpf?: string;
+  oab?: string;
   birthdate?: string;
   phone?: string;
   createdAt?: string;

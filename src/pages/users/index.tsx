@@ -75,6 +75,10 @@ export default function UsersPage() {
     () => items.some((u) => Object.prototype.hasOwnProperty.call(u, 'birthdate')),
     [items]
   );
+  const hasOAB = useMemo(
+    () => items.some((u) => Object.prototype.hasOwnProperty.call(u, 'oab')),
+    [items]
+  );
 
   async function load() {
     try {
@@ -229,6 +233,15 @@ export default function UsersPage() {
                </Stack>
              )}
              
+             {hasOAB && user.oab && (
+               <Stack direction="row" alignItems="center" spacing={isSmallMobile ? 0.5 : 1}>
+                 <Typography variant="caption" color="text.secondary" sx={{ minWidth: isSmallMobile ? 50 : 60 }}>
+                   OAB:
+                 </Typography>
+                 <Typography variant="body2">{user.oab}</Typography>
+               </Stack>
+             )}
+             
              {hasBirth && user.birthdate && (
                <Stack direction="row" alignItems="center" spacing={isSmallMobile ? 0.5 : 1}>
                  <Typography variant="caption" color="text.secondary" sx={{ minWidth: isSmallMobile ? 50 : 60 }}>
@@ -357,6 +370,7 @@ export default function UsersPage() {
                     <TableCell onClick={() => { setSortBy('email'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} sx={{ cursor: 'pointer' }}>E-mail</TableCell>
                     <TableCell>Telefone</TableCell>
                     {hasCPF && <TableCell>CPF</TableCell>}
+                    {hasOAB && <TableCell>OAB</TableCell>}
                     {hasBirth && <TableCell>Nascimento</TableCell>}
                     <TableCell>Função</TableCell>
                     <TableCell>Departamentos</TableCell>
@@ -404,9 +418,10 @@ export default function UsersPage() {
                         </Tooltip>
                       </TableCell>
                       <TableCell>{u.email}</TableCell>
-                      <TableCell>{u.phone ? formatPhoneBR(u.phone) : '-'}</TableCell>
-                      {hasCPF && <TableCell>{u.cpf ? formatCPF(u.cpf) : '-'}</TableCell>}
-                      {hasBirth && <TableCell>{formatDateOnlyBR(u.birthdate)}</TableCell>}
+                                              <TableCell>{u.phone ? formatPhoneBR(u.phone) : '-'}</TableCell>
+                        {hasCPF && <TableCell>{u.cpf ? formatCPF(u.cpf) : '-'}</TableCell>}
+                        {hasOAB && <TableCell>{u.oab || '-'}</TableCell>}
+                        {hasBirth && <TableCell>{formatDateOnlyBR(u.birthdate)}</TableCell>}
                       <TableCell>
                         {u.role ? <Chip label={u.role.name} size="small" /> : <Chip label="—" size="small" variant="outlined" />}
                       </TableCell>

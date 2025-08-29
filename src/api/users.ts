@@ -41,6 +41,7 @@ type CreateUserDTO = {
   password: string;
   phone?: string | null;
   cpf?: string | null;
+  oab?: string | null;
   birthdate?: string | null; // 'yyyy-mm-dd'
   // 👇 NOVO
   roleId: string; // obrigatório no create
@@ -64,6 +65,7 @@ type UpdateUserDTO = {
   password?: string;
   phone?: string | null;
   cpf?: string | null;
+  oab?: string | null;
   birthdate?: string | null; // 'yyyy-mm-dd' | null
   // 👇 NOVO
   roleId?: string | null; // string para definir/trocar, null para limpar

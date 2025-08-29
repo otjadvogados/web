@@ -195,7 +195,6 @@ export default function CompanyPage() {
                          error={Boolean(touched.cnpj && errors.cnpj)} 
                        />
                        {touched.cnpj && errors.cnpj && <FormHelperText error>{errors.cnpj as string}</FormHelperText>}
-                       <Typography variant="caption" color="text.secondary">Se informado, deve conter 14 dígitos.</Typography>
                      </Stack>
 
                     <Divider sx={{ my: 1 }} />

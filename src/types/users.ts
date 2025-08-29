@@ -17,6 +17,7 @@ export type UserRow = {
   email: string;
   phone?: string | null;
   cpf?: string | null;            // pode vir ou não, depende da permissão
+  oab?: string | null;            // número da OAB (obrigatório)
   birthdate?: string | null;      // ISO
   emailVerifiedAt?: string | null; // ISO timestamp ou null
   createdAt: string;
