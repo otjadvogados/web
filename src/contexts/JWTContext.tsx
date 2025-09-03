@@ -119,12 +119,27 @@ export const JWTProvider = ({ children }: { children: React.ReactElement }) => {
     });
   };
 
+  const refreshUser = async () => {
+    try {
+      const response = await axios.get('/auth/me');
+      const { data: userData, expiresIn } = response.data;
+      
+      dispatch({
+        type: LOGIN,
+        payload: { isLoggedIn: true, user: userData, expiresIn }
+      });
+    } catch (error: any) {
+      console.error('Erro ao atualizar dados do usuário:', error);
+      // Não faz logout em caso de erro, apenas loga o erro
+    }
+  };
+
   // Só mostra o loader se ainda não foi inicializado
   if (!state.isInitialized) {
     return <Loader />;
   }
 
-  return <JWTContext value={{ ...state, login, logout, register, resetPassword, updateProfile }}>{children}</JWTContext>;
+  return <JWTContext value={{ ...state, login, logout, register, resetPassword, updateProfile, refreshUser }}>{children}</JWTContext>;
 };
 
 export default JWTContext;

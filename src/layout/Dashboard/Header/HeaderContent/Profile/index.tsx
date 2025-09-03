@@ -62,7 +62,7 @@ export default function Profile() {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const { logout, user, expiresIn } = useAuth();
+  const { logout, user, expiresIn, refreshUser } = useAuth();
   const handleLogout = async () => {
     try {
       await logout();
@@ -75,8 +75,18 @@ export default function Profile() {
 
   const anchorRef = useRef<any>(null);
   const [open, setOpen] = useState(false);
-  const handleToggle = () => {
-    setOpen((prevOpen) => !prevOpen);
+  const handleToggle = async () => {
+    const newOpen = !open;
+    setOpen(newOpen);
+    
+    // Se está abrindo o navuser, atualiza os dados do usuário
+    if (newOpen) {
+      try {
+        await refreshUser();
+      } catch (error) {
+        console.error('Erro ao atualizar dados do usuário:', error);
+      }
+    }
   };
 
   const handleClose = (event: MouseEvent | TouchEvent) => {
