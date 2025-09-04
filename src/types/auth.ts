@@ -40,6 +40,7 @@ export type UserProfile = {
   createdAt?: string;
   updatedAt?: string;
   companyId?: string;
+  avatarFileId?: string | null;   // ID do arquivo de avatar para cache HTTP
   departments?: Array<{
     id: string;
     name: string;

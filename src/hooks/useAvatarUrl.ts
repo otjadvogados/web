@@ -4,7 +4,7 @@ import { getToken } from 'utils/axios';
 
 const API_BASE = import.meta.env.VITE_APP_API_URL || 'http://localhost:22211';
 
-export default function useAvatarUrl(userId?: string | null, bust?: number) {
+export default function useAvatarUrl(userId?: string | null, avatarFileId?: string | null) {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -18,13 +18,19 @@ export default function useAvatarUrl(userId?: string | null, bust?: number) {
       }
       try {
         const token = getToken();
-        const res = await axios.get(`${API_BASE}/users/${userId}/avatar`, {
+        
+        // Monta URL com versão estável para cache HTTP forte
+        const href = new URL(`${API_BASE}/users/${userId}/avatar`);
+        if (avatarFileId) {
+          href.searchParams.set('v', avatarFileId);
+        }
+
+        const res = await axios.get(href.toString(), {
           responseType: 'blob',
           headers: { 
             Accept: 'image/*',
             ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          params: bust ? { _: bust } : undefined
+          }
         });
 
         // opcional: sanity check
@@ -45,7 +51,7 @@ export default function useAvatarUrl(userId?: string | null, bust?: number) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [userId, bust]);
+  }, [userId, avatarFileId]);
 
   return url;
 }

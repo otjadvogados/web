@@ -43,8 +43,8 @@ import RolePickerDialog from 'sections/users/RolePickerDialog';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 
 // Avatar protegido por token
-function UserAvatar({ id, name, size = 36, bust }: { id: string; name: string; size?: number; bust?: number }) {
-  const url = useAvatarUrl(id, bust);
+function UserAvatar({ id, name, size = 36, avatarFileId }: { id: string; name: string; size?: number; avatarFileId?: string | null }) {
+  const url = useAvatarUrl(id, avatarFileId);
   return (
     <Avatar
       src={url ?? undefined}
@@ -65,7 +65,6 @@ export default function UsersPage() {
   const [sortBy, setSortBy] = useState<'name' | 'email' | 'createdAt'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(false);
-  const [avatarBust, setAvatarBust] = useState(0);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -195,7 +194,7 @@ export default function UsersPage() {
         <Stack spacing={1.5}>
           {/* Cabeçalho do card */}
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
-            <UserAvatar id={user.id} name={user.name} size={48} bust={avatarBust} />
+            <UserAvatar id={user.id} name={user.name} size={48} avatarFileId={user.avatarFileId} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Tooltip 
                 title={
@@ -423,7 +422,7 @@ export default function UsersPage() {
                        }}
                      >
                        <TableCell width={56}>
-                         <UserAvatar id={u.id} name={u.name} bust={avatarBust} />
+                         <UserAvatar id={u.id} name={u.name} avatarFileId={u.avatarFileId} />
                        </TableCell>
                        <TableCell>
                          <Tooltip 

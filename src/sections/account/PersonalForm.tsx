@@ -95,8 +95,7 @@ type MeDTO = {
 export default function PersonalForm() {
   const navigate = useNavigate();
   const { updateProfile, user: currentUser, refreshUser } = useAuth();
-  const [bust, setBust] = useState(0);
-  const avatarUrl = useAvatarUrl(currentUser?.id || null, bust);
+  const avatarUrl = useAvatarUrl(currentUser?.id || null, currentUser?.avatarFileId || null);
   const [uploading, setUploading] = useState(false);
   const emailOriginal = useRef<string>('');
   const cpfRef = useRef<HTMLInputElement | null>(null);
@@ -237,7 +236,6 @@ export default function PersonalForm() {
                           setUploading(true);
                           await updateUserAvatar(currentUser.id, file);
                           await refreshUser?.(); // mantêm store alinhada, se backend retornar avatarFileId
-                          setBust(Date.now()); // força recarregar a imagem
                           openSnackbar({ open: true, message: 'Avatar atualizado!', variant: 'alert', alert: { color: 'success' } } as any);
                         } catch (err: any) {
                           openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao trocar avatar', variant: 'alert', alert: { color: 'error' } } as any);

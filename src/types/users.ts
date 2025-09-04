@@ -25,6 +25,7 @@ export type UserRow = {
   role?: RoleLite | null;
   departments?: DepartmentLite[];
   isBlocked?: boolean;            // indica se o usuário está bloqueado
+  avatarFileId?: string | null;   // ID do arquivo de avatar para cache HTTP
 };
 
 export type UsersListResponse = {
