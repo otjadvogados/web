@@ -67,7 +67,6 @@ export default function AuthLogin({ isDemo = false }: { isDemo?: boolean }) {
             await login(trimmedEmail, values.password);
             setStatus({ success: true });
             setSubmitting(false);
-            preload('api/menu/dashboard', fetcher); // load menu on login success
           } catch (err: any) {
             console.error(err);
             setStatus({ success: false });

@@ -15,12 +15,14 @@ import TablePagination from '@mui/material/TablePagination';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
+import Avatar from '@mui/material/Avatar';
 import MainCard from 'components/MainCard';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Box from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { Theme } from '@mui/material/styles';
+import useAvatarUrl from 'hooks/useAvatarUrl';
 
 import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
@@ -40,6 +42,20 @@ import UserFormDialog from 'sections/users/UserFormDialog';
 import RolePickerDialog from 'sections/users/RolePickerDialog';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 
+// Avatar protegido por token
+function UserAvatar({ id, name, size = 36, bust }: { id: string; name: string; size?: number; bust?: number }) {
+  const url = useAvatarUrl(id, bust);
+  return (
+    <Avatar
+      src={url ?? undefined}
+      alt={name}
+      sx={{ width: size, height: size, fontSize: size * 0.45 }}
+    >
+      {name?.charAt(0) || 'U'}
+    </Avatar>
+  );
+}
+
 export default function UsersPage() {
   const [items, setItems] = useState<UserRow[]>([]);
   const [page, setPage] = useState(0); // zero-based
@@ -49,6 +65,7 @@ export default function UsersPage() {
   const [sortBy, setSortBy] = useState<'name' | 'email' | 'createdAt'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(false);
+  const [avatarBust, setAvatarBust] = useState(0);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -177,15 +194,16 @@ export default function UsersPage() {
       <CardContent sx={{ p: isSmallMobile ? 1.5 : 2 }}>
         <Stack spacing={1.5}>
           {/* Cabeçalho do card */}
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+            <UserAvatar id={user.id} name={user.name} size={48} bust={avatarBust} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-                             <Tooltip 
-                 title={
-                   user.isBlocked ? <FormattedMessage id="user-blocked" /> :
-                   !user.emailVerifiedAt ? <FormattedMessage id="user-unverified" /> : ''
-                 }
-                 disableHoverListener={!user.isBlocked && !!user.emailVerifiedAt}
-               >
+              <Tooltip 
+                title={
+                  user.isBlocked ? <FormattedMessage id="user-blocked" /> :
+                  !user.emailVerifiedAt ? <FormattedMessage id="user-unverified" /> : ''
+                }
+                disableHoverListener={!user.isBlocked && !!user.emailVerifiedAt}
+              >
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
                   {user.name}
                 </Typography>
@@ -366,6 +384,7 @@ export default function UsersPage() {
               <Table size="small" sx={{ '& td, & th': { whiteSpace: 'nowrap' } }}>
                 <TableHead>
                   <TableRow>
+                    <TableCell />
                     <TableCell onClick={() => { setSortBy('name'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} sx={{ cursor: 'pointer' }}>Nome</TableCell>
                     <TableCell onClick={() => { setSortBy('email'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} sx={{ cursor: 'pointer' }}>E-mail</TableCell>
                     <TableCell>Telefone</TableCell>
@@ -403,7 +422,10 @@ export default function UsersPage() {
                          })
                        }}
                      >
-                                             <TableCell>
+                       <TableCell width={56}>
+                         <UserAvatar id={u.id} name={u.name} bust={avatarBust} />
+                       </TableCell>
+                       <TableCell>
                          <Tooltip 
                            title={
                              u.isBlocked ? <FormattedMessage id="user-blocked" /> :

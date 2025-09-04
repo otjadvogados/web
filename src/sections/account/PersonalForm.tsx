@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // mui
@@ -8,10 +8,13 @@ import Button from '@mui/material/Button';
 import InputLabel from '@mui/material/InputLabel';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import FormHelperText from '@mui/material/FormHelperText';
+import Avatar from '@mui/material/Avatar';
+import IconButton from '@mui/material/IconButton';
 
 // third-party
 import * as Yup from 'yup';
 import { Formik } from 'formik';
+import CameraOutlined from '@ant-design/icons/CameraOutlined';
 
 // project
 import axios from 'utils/axios';
@@ -19,6 +22,8 @@ import { openSnackbar } from 'api/snackbar';
 import { bindMask, formatCPF, formatPhoneBR, formatOAB, digitsOnly } from 'utils/mask';
 import useAuth from 'hooks/useAuth';
 import { UserProfile } from 'types/auth';
+import useAvatarUrl from 'hooks/useAvatarUrl';
+import { updateUserAvatar } from 'api/users';
 
 // helpers
 const unwrapUser = (resp: any) => resp?.data?.data ?? resp?.data?.user ?? resp?.data ?? resp;
@@ -89,7 +94,10 @@ type MeDTO = {
 
 export default function PersonalForm() {
   const navigate = useNavigate();
-  const { updateProfile } = useAuth();
+  const { updateProfile, user: currentUser, refreshUser } = useAuth();
+  const [bust, setBust] = useState(0);
+  const avatarUrl = useAvatarUrl(currentUser?.id || null, bust);
+  const [uploading, setUploading] = useState(false);
   const emailOriginal = useRef<string>('');
   const cpfRef = useRef<HTMLInputElement | null>(null);
   const oabRef = useRef<HTMLInputElement | null>(null);
@@ -206,6 +214,48 @@ export default function PersonalForm() {
         return (
           <form noValidate onSubmit={handleSubmit}>
             <Grid container spacing={3}>
+              {/* Avatar + upload */}
+              <Grid size={12}>
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <Avatar
+                    src={avatarUrl ?? undefined}
+                    alt={values.name || 'avatar'}
+                    sx={{ width: 72, height: 72, fontSize: 28 }}
+                  >
+                    {(values.name || 'U').charAt(0)}
+                  </Avatar>
+                  <div>
+                    <input
+                      id="avatar-input"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !currentUser?.id) return;
+                        try {
+                          setUploading(true);
+                          await updateUserAvatar(currentUser.id, file);
+                          await refreshUser?.(); // mantêm store alinhada, se backend retornar avatarFileId
+                          setBust(Date.now()); // força recarregar a imagem
+                          openSnackbar({ open: true, message: 'Avatar atualizado!', variant: 'alert', alert: { color: 'success' } } as any);
+                        } catch (err: any) {
+                          openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao trocar avatar', variant: 'alert', alert: { color: 'error' } } as any);
+                        } finally {
+                          setUploading(false);
+                          (e.target as HTMLInputElement).value = '';
+                        }
+                      }}
+                    />
+                    <label htmlFor="avatar-input">
+                      <Button variant="outlined" component="span" disabled={uploading} startIcon={<CameraOutlined /> as any}>
+                        {uploading ? 'Enviando...' : 'Alterar foto'}
+                      </Button>
+                    </label>
+                  </div>
+                </Stack>
+              </Grid>
+
               <Grid size={{ xs: 12, md: 6 }}>
                 <Stack sx={{ gap: 1 }}>
                   <InputLabel htmlFor="name">Nome</InputLabel>
