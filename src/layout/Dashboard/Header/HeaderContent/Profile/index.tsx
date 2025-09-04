@@ -25,13 +25,13 @@ import Transitions from 'components/@extended/Transitions';
 import IconButton from 'components/@extended/IconButton';
 
 import useAuth from 'hooks/useAuth';
+import useAvatarUrl from 'hooks/useAvatarUrl';
 import SessionTimer from 'components/SessionTimer';
 
 // assets
 import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
-import avatar1 from 'assets/images/users/avatar.jpg';
 
 interface TabPanelProps {
   children?: ReactNode;
@@ -63,6 +63,7 @@ export default function Profile() {
   const navigate = useNavigate();
 
   const { logout, user, expiresIn, refreshUser } = useAuth();
+  const avatarUrl = useAvatarUrl(user?.id || null, user?.avatarFileId || null);
   const handleLogout = async () => {
     try {
       await logout();
@@ -120,7 +121,13 @@ export default function Profile() {
         onClick={handleToggle}
       >
         <Stack direction="row" sx={{ gap: 1.25, alignItems: 'center', p: 0.5 }}>
-          <Avatar alt="profile user" src={avatar1} size="sm" />
+          <Avatar 
+            alt="profile user" 
+            src={avatarUrl ?? undefined} 
+            size="sm"
+          >
+            {(user?.name || 'U').charAt(0)}
+          </Avatar>
           <Typography variant="subtitle1" sx={{ textTransform: 'capitalize' }}>
             {user?.name || 'Usuário'}
           </Typography>
@@ -153,7 +160,13 @@ export default function Profile() {
                     <Grid container justifyContent="space-between" alignItems="center">
                       <Grid>
                         <Stack direction="row" sx={{ gap: 1.25, alignItems: 'center' }}>
-                          <Avatar alt="profile user" src={avatar1} sx={{ width: 32, height: 32 }} />
+                          <Avatar 
+                            alt="profile user" 
+                            src={avatarUrl ?? undefined} 
+                            sx={{ width: 32, height: 32 }}
+                          >
+                            {(user?.name || 'U').charAt(0)}
+                          </Avatar>
                           <Stack>
                             <Typography variant="h6">{user?.name || 'Usuário'}</Typography>
                             <Typography variant="body2" color="text.secondary">
