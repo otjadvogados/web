@@ -208,7 +208,7 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
             <SafetyOutlined />
           </Box>
           <Box>
-            <Typography variant="h6" fontWeight={700}>Gerenciar Rules do cargo</Typography>
+            <Typography variant="h6" fontWeight={700}>Gerenciar Permissões da função</Typography>
             <Typography variant="body2" color="text.secondary">{role?.name || '—'}</Typography>
           </Box>
         </Stack>

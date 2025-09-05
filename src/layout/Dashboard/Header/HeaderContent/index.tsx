@@ -10,7 +10,7 @@ import Profile from './Profile';
 // import Localization from './Localization';
 // import Notification from './Notification';
 // import FullScreen from './FullScreen';
-// import MobileSection from './MobileSection';
+import MobileSection from './MobileSection';
 // import MegaMenuSection from './MegaMenuSection';
 
 import useConfig from 'hooks/useConfig';
@@ -32,7 +32,7 @@ export default function HeaderContent() {
       {/* Ações à direita */}
       {/* {!downLG && <FullScreen />} */}
       {!downLG && <Profile />}
-      {/* {downLG && <MobileSection />} */}
+      {downLG && <MobileSection />}
     </>
   );
 }
