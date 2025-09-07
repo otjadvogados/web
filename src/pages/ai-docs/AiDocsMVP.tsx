@@ -1,6 +1,5 @@
 // src/pages/ai-docs/AiDocsMVP.tsx
 import { useState } from 'react';
-import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -11,6 +10,7 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import MainCard from 'components/MainCard';
+import LoadingTicker from 'components/LoadingTicker';
 import { openSnackbar } from 'api/snackbar';
 
 import {
@@ -54,6 +54,7 @@ export default function AiDocsMVP() {
   const [draft, setDraft] = useState<AiDraft | null>(null);
   const [draftJson, setDraftJson] = useState<DraftJson>(emptyDraft);
   const [genLoading, setGenLoading] = useState(false);
+  const [showTicker, setShowTicker] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
 
   // ===== Chat =====
@@ -92,13 +93,18 @@ export default function AiDocsMVP() {
     if (!caseId) return;
     try {
       setGenLoading(true);
+      setShowTicker(true);
       const d = await generateDraft(caseId);
       setDraft(d);
       setDraftJson(d.json);
       openSnackbar({ open: true, message: 'Draft gerado!', variant: 'alert', alert: { color: 'success' } } as any);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-    } finally { setGenLoading(false); }
+    } finally {
+      setGenLoading(false);
+      // deixa o ticker respirar 1 seg e some
+      setTimeout(() => setShowTicker(false), 1000);
+    }
   }
 
   async function handleSaveDraft() {
@@ -203,156 +209,146 @@ export default function AiDocsMVP() {
   }
 
   return (
-    <Grid container spacing={3}>
+    <Stack spacing={3}>
       {/* 1) Case */}
-      <Grid item xs={12}>
-        <MainCard title="1) Criar Caso (Advogado)">
-          <Stack spacing={2}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <TextField label="Tipo" value={caseType} onChange={(e) => setCaseType(e.target.value)} sx={{ minWidth: 220 }} />
-              <Button variant="contained" onClick={handleCreateCase}>Criar Caso</Button>
-              {caseId && <Chip label={`caseId: ${caseId}`} />}
-              {caseStatus && <Chip label={`status: ${caseStatus}`} color="info" />}
-            </Stack>
-            <TextField label="Pedido (linguagem natural)" multiline minRows={3} value={requestText} onChange={(e) => setRequestText(e.target.value)} />
+      <MainCard title="1) Criar Caso (Advogado)">
+        <Stack spacing={2}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <TextField label="Tipo" value={caseType} onChange={(e) => setCaseType(e.target.value)} sx={{ minWidth: 220 }} />
+            <Button variant="contained" onClick={handleCreateCase}>Criar Caso</Button>
+            {caseId && <Chip label={`caseId: ${caseId}`} />}
+            {caseStatus && <Chip label={`status: ${caseStatus}`} color="info" />}
           </Stack>
-        </MainCard>
-      </Grid>
+          <TextField label="Pedido (linguagem natural)" multiline minRows={3} value={requestText} onChange={(e) => setRequestText(e.target.value)} />
+        </Stack>
+      </MainCard>
 
       {/* 2) Upload de Documentos do Caso */}
-      <Grid item xs={12}>
-        <MainCard title="2) (Opcional) Anexar PDFs ao Caso">
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }}>
-            <Button component="label" variant="outlined" disabled={!caseId}>
-              {docFile ? docFile.name : 'Selecionar PDF do Caso'}
-              <input type="file" accept="application/pdf" hidden onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
-            </Button>
-            <Button onClick={handleUploadDoc} variant="contained" disabled={!caseId || !docFile || docLoading}>
-              {docLoading ? <CircularProgress size={18} /> : 'Anexar'}
-            </Button>
-            {!caseId && <Typography variant="caption" color="text.secondary">Crie o caso primeiro</Typography>}
-          </Stack>
-        </MainCard>
-      </Grid>
+      <MainCard title="2) (Opcional) Anexar PDFs ao Caso">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }}>
+          <Button component="label" variant="outlined" disabled={!caseId}>
+            {docFile ? docFile.name : 'Selecionar PDF do Caso'}
+            <input type="file" accept="application/pdf" hidden onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
+          </Button>
+          <Button onClick={handleUploadDoc} variant="contained" disabled={!caseId || !docFile || docLoading}>
+            {docLoading ? <CircularProgress size={18} /> : 'Anexar'}
+          </Button>
+          {!caseId && <Typography variant="caption" color="text.secondary">Crie o caso primeiro</Typography>}
+        </Stack>
+      </MainCard>
 
       {/* 3) Gerar Rascunho */}
-      <Grid item xs={12}>
-        <MainCard title="3) Gerar Rascunho (RAG com Templates + Docs do Caso)">
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
-            <Button variant="contained" onClick={handleGenerate} disabled={!caseId || genLoading}>
-              {genLoading ? <CircularProgress size={18} /> : 'Gerar rascunho'}
-            </Button>
-            <Typography variant="body2" color="text.secondary">(usa templates cadastrados automaticamente)</Typography>
-            {draft && (
-              <Stack direction="row" spacing={1}>
-                <Chip label={`draftId: ${draft.id}`} color="success" variant="outlined" />
-                <Chip label={`versão: ${draft.version}`} variant="outlined" />
-              </Stack>
-            )}
+      <MainCard title="3) Gerar Rascunho (RAG com Templates + Docs do Caso)">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+          <Button variant="contained" onClick={handleGenerate} disabled={!caseId || genLoading}>
+            {genLoading ? <CircularProgress size={18} /> : 'Gerar rascunho'}
+          </Button>
+          <Typography variant="body2" color="text.secondary">(usa templates cadastrados automaticamente)</Typography>
+          {draft && (
+            <Stack direction="row" spacing={1}>
+              <Chip label={`draftId: ${draft.id}`} color="success" variant="outlined" />
+              <Chip label={`versão: ${draft.version}`} variant="outlined" />
+            </Stack>
+          )}
+        </Stack>
+
+        {(genLoading || showTicker) && (
+          <Box sx={{ mt: 1 }}>
+            <LoadingTicker
+              running={genLoading || showTicker}
+              size="medium"
+              showSpinner={true}
+              spinnerSize={18}
+              // Se quiser customizar as frases, passe "script={[...]}"
+            />
+          </Box>
+        )}
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Editor simples do JSON */}
+        <Stack spacing={2}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <TextField label="Endereçamento" value={draftJson.enderecamento} onChange={(e) => setDraftJson({ ...draftJson, enderecamento: e.target.value })} fullWidth multiline minRows={2} />
+            <TextField label="Qualificação" value={draftJson.qualificacao} onChange={(e) => setDraftJson({ ...draftJson, qualificacao: e.target.value })} fullWidth multiline minRows={2} />
           </Stack>
-
-          <Divider sx={{ my: 2 }} />
-
-          {/* Editor simples do JSON */}
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <TextField label="Endereçamento" value={draftJson.enderecamento} onChange={(e) => setDraftJson({ ...draftJson, enderecamento: e.target.value })} fullWidth multiline minRows={2} />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label="Qualificação" value={draftJson.qualificacao} onChange={(e) => setDraftJson({ ...draftJson, qualificacao: e.target.value })} fullWidth multiline minRows={2} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField label="Fatos" value={draftJson.fatos} onChange={(e) => setDraftJson({ ...draftJson, fatos: e.target.value })} fullWidth multiline minRows={3} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField label="Fundamentos" value={draftJson.fundamentos} onChange={(e) => setDraftJson({ ...draftJson, fundamentos: e.target.value })} fullWidth multiline minRows={3} />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label="Pedidos (um por linha)" value={(draftJson.pedidos || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, pedidos: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label="Jurisprudência (uma por linha)" value={(draftJson.jurisprudencia || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, jurisprudencia: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField label="Observações" value={draftJson.observacoes} onChange={(e) => setDraftJson({ ...draftJson, observacoes: e.target.value })} fullWidth multiline minRows={2} />
-            </Grid>
-            <Grid item xs={12}>
-              <Stack direction="row" spacing={1}>
-                <Button onClick={handleSaveDraft} variant="contained" disabled={!draft || saveLoading}>
-                  {saveLoading ? <CircularProgress size={18} /> : 'Salvar rascunho'}
-                </Button>
-                {draft && <Chip label={`versão atual: ${draft.version}`} />}
-              </Stack>
-            </Grid>
-          </Grid>
-        </MainCard>
-      </Grid>
+          <TextField label="Fatos" value={draftJson.fatos} onChange={(e) => setDraftJson({ ...draftJson, fatos: e.target.value })} fullWidth multiline minRows={3} />
+          <TextField label="Fundamentos" value={draftJson.fundamentos} onChange={(e) => setDraftJson({ ...draftJson, fundamentos: e.target.value })} fullWidth multiline minRows={3} />
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <TextField label="Pedidos (um por linha)" value={(draftJson.pedidos || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, pedidos: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
+            <TextField label="Jurisprudência (uma por linha)" value={(draftJson.jurisprudencia || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, jurisprudencia: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
+          </Stack>
+          <TextField label="Observações" value={draftJson.observacoes} onChange={(e) => setDraftJson({ ...draftJson, observacoes: e.target.value })} fullWidth multiline minRows={2} />
+          <Stack direction="row" spacing={1}>
+            <Button onClick={handleSaveDraft} variant="contained" disabled={!draft || saveLoading}>
+              {saveLoading ? <CircularProgress size={18} /> : 'Salvar rascunho'}
+            </Button>
+            {draft && <Chip label={`versão atual: ${draft.version}`} />}
+          </Stack>
+        </Stack>
+      </MainCard>
 
       {/* 4) Chat & Sugestões */}
-      <Grid item xs={12}>
-        <MainCard title="4) Chat do Caso (Sugestões em JSON-Patch)">
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
-            <TextField label="Mensagem" value={chatText} onChange={(e) => setChatText(e.target.value)} fullWidth />
-            <Button variant="contained" onClick={handleChat} disabled={!caseId || !draft || chatLoading}>
-              {chatLoading ? <CircularProgress size={18} /> : 'Enviar'}
-            </Button>
-          </Stack>
+      <MainCard title="4) Chat do Caso (Sugestões em JSON-Patch)">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
+          <TextField label="Mensagem" value={chatText} onChange={(e) => setChatText(e.target.value)} fullWidth />
+          <Button variant="contained" onClick={handleChat} disabled={!caseId || !draft || chatLoading}>
+            {chatLoading ? <CircularProgress size={18} /> : 'Enviar'}
+          </Button>
+        </Stack>
 
-          <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 2 }} />
 
-          <Stack spacing={1.5}>
-            {suggestions.map((s) => (
-              <Paper key={s.id} variant="outlined" sx={{ p: 1.5 }}>
-                <Stack spacing={0.75}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Chip size="small" label={s.status} color={s.status === 'PENDING' ? 'warning' : s.status === 'ACCEPTED' ? 'success' : 'default'} />
-                    {typeof s.confidence === 'number' && (
-                      <Chip size="small" label={`conf: ${(s.confidence * 100).toFixed(0)}%`} variant="outlined" />
-                    )}
-                    {!!s.targets?.length && <Chip size="small" variant="outlined" label={`alvo: ${s.targets.join(', ')}`}/>}                    
-                  </Stack>
-                  {s.rationale && <Typography variant="body2" color="text.secondary">{s.rationale}</Typography>}
-                  <Box sx={{ p: 1, bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
-                    <Typography variant="caption" color="text.secondary">ops (RFC-6902):</Typography>
-                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
-                  </Box>
-                  <Stack direction="row" spacing={1}>
-                    <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || s.status !== 'PENDING'}>Aceitar</Button>
-                    <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || s.status !== 'PENDING'}>Rejeitar</Button>
-                  </Stack>
+        <Stack spacing={1.5}>
+          {suggestions.map((s) => (
+            <Paper key={s.id} variant="outlined" sx={{ p: 1.5 }}>
+              <Stack spacing={0.75}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Chip size="small" label={s.status} color={s.status === 'PENDING' ? 'warning' : s.status === 'ACCEPTED' ? 'success' : 'default'} />
+                  {typeof s.confidence === 'number' && (
+                    <Chip size="small" label={`conf: ${(s.confidence * 100).toFixed(0)}%`} variant="outlined" />
+                  )}
+                  {!!s.targets?.length && <Chip size="small" variant="outlined" label={`alvo: ${s.targets.join(', ')}`}/>}                    
                 </Stack>
-              </Paper>
-            ))}
-            {!suggestions.length && (
-              <Typography variant="body2" color="text.secondary">Sem sugestões no momento.</Typography>
-            )}
-          </Stack>
-        </MainCard>
-      </Grid>
+                {s.rationale && <Typography variant="body2" color="text.secondary">{s.rationale}</Typography>}
+                <Box sx={{ p: 1, bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">ops (RFC-6902):</Typography>
+                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || s.status !== 'PENDING'}>Aceitar</Button>
+                  <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || s.status !== 'PENDING'}>Rejeitar</Button>
+                </Stack>
+              </Stack>
+            </Paper>
+          ))}
+          {!suggestions.length && (
+            <Typography variant="body2" color="text.secondary">Sem sugestões no momento.</Typography>
+          )}
+        </Stack>
+      </MainCard>
 
       {/* 5) Export */}
-      <Grid item xs={12}>
-        <MainCard title="5) Exportar">
-          <Stack spacing={2}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Button variant="outlined" onClick={() => handleExport('DOCX')} disabled={!draft || expLoading}>DOCX</Button>
-              <Button variant="outlined" onClick={() => handleExport('PDF')} disabled={!draft || expLoading}>PDF</Button>
-              {expLoading && <CircularProgress size={18} />}
-            </Stack>
-            {lastExportFileId && (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="body2" color="text.secondary">Documento exportado:</Typography>
-                <Button onClick={openLastExport} variant="outlined" size="small" disabled={expLoading}>
-                  Abrir
-                </Button>
-                <Button onClick={downloadLastExport} variant="outlined" size="small" disabled={expLoading}>
-                  Baixar
-                </Button>
-              </Stack>
-            )}
+      <MainCard title="5) Exportar">
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button variant="outlined" onClick={() => handleExport('DOCX')} disabled={!draft || expLoading}>DOCX</Button>
+            <Button variant="outlined" onClick={() => handleExport('PDF')} disabled={!draft || expLoading}>PDF</Button>
+            {expLoading && <CircularProgress size={18} />}
           </Stack>
-        </MainCard>
-      </Grid>
-    </Grid>
+          {lastExportFileId && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="body2" color="text.secondary">Documento exportado:</Typography>
+              <Button onClick={openLastExport} variant="outlined" size="small" disabled={expLoading}>
+                Abrir
+              </Button>
+              <Button onClick={downloadLastExport} variant="outlined" size="small" disabled={expLoading}>
+                Baixar
+              </Button>
+            </Stack>
+          )}
+        </Stack>
+      </MainCard>
+    </Stack>
   );
 }

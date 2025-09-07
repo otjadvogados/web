@@ -9,6 +9,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import { EditOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
+import LoadingTicker from 'components/LoadingTicker';
 import { openSnackbar } from 'api/snackbar';
 
 import {
@@ -40,6 +41,7 @@ export default function TemplatesPage() {
   const [formCategoryId, setFormCategoryId] = useState<string | null>(null);
   const [formFile, setFormFile] = useState<File | null>(null); // só no criar
   const [submitting, setSubmitting] = useState(false);
+  const [showTicker, setShowTicker] = useState(false);
 
   // delete
   const [delOpen, setDelOpen] = useState(false);
@@ -117,6 +119,7 @@ export default function TemplatesPage() {
           openSnackbar({ open: true, message: 'Título é obrigatório', variant: 'alert', alert: { color: 'warning' } } as any);
           return;
         }
+        setShowTicker(true);
         await createTemplate({
           file: formFile,
           title: formTitle.trim(),
@@ -133,6 +136,8 @@ export default function TemplatesPage() {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
     } finally {
       setSubmitting(false);
+      // deixa o ticker respirar 1 seg e some
+      setTimeout(() => setShowTicker(false), 1000);
     }
   }
 
@@ -311,6 +316,27 @@ export default function TemplatesPage() {
             {submitting ? <CircularProgress size={18} /> : (editing ? 'Salvar' : 'Criar')}
           </Button>
         </DialogActions>
+        
+        {/* LoadingTicker para criação de templates */}
+        {(submitting || showTicker) && !editing && (
+          <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
+            <LoadingTicker
+              running={submitting || showTicker}
+              size="small"
+              showSpinner={true}
+              spinnerSize={16}
+              script={[
+                'Preparando upload...',
+                'Validando arquivo PDF...',
+                'Processando template...',
+                'Extraindo conteúdo...',
+                'Gerando metadados...',
+                'Salvando no sistema...',
+                'Quase pronto...'
+              ]}
+            />
+          </Box>
+        )}
       </Dialog>
 
       {/* Confirmar exclusão */}

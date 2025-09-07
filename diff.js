@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/diff-head.js
-// Mostra o diff entre o último commit (HEAD) e o estado atual da árvore de trabalho.
+// Mostra o diff entre o commit informado (ou HEAD por padrão) e o estado atual da árvore de trabalho.
 // Ignora package-lock.json e yarn.lock
 // Sempre grava o resultado em diff.txt (sem saída no terminal)
 
@@ -57,19 +57,23 @@ function main() {
   const nameOnly = argv.includes('--name-only');
   const includeUntracked = !argv.includes('--no-untracked');
 
-  // Base (HEAD ou árvore vazia)
+  // primeiro argumento que não é opção (--...) é considerado commit/tag/branch base
+  const commitArg = argv.find(a => !a.startsWith('--'));
+
+  // Base (commit fornecido, HEAD ou árvore vazia)
   let baseRef = 'HEAD';
-  if (!headExists()) {
+  if (commitArg) {
+    baseRef = commitArg;
+  } else if (!headExists()) {
     baseRef = runGit(['hash-object', '-t', 'tree', '/dev/null']).trim();
   }
 
   // Arquivos a ignorar
-  const ignore = ['package-lock.json', 'yarn.lock'];
+  const ignore = ['package-lock.json', 'yarn.lock', 'diff.js', 'diff.txt'];
 
   // Diff principal (tracked)
   const diffArgs = ['diff', '-M', '-C', '--no-ext-diff', '--color=never', baseRef, '--', '.'];
   if (nameOnly) diffArgs.push('--name-only');
-  // adiciona exclusões no formato correto
   diffArgs.push(...ignore.map(f => `:(exclude)${f}`));
 
   let output = '';
