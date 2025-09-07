@@ -1,0 +1,3936 @@
+diff --git a/diff.txt b/diff.txt
+new file mode 100644
+index 0000000..6bd93ae
+--- /dev/null
++++ b/diff.txt
+@@ -0,0 +1,2526 @@
++diff --git a/diff.txt b/diff.txt
++new file mode 100644
++index 0000000..7806378
++--- /dev/null
+++++ b/diff.txt
++@@ -0,0 +1,1178 @@
+++diff --git a/src/menu-items/pages.ts b/src/menu-items/pages.ts
+++index 15da4b9..a0c7ae8 100644
+++--- a/src/menu-items/pages.ts
++++++ b/src/menu-items/pages.ts
+++@@ -53,6 +53,34 @@ const pages: NavItemType = {
+++       icon: icons.TeamOutlined,
+++       url: '/users'
+++     },
++++    // 👇 AI Docs
++++    {
++++      id: 'ai-docs',
++++      title: 'IA Docs',
++++      type: 'collapse',
++++      icon: icons.AppstoreOutlined,
++++      isDropdown: true,
++++      children: [
++++        {
++++          id: 'ai-docs-mvp',
++++          title: 'Gerar Documentos',
++++          type: 'item',
++++          url: '/ai-docs'
++++        },
++++        {
++++          id: 'ai-docs-templates',
++++          title: 'Templates',
++++          type: 'item',
++++          url: '/ai-docs/templates'
++++        },
++++        {
++++          id: 'ai-docs-categories',
++++          title: 'Categorias',
++++          type: 'item',
++++          url: '/ai-docs/categories'
++++        }
++++      ]
++++    },
+++   ]
+++ };
+++ 
+++diff --git a/src/routes/MainRoutes.tsx b/src/routes/MainRoutes.tsx
+++index e40a4e9..eb57be8 100644
+++--- a/src/routes/MainRoutes.tsx
++++++ b/src/routes/MainRoutes.tsx
+++@@ -36,6 +36,11 @@ const CompanyPage = Loadable(lazy(() => import('pages/company')));
+++ // NOVO: Bloqueios de Conta
+++ const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
+++ 
++++// NOVO: AI Docs MVP
++++const AiDocsMVP = Loadable(lazy(() => import('pages/ai-docs/AiDocsMVP')));
++++const AiDocsTemplates = Loadable(lazy(() => import('pages/ai-docs/TemplatesPage')));
++++const AiDocsCategories = Loadable(lazy(() => import('pages/ai-docs/CategoriesPage')));
++++
+++ // ==============================|| MAIN ROUTING ||============================== //
+++ 
+++ const MainRoutes = {
+++@@ -77,6 +82,18 @@ const MainRoutes = {
+++         {
+++           path: 'sensitive-fields',
+++           element: <SensitiveFieldsPage />
++++        },
++++        {
++++          path: 'ai-docs',
++++          element: <AiDocsMVP />
++++        },
++++        {
++++          path: 'ai-docs/templates',
++++          element: <AiDocsTemplates />
++++        },
++++        {
++++          path: 'ai-docs/categories',
++++          element: <AiDocsCategories />
+++         }
+++       ]
+++     },
+++diff --git a/src/api/aiCategories.ts b/src/api/aiCategories.ts
+++new file mode 100644
+++index 0000000..cbbd8e0
+++--- /dev/null
++++++ b/src/api/aiCategories.ts
+++@@ -0,0 +1,48 @@
++++// src/api/aiCategories.ts
++++import api from '../utils/axios';
++++
++++const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
++++
++++export type AiCategory = { 
++++  id: string; 
++++  name: string; 
++++  slug: string; 
++++  companyId?: string | null;
++++  companyScope?: 'global' | 'company';
++++};
++++
++++export type AiCategoryListResponse = {
++++  data: AiCategory[];
++++  total: number;
++++  page: number;
++++  limit: number;
++++};
++++
++++export async function listCategories(params?: { search?: string; page?: number; limit?: number }) {
++++  const res = await api.get<AiCategoryListResponse>('/ai/categories', { 
++++    params,
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data;
++++}
++++
++++export async function createCategory(payload: { name: string; companyScope?: 'global' | 'company' }) {
++++  const res = await api.post<{ message: string; data: AiCategory }>('/ai/categories', payload, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data.data;
++++}
++++
++++export async function updateCategory(id: string, payload: { name: string }) {
++++  const res = await api.patch<{ message: string; data: AiCategory }>(`/ai/categories/${id}`, payload, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data.data;
++++}
++++
++++export async function deleteCategory(id: string) {
++++  const res = await api.delete<{ message: string }>(`/ai/categories/${id}`, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data;
++++}
+++diff --git a/src/api/aiDocs.ts b/src/api/aiDocs.ts
+++new file mode 100644
+++index 0000000..f92b760
+++--- /dev/null
++++++ b/src/api/aiDocs.ts
+++@@ -0,0 +1,148 @@
++++// src/api/aiDocs.ts
++++import api from '../utils/axios';
++++
++++const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
++++
++++// ===== Types (ou coloque em src/types/ai-docs.ts) =====
++++export type AiTemplate = {
++++  id: string;
++++  kind: string;
++++  title: string;
++++  description?: string | null;
++++  createdAt?: string;
++++};
++++
++++export type AiCase = {
++++  id: string;
++++  userId: string;
++++  companyId?: string | null;
++++  type: string;
++++  requestText: string;
++++  status: 'DRAFT'|'GENERATING'|'READY'|'APPROVED'|'REJECTED'|string;
++++  createdAt: string;
++++};
++++
++++export type DraftJson = {
++++  enderecamento: string;
++++  qualificacao: string;
++++  fatos: string;
++++  fundamentos: string;
++++  pedidos: string[];
++++  jurisprudencia: string[];
++++  observacoes: string;
++++  [k: string]: any;
++++};
++++
++++export type AiDraft = {
++++  id: string;
++++  caseId: string;
++++  templateId?: string | null;
++++  version: number;
++++  status: string; // 'draft' | ...
++++  json: DraftJson;
++++  createdAt: string;
++++  updatedAt: string;
++++};
++++
++++export type AiSuggestion = {
++++  id: string;
++++  sessionId: string;
++++  draftId: string;
++++  draftVersion: number;
++++  ops: Array<{ op: string; path: string; value?: any; from?: string }>;
++++  rationale?: string | null;
++++  confidence?: number | null;
++++  targets: string[];
++++  status: 'PENDING'|'ACCEPTED'|'REJECTED';
++++  createdAt: string;
++++};
++++
++++export type AiExport = {
++++  id: string;
++++  draftId: string;
++++  kind: 'DOCX'|'PDF';
++++  status: 'PENDING'|'DONE'|'ERROR';
++++  fileId?: string | null;
++++  error?: string | null;
++++  createdAt: string;
++++};
++++
++++// ===== Templates =====
++++export async function createTemplate(params: { file: File; title: string; description?: string; categoryId?: string | null }) {
++++  const fd = new FormData();
++++  fd.append('file', params.file);
++++  fd.append('title', params.title);
++++  if (params.description) fd.append('description', params.description);
++++  if (params.categoryId) fd.append('categoryId', params.categoryId);
++++
++++  const res = await api.post<{ message: string; data: AiTemplate }>(`/ai/templates`, fd, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data.data;
++++}
++++
++++// ===== Cases =====
++++export async function createCase(params: { type: string; requestText: string }) {
++++  const res = await api.post<{ message: string; data: AiCase }>(`/ai/cases`, params, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data.data;
++++}
++++
++++export async function uploadCaseDoc(caseId: string, file: File) {
++++  const fd = new FormData();
++++  fd.append('file', file);
++++  const res = await api.post<{ message: string }>(`/ai/cases/${caseId}/doc`, fd, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data;
++++}
++++
++++// ===== Drafts =====
++++export async function generateDraft(caseId: string, templateId?: string) {
++++  const res = await api.post<{ message: string; data: AiDraft }>(`/ai/drafts/${caseId}/generate`, { templateId }, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data.data;
++++}
++++
++++export async function updateDraft(draftId: string, payload: { json: DraftJson; status?: string }) {
++++  const res = await api.patch<{ message: string; data: AiDraft }>(`/ai/drafts/${draftId}`, payload, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data.data;
++++}
++++
++++export async function exportDraft(draftId: string, kind: 'DOCX'|'PDF') {
++++  const res = await api.post<{ message: string; data: AiExport }>(`/ai/drafts/${draftId}/export`, { kind }, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data.data;
++++}
++++
++++// ===== Chat & Sugestões =====
++++export async function postChatMessage(caseId: string, text: string) {
++++  type Resp = { message: string; data: { sessionId: string; draftId: string; suggestions: AiSuggestion[]; messageId: string } };
++++  const res = await api.post<Resp>(`/ai/chats/${caseId}/messages`, { text }, {
++++    headers: { 'Accept-Language': LANG }
++++  });
++++  return res.data.data;
++++}
++++
++++export async function acceptSuggestion(draftId: string, suggestionId: string) {
++++  const res = await api.post<{ message: string; data: { draft: AiDraft; suggestion: AiSuggestion } }>(
++++    `/ai/drafts/${draftId}/suggestions/${suggestionId}/accept`,
++++    null,
++++    { headers: { 'Accept-Language': LANG } }
++++  );
++++  return res.data.data;
++++}
++++
++++export async function rejectSuggestion(draftId: string, suggestionId: string) {
++++  const res = await api.post<{ message: string; data: { suggestion: AiSuggestion } }>(
++++    `/ai/drafts/${draftId}/suggestions/${suggestionId}/reject`,
++++    null,
++++    { headers: { 'Accept-Language': LANG } }
++++  );
++++  return res.data.data;
++++}
+++diff --git a/src/pages/ai-docs/AiDocsMVP.tsx b/src/pages/ai-docs/AiDocsMVP.tsx
+++new file mode 100644
+++index 0000000..d6c935f
+++--- /dev/null
++++++ b/src/pages/ai-docs/AiDocsMVP.tsx
+++@@ -0,0 +1,308 @@
++++// src/pages/ai-docs/AiDocsMVP.tsx
++++import { useState } from 'react';
++++import Grid from '@mui/material/Grid';
++++import Stack from '@mui/material/Stack';
++++import TextField from '@mui/material/TextField';
++++import Button from '@mui/material/Button';
++++import Divider from '@mui/material/Divider';
++++import Typography from '@mui/material/Typography';
++++import Chip from '@mui/material/Chip';
++++import Paper from '@mui/material/Paper';
++++import Box from '@mui/material/Box';
++++import CircularProgress from '@mui/material/CircularProgress';
++++import MainCard from 'components/MainCard';
++++import { openSnackbar } from 'api/snackbar';
++++
++++import {
++++  createTemplate,
++++  createCase,
++++  uploadCaseDoc,
++++  generateDraft,
++++  postChatMessage,
++++  acceptSuggestion,
++++  rejectSuggestion,
++++  updateDraft,
++++  exportDraft,
++++  type AiDraft,
++++  type DraftJson,
++++  type AiSuggestion
++++} from 'api/aiDocs';
++++
++++const emptyDraft: DraftJson = {
++++  enderecamento: '',
++++  qualificacao: '',
++++  fatos: '',
++++  fundamentos: '',
++++  pedidos: [],
++++  jurisprudencia: [],
++++  observacoes: ''
++++};
++++
++++export default function AiDocsMVP() {
++++  // ===== Case =====
++++  const [caseType, setCaseType] = useState('acao-rescisoria');
++++  const [requestText, setRequestText] = useState('Preciso de uma petição de ação rescisória baseada no fato X ...');
++++  const [caseId, setCaseId] = useState<string | null>(null);
++++  const [caseStatus, setCaseStatus] = useState<string | null>(null);
++++
++++  // ===== Case Docs =====
++++  const [docFile, setDocFile] = useState<File | null>(null);
++++  const [docLoading, setDocLoading] = useState(false);
++++
++++  // ===== Draft =====
++++  const [draft, setDraft] = useState<AiDraft | null>(null);
++++  const [draftJson, setDraftJson] = useState<DraftJson>(emptyDraft);
++++  const [genLoading, setGenLoading] = useState(false);
++++  const [saveLoading, setSaveLoading] = useState(false);
++++
++++  // ===== Chat =====
++++  const [chatText, setChatText] = useState('reforce os fundamentos com X e inclua jurisprudência Y');
++++  const [chatLoading, setChatLoading] = useState(false);
++++  const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
++++
++++  // ===== Export =====
++++  const [expLoading, setExpLoading] = useState(false);
++++  const [lastExportFileId, setLastExportFileId] = useState<string | null>(null);
++++
++++  // Handlers
++++  async function handleCreateCase() {
++++    try {
++++      const c = await createCase({ type: caseType, requestText });
++++      setCaseId(c.id);
++++      setCaseStatus(c.status);
++++      openSnackbar({ open: true, message: 'Caso criado!', variant: 'alert', alert: { color: 'success' } } as any);
++++    } catch (e: any) {
++++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++++    }
++++  }
++++
++++  async function handleUploadDoc() {
++++    if (!caseId || !docFile) return;
++++    try {
++++      setDocLoading(true);
++++      await uploadCaseDoc(caseId, docFile);
++++      openSnackbar({ open: true, message: 'Documento anexado!', variant: 'alert', alert: { color: 'success' } } as any);
++++    } catch (e: any) {
++++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++++    } finally { setDocLoading(false); }
++++  }
++++
++++  async function handleGenerate() {
++++    if (!caseId) return;
++++    try {
++++      setGenLoading(true);
++++      const d = await generateDraft(caseId);
++++      setDraft(d);
++++      setDraftJson(d.json);
++++      openSnackbar({ open: true, message: 'Draft gerado!', variant: 'alert', alert: { color: 'success' } } as any);
++++    } catch (e: any) {
++++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++++    } finally { setGenLoading(false); }
++++  }
++++
++++  async function handleSaveDraft() {
++++    if (!draft) return;
++++    try {
++++      setSaveLoading(true);
++++      const updated = await updateDraft(draft.id, { json: draftJson });
++++      setDraft(updated);
++++      setDraftJson(updated.json);
++++      openSnackbar({ open: true, message: 'Rascunho salvo!', variant: 'alert', alert: { color: 'success' } } as any);
++++    } catch (e: any) {
++++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++++    } finally { setSaveLoading(false); }
++++  }
++++
++++  async function handleChat() {
++++    if (!caseId) return;
++++    try {
++++      setChatLoading(true);
++++      const out = await postChatMessage(caseId, chatText.trim());
++++      if (out.draftId && draft && out.draftId !== draft.id) {
++++        // Se o backend abriu sessão para outro draft (ex.: mais novo), considere buscar…
++++      }
++++      setSuggestions(out.suggestions || []);
++++      openSnackbar({ open: true, message: `Geradas ${out.suggestions?.length || 0} sugestão(ões).`, variant: 'alert', alert: { color: 'success' } } as any);
++++    } catch (e: any) {
++++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++++    } finally { setChatLoading(false); }
++++  }
++++
++++  async function onAccept(sug: AiSuggestion) {
++++    if (!draft) return;
++++    try {
++++      const res = await acceptSuggestion(draft.id, sug.id);
++++      setDraft(res.draft);
++++      setDraftJson(res.draft.json);
++++      setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'ACCEPTED' } : s)));
++++      openSnackbar({ open: true, message: 'Sugestão aplicada!', variant: 'alert', alert: { color: 'success' } } as any);
++++    } catch (e: any) {
++++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++++    }
++++  }
++++
++++  async function onReject(sug: AiSuggestion) {
++++    if (!draft) return;
++++    try {
++++      await rejectSuggestion(draft.id, sug.id);
++++      setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'REJECTED' } : s)));
++++      openSnackbar({ open: true, message: 'Sugestão rejeitada.', variant: 'alert', alert: { color: 'info' } } as any);
++++    } catch (e: any) {
++++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++++    }
++++  }
++++
++++  async function handleExport(kind: 'DOCX'|'PDF') {
++++    if (!draft) return;
++++    try {
++++      setExpLoading(true);
++++      const ex = await exportDraft(draft.id, kind);
++++      setLastExportFileId(ex.fileId || null);
++++      openSnackbar({ open: true, message: `Export ${kind} gerado (fileId: ${ex.fileId || '—'})`, variant: 'alert', alert: { color: 'success' } } as any);
++++    } catch (e: any) {
++++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++++    } finally { setExpLoading(false); }
++++  }
++++
++++  return (
++++    <Grid container spacing={3}>
++++      {/* 1) Case */}
++++      <Grid item xs={12}>
++++        <MainCard title="1) Criar Caso (Advogado)">
++++          <Stack spacing={2}>
++++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
++++              <TextField label="Tipo" value={caseType} onChange={(e) => setCaseType(e.target.value)} sx={{ minWidth: 220 }} />
++++              <Button variant="contained" onClick={handleCreateCase}>Criar Caso</Button>
++++              {caseId && <Chip label={`caseId: ${caseId}`} />}
++++              {caseStatus && <Chip label={`status: ${caseStatus}`} color="info" />}
++++            </Stack>
++++            <TextField label="Pedido (linguagem natural)" multiline minRows={3} value={requestText} onChange={(e) => setRequestText(e.target.value)} />
++++          </Stack>
++++        </MainCard>
++++      </Grid>
++++
++++      {/* 2) Upload de Documentos do Caso */}
++++      <Grid item xs={12}>
++++        <MainCard title="2) (Opcional) Anexar PDFs ao Caso">
++++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }}>
++++            <Button component="label" variant="outlined" disabled={!caseId}>
++++              {docFile ? docFile.name : 'Selecionar PDF do Caso'}
++++              <input type="file" accept="application/pdf" hidden onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
++++            </Button>
++++            <Button onClick={handleUploadDoc} variant="contained" disabled={!caseId || !docFile || docLoading}>
++++              {docLoading ? <CircularProgress size={18} /> : 'Anexar'}
++++            </Button>
++++            {!caseId && <Typography variant="caption" color="text.secondary">Crie o caso primeiro</Typography>}
++++          </Stack>
++++        </MainCard>
++++      </Grid>
++++
++++      {/* 3) Gerar Rascunho */}
++++      <Grid item xs={12}>
++++        <MainCard title="3) Gerar Rascunho (RAG com Templates + Docs do Caso)">
++++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
++++            <Button variant="contained" onClick={handleGenerate} disabled={!caseId || genLoading}>
++++              {genLoading ? <CircularProgress size={18} /> : 'Gerar rascunho'}
++++            </Button>
++++            <Typography variant="body2" color="text.secondary">(usa templates cadastrados automaticamente)</Typography>
++++            {draft && (
++++              <Stack direction="row" spacing={1}>
++++                <Chip label={`draftId: ${draft.id}`} color="success" variant="outlined" />
++++                <Chip label={`versão: ${draft.version}`} variant="outlined" />
++++              </Stack>
++++            )}
++++          </Stack>
++++
++++          <Divider sx={{ my: 2 }} />
++++
++++          {/* Editor simples do JSON */}
++++          <Grid container spacing={2}>
++++            <Grid item xs={12} md={6}>
++++              <TextField label="Endereçamento" value={draftJson.enderecamento} onChange={(e) => setDraftJson({ ...draftJson, enderecamento: e.target.value })} fullWidth multiline minRows={2} />
++++            </Grid>
++++            <Grid item xs={12} md={6}>
++++              <TextField label="Qualificação" value={draftJson.qualificacao} onChange={(e) => setDraftJson({ ...draftJson, qualificacao: e.target.value })} fullWidth multiline minRows={2} />
++++            </Grid>
++++            <Grid item xs={12}>
++++              <TextField label="Fatos" value={draftJson.fatos} onChange={(e) => setDraftJson({ ...draftJson, fatos: e.target.value })} fullWidth multiline minRows={3} />
++++            </Grid>
++++            <Grid item xs={12}>
++++              <TextField label="Fundamentos" value={draftJson.fundamentos} onChange={(e) => setDraftJson({ ...draftJson, fundamentos: e.target.value })} fullWidth multiline minRows={3} />
++++            </Grid>
++++            <Grid item xs={12} md={6}>
++++              <TextField label="Pedidos (um por linha)" value={(draftJson.pedidos || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, pedidos: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
++++            </Grid>
++++            <Grid item xs={12} md={6}>
++++              <TextField label="Jurisprudência (uma por linha)" value={(draftJson.jurisprudencia || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, jurisprudencia: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
++++            </Grid>
++++            <Grid item xs={12}>
++++              <TextField label="Observações" value={draftJson.observacoes} onChange={(e) => setDraftJson({ ...draftJson, observacoes: e.target.value })} fullWidth multiline minRows={2} />
++++            </Grid>
++++            <Grid item xs={12}>
++++              <Stack direction="row" spacing={1}>
++++                <Button onClick={handleSaveDraft} variant="contained" disabled={!draft || saveLoading}>
++++                  {saveLoading ? <CircularProgress size={18} /> : 'Salvar rascunho'}
++++                </Button>
++++                {draft && <Chip label={`versão atual: ${draft.version}`} />}
++++              </Stack>
++++            </Grid>
++++          </Grid>
++++        </MainCard>
++++      </Grid>
++++
++++      {/* 4) Chat & Sugestões */}
++++      <Grid item xs={12}>
++++        <MainCard title="4) Chat do Caso (Sugestões em JSON-Patch)">
++++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
++++            <TextField label="Mensagem" value={chatText} onChange={(e) => setChatText(e.target.value)} fullWidth />
++++            <Button variant="contained" onClick={handleChat} disabled={!caseId || !draft || chatLoading}>
++++              {chatLoading ? <CircularProgress size={18} /> : 'Enviar'}
++++            </Button>
++++          </Stack>
++++
++++          <Divider sx={{ my: 2 }} />
++++
++++          <Stack spacing={1.5}>
++++            {suggestions.map((s) => (
++++              <Paper key={s.id} variant="outlined" sx={{ p: 1.5 }}>
++++                <Stack spacing={0.75}>
++++                  <Stack direction="row" spacing={1} alignItems="center">
++++                    <Chip size="small" label={s.status} color={s.status === 'PENDING' ? 'warning' : s.status === 'ACCEPTED' ? 'success' : 'default'} />
++++                    {typeof s.confidence === 'number' && (
++++                      <Chip size="small" label={`conf: ${(s.confidence * 100).toFixed(0)}%`} variant="outlined" />
++++                    )}
++++                    {!!s.targets?.length && <Chip size="small" variant="outlined" label={`alvo: ${s.targets.join(', ')}`}/>}                    
++++                  </Stack>
++++                  {s.rationale && <Typography variant="body2" color="text.secondary">{s.rationale}</Typography>}
++++                  <Box sx={{ p: 1, bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
++++                    <Typography variant="caption" color="text.secondary">ops (RFC-6902):</Typography>
++++                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
++++                  </Box>
++++                  <Stack direction="row" spacing={1}>
++++                    <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || s.status !== 'PENDING'}>Aceitar</Button>
++++                    <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || s.status !== 'PENDING'}>Rejeitar</Button>
++++                  </Stack>
++++                </Stack>
++++              </Paper>
++++            ))}
++++            {!suggestions.length && (
++++              <Typography variant="body2" color="text.secondary">Sem sugestões no momento.</Typography>
++++            )}
++++          </Stack>
++++        </MainCard>
++++      </Grid>
++++
++++      {/* 5) Export */}
++++      <Grid item xs={12}>
++++        <MainCard title="5) Exportar">
++++          <Stack direction="row" spacing={1} alignItems="center">
++++            <Button variant="outlined" onClick={() => handleExport('DOCX')} disabled={!draft || expLoading}>DOCX</Button>
++++            <Button variant="outlined" onClick={() => handleExport('PDF')} disabled={!draft || expLoading}>PDF</Button>
++++            {expLoading && <CircularProgress size={18} />}
++++            {lastExportFileId && <Chip label={`fileId: ${lastExportFileId}`} color="success" variant="outlined" />}
++++          </Stack>
++++        </MainCard>
++++      </Grid>
++++    </Grid>
++++  );
++++}
+++diff --git a/src/pages/ai-docs/CategoriesPage.tsx b/src/pages/ai-docs/CategoriesPage.tsx
+++new file mode 100644
+++index 0000000..205af67
+++--- /dev/null
++++++ b/src/pages/ai-docs/CategoriesPage.tsx
+++@@ -0,0 +1,342 @@
++++// src/pages/ai-docs/CategoriesPage.tsx
++++import { useState, useEffect } from 'react';
++++import {
++++  Grid,
++++  Stack,
++++  TextField,
++++  Button,
++++  Typography,
++++  Chip,
++++  CircularProgress,
++++  Table,
++++  TableBody,
++++  TableCell,
++++  TableContainer,
++++  TableHead,
++++  TableRow,
++++  Paper,
++++  IconButton,
++++  Dialog,
++++  DialogTitle,
++++  DialogContent,
++++  DialogActions,
++++  FormControlLabel,
++++  Switch,
++++  Box
++++} from '@mui/material';
++++import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
++++import MainCard from 'components/MainCard';
++++import { openSnackbar } from 'api/snackbar';
++++import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
++++
++++import {
++++  listCategories,
++++  createCategory,
++++  updateCategory,
++++  deleteCategory,
++++  type AiCategory
++++} from 'api/aiCategories';
++++
++++export default function CategoriesPage() {
++++  const [categories, setCategories] = useState<AiCategory[]>([]);
++++  const [loading, setLoading] = useState(false);
++++  const [search, setSearch] = useState('');
++++  const [dialogOpen, setDialogOpen] = useState(false);
++++  const [editingCategory, setEditingCategory] = useState<AiCategory | null>(null);
++++  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
++++  const [categoryToDelete, setCategoryToDelete] = useState<AiCategory | null>(null);
++++  const [formData, setFormData] = useState({
++++    name: '',
++++    companyScope: 'company' as 'global' | 'company'
++++  });
++++  const [submitting, setSubmitting] = useState(false);
++++
++++  // Carregar categorias
++++  const loadCategories = async () => {
++++    try {
++++      setLoading(true);
++++      const response = await listCategories({ search, page: 1, limit: 100 });
++++      setCategories(response.data);
++++    } catch (error: any) {
++++      openSnackbar({ 
++++        open: true, 
++++        message: error?.response?.data?.message || 'Erro ao carregar categorias', 
++++        variant: 'alert', 
++++        alert: { color: 'error' } 
++++      } as any);
++++    } finally {
++++      setLoading(false);
++++    }
++++  };
++++
++++  useEffect(() => {
++++    loadCategories();
++++  }, [search]);
++++
++++  // Handlers
++++  const handleOpenDialog = (category?: AiCategory) => {
++++    if (category) {
++++      setEditingCategory(category);
++++      setFormData({
++++        name: category.name,
++++        companyScope: category.companyScope || 'company'
++++      });
++++    } else {
++++      setEditingCategory(null);
++++      setFormData({
++++        name: '',
++++        companyScope: 'company'
++++      });
++++    }
++++    setDialogOpen(true);
++++  };
++++
++++  const handleCloseDialog = () => {
++++    setDialogOpen(false);
++++    setEditingCategory(null);
++++    setFormData({
++++      name: '',
++++      companyScope: 'company'
++++    });
++++  };
++++
++++  const handleSubmit = async () => {
++++    if (!formData.name.trim()) {
++++      openSnackbar({ 
++++        open: true, 
++++        message: 'Nome é obrigatório', 
++++        variant: 'alert', 
++++        alert: { color: 'warning' } 
++++      } as any);
++++      return;
++++    }
++++
++++    try {
++++      setSubmitting(true);
++++      
++++      if (editingCategory) {
++++        const updated = await updateCategory(editingCategory.id, { name: formData.name });
++++        setCategories(prev => prev.map(c => c.id === updated.id ? updated : c));
++++        openSnackbar({ 
++++          open: true, 
++++          message: 'Categoria atualizada com sucesso!', 
++++          variant: 'alert', 
++++          alert: { color: 'success' } 
++++        } as any);
++++      } else {
++++        const created = await createCategory({ 
++++          name: formData.name, 
++++          companyScope: formData.companyScope 
++++        });
++++        setCategories(prev => [...prev, created]);
++++        openSnackbar({ 
++++          open: true, 
++++          message: 'Categoria criada com sucesso!', 
++++          variant: 'alert', 
++++          alert: { color: 'success' } 
++++        } as any);
++++      }
++++      
++++      handleCloseDialog();
++++    } catch (error: any) {
++++      openSnackbar({ 
++++        open: true, 
++++        message: error?.response?.data?.message || 'Erro ao salvar categoria', 
++++        variant: 'alert', 
++++        alert: { color: 'error' } 
++++      } as any);
++++    } finally {
++++      setSubmitting(false);
++++    }
++++  };
++++
++++  const handleDeleteClick = (category: AiCategory) => {
++++    setCategoryToDelete(category);
++++    setDeleteDialogOpen(true);
++++  };
++++
++++  const handleDeleteConfirm = async () => {
++++    if (!categoryToDelete) return;
++++
++++    try {
++++      await deleteCategory(categoryToDelete.id);
++++      setCategories(prev => prev.filter(c => c.id !== categoryToDelete.id));
++++      openSnackbar({ 
++++        open: true, 
++++        message: 'Categoria excluída com sucesso!', 
++++        variant: 'alert', 
++++        alert: { color: 'success' } 
++++      } as any);
++++    } catch (error: any) {
++++      openSnackbar({ 
++++        open: true, 
++++        message: error?.response?.data?.message || 'Erro ao excluir categoria', 
++++        variant: 'alert', 
++++        alert: { color: 'error' } 
++++      } as any);
++++    } finally {
++++      setDeleteDialogOpen(false);
++++      setCategoryToDelete(null);
++++    }
++++  };
++++
++++  return (
++++    <Box sx={{ p: 3 }}>
++++      <MainCard title="Categorias de Templates AI">
++++          <Stack spacing={3}>
++++            {/* Header com busca e botão adicionar */}
++++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
++++              <TextField
++++                label="Buscar categorias"
++++                value={search}
++++                onChange={(e) => setSearch(e.target.value)}
++++                sx={{ minWidth: 300 }}
++++                placeholder="Digite o nome da categoria..."
++++              />
++++              <Button
++++                variant="contained"
++++                startIcon={<PlusOutlined />}
++++                onClick={() => handleOpenDialog()}
++++                sx={{ minWidth: 150 }}
++++              >
++++                Nova Categoria
++++              </Button>
++++            </Stack>
++++
++++            {/* Tabela de categorias */}
++++            <TableContainer component={Paper} variant="outlined">
++++              <Table>
++++                <TableHead>
++++                  <TableRow>
++++                    <TableCell>Nome</TableCell>
++++                    <TableCell>Slug</TableCell>
++++                    <TableCell>Escopo</TableCell>
++++                    <TableCell align="center">Ações</TableCell>
++++                  </TableRow>
++++                </TableHead>
++++                <TableBody>
++++                  {loading ? (
++++                    <TableRow>
++++                      <TableCell colSpan={4} align="center">
++++                        <CircularProgress size={24} />
++++                      </TableCell>
++++                    </TableRow>
++++                  ) : categories.length === 0 ? (
++++                    <TableRow>
++++                      <TableCell colSpan={4} align="center">
++++                        <Typography variant="body2" color="text.secondary">
++++                          Nenhuma categoria encontrada
++++                        </Typography>
++++                      </TableCell>
++++                    </TableRow>
++++                  ) : (
++++                    categories.map((category) => (
++++                      <TableRow key={category.id}>
++++                        <TableCell>
++++                          <Typography variant="body2" fontWeight="medium">
++++                            {category.name}
++++                          </Typography>
++++                        </TableCell>
++++                        <TableCell>
++++                          <Typography variant="body2" color="text.secondary">
++++                            {category.slug}
++++                          </Typography>
++++                        </TableCell>
++++                        <TableCell>
++++                          <Chip
++++                            label={category.companyScope === 'global' ? 'Global' : 'Empresa'}
++++                            color={category.companyScope === 'global' ? 'primary' : 'default'}
++++                            size="small"
++++                            variant="outlined"
++++                          />
++++                        </TableCell>
++++                        <TableCell align="center">
++++                          <Stack direction="row" spacing={1} justifyContent="center">
++++                            <IconButton
++++                              size="small"
++++                              onClick={() => handleOpenDialog(category)}
++++                              color="primary"
++++                            >
++++                              <EditOutlined />
++++                            </IconButton>
++++                            <IconButton
++++                              size="small"
++++                              onClick={() => handleDeleteClick(category)}
++++                              color="error"
++++                            >
++++                              <DeleteOutlined />
++++                            </IconButton>
++++                          </Stack>
++++                        </TableCell>
++++                      </TableRow>
++++                    ))
++++                  )}
++++                </TableBody>
++++              </Table>
++++            </TableContainer>
++++          </Stack>
++++        </MainCard>
++++
++++      {/* Dialog de criação/edição */}
++++      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
++++        <DialogTitle>
++++          {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
++++        </DialogTitle>
++++        <DialogContent>
++++          <Stack spacing={3} sx={{ mt: 1 }}>
++++            <TextField
++++              label="Nome da Categoria"
++++              value={formData.name}
++++              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
++++              fullWidth
++++              required
++++              placeholder="Ex: Ações Trabalhistas, Contratos, etc."
++++            />
++++            
++++            {!editingCategory && (
++++              <FormControlLabel
++++                control={
++++                  <Switch
++++                    checked={formData.companyScope === 'global'}
++++                    onChange={(e) => setFormData({ 
++++                      ...formData, 
++++                      companyScope: e.target.checked ? 'global' : 'company' 
++++                    })}
++++                  />
++++                }
++++                label="Disponível para toda a empresa"
++++              />
++++            )}
++++            
++++            {editingCategory && (
++++              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
++++                <Typography variant="body2" color="text.secondary">
++++                  <strong>Nota:</strong> O escopo da categoria não pode ser alterado após a criação.
++++                </Typography>
++++              </Box>
++++            )}
++++          </Stack>
++++        </DialogContent>
++++        <DialogActions>
++++          <Button onClick={handleCloseDialog}>Cancelar</Button>
++++          <Button
++++            onClick={handleSubmit}
++++            variant="contained"
++++            disabled={submitting || !formData.name.trim()}
++++          >
++++            {submitting ? <CircularProgress size={18} /> : (editingCategory ? 'Atualizar' : 'Criar')}
++++          </Button>
++++        </DialogActions>
++++      </Dialog>
++++
++++      {/* Dialog de confirmação de exclusão */}
++++      <ConfirmDeleteDialog
++++        open={deleteDialogOpen}
++++        onCancel={() => setDeleteDialogOpen(false)}
++++        onConfirm={handleDeleteConfirm}
++++        title="Excluir Categoria"
++++        description={`Tem certeza que deseja excluir a categoria "${categoryToDelete?.name}"? Esta ação não pode ser desfeita.`}
++++      />
++++    </Box>
++++  );
++++}
+++diff --git a/src/pages/ai-docs/TemplatesPage.tsx b/src/pages/ai-docs/TemplatesPage.tsx
+++new file mode 100644
+++index 0000000..2199fd1
+++--- /dev/null
++++++ b/src/pages/ai-docs/TemplatesPage.tsx
+++@@ -0,0 +1,159 @@
++++// src/pages/ai-docs/TemplatesPage.tsx
++++import { useState, useEffect } from 'react';
++++import Grid from '@mui/material/Grid';
++++import Stack from '@mui/material/Stack';
++++import TextField from '@mui/material/TextField';
++++import Button from '@mui/material/Button';
++++import Typography from '@mui/material/Typography';
++++import Chip from '@mui/material/Chip';
++++import CircularProgress from '@mui/material/CircularProgress';
++++import Autocomplete from '@mui/material/Autocomplete';
++++import MainCard from 'components/MainCard';
++++import { openSnackbar } from 'api/snackbar';
++++
++++import {
++++  createTemplate,
++++  type AiTemplate
++++} from 'api/aiDocs';
++++
++++import {
++++  listCategories,
++++  type AiCategory
++++} from 'api/aiCategories';
++++
++++export default function TemplatesPage() {
++++  // ===== Template =====
++++  const [tplFile, setTplFile] = useState<File | null>(null);
++++  const [tplTitle, setTplTitle] = useState('');
++++  const [tplDescription, setTplDescription] = useState('');
++++  const [tplCategoryId, setTplCategoryId] = useState<string | null>(null);
++++  const [tplId, setTplId] = useState<string | null>(null);
++++  const [tplLoading, setTplLoading] = useState(false);
++++
++++  // ===== Categories =====
++++  const [categories, setCategories] = useState<AiCategory[]>([]);
++++  const [categoriesLoading, setCategoriesLoading] = useState(false);
++++
++++  // Carregar categorias
++++  useEffect(() => {
++++    const loadCategories = async () => {
++++      try {
++++        setCategoriesLoading(true);
++++        const response = await listCategories({ page: 1, limit: 50 });
++++        setCategories(response.data);
++++      } catch (error: any) {
++++        openSnackbar({ 
++++          open: true, 
++++          message: error?.response?.data?.message || 'Erro ao carregar categorias', 
++++          variant: 'alert', 
++++          alert: { color: 'error' } 
++++        } as any);
++++      } finally {
++++        setCategoriesLoading(false);
++++      }
++++    };
++++    loadCategories();
++++  }, []);
++++
++++  // Handlers
++++  async function handleCreateTemplate() {
++++    if (!tplFile) return openSnackbar({ open: true, message: 'Selecione um PDF', variant: 'alert', alert: { color: 'warning' } } as any);
++++    if (!tplTitle.trim()) return openSnackbar({ open: true, message: 'Título é obrigatório', variant: 'alert', alert: { color: 'warning' } } as any);
++++    
++++    try {
++++      setTplLoading(true);
++++      const t = await createTemplate({ 
++++        file: tplFile, 
++++        title: tplTitle,
++++        description: tplDescription || undefined,
++++        categoryId: tplCategoryId
++++      });
++++      setTplId(t.id);
++++      openSnackbar({ open: true, message: 'Template criado e processado!', variant: 'alert', alert: { color: 'success' } } as any);
++++    } catch (e: any) {
++++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++++    } finally { setTplLoading(false); }
++++  }
++++
++++  return (
++++    <Grid container spacing={3}>
++++      <Grid item xs={12}>
++++        <MainCard title="Cadastrar Template (Admin)">
++++          <Stack spacing={3}>
++++            <Typography variant="body2" color="text.secondary">
++++              Faça upload de um template PDF para que a IA possa utilizá-lo na geração de documentos.
++++            </Typography>
++++            
++++            <TextField 
++++              label="Título *" 
++++              value={tplTitle} 
++++              onChange={(e) => setTplTitle(e.target.value)} 
++++              fullWidth
++++              required
++++              helperText="Nome descritivo do template (ex: Ação Rescisória, Mandado de Segurança)"
++++            />
++++
++++            <TextField 
++++              label="Descrição (Opcional)" 
++++              value={tplDescription} 
++++              onChange={(e) => setTplDescription(e.target.value)} 
++++              fullWidth
++++              multiline
++++              minRows={2}
++++              helperText="Descrição detalhada do template e quando utilizá-lo"
++++            />
++++
++++            <Autocomplete
++++              options={categories}
++++              getOptionLabel={(option) => option.name}
++++              value={categories.find(c => c.id === tplCategoryId) || null}
++++              onChange={(_, value) => setTplCategoryId(value?.id ?? null)}
++++              loading={categoriesLoading}
++++              renderInput={(params) => (
++++                <TextField 
++++                  {...params} 
++++                  label="Categoria (Opcional)" 
++++                  helperText="Organize seus templates por categoria"
++++                />
++++              )}
++++              renderOption={(props, option) => (
++++                <li {...props}>
++++                  <Stack>
++++                    <Typography variant="body2">{option.name}</Typography>
++++                    <Typography variant="caption" color="text.secondary">
++++                      {option.companyScope === 'global' ? 'Global' : 'Empresa'}
++++                    </Typography>
++++                  </Stack>
++++                </li>
++++              )}
++++            />
++++
++++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
++++              <Button component="label" variant="outlined" size="large">
++++                {tplFile ? tplFile.name : 'Selecionar PDF'}
++++                <input type="file" accept="application/pdf" hidden onChange={(e) => setTplFile(e.target.files?.[0] || null)} />
++++              </Button>
++++              <Button 
++++                onClick={handleCreateTemplate} 
++++                variant="contained" 
++++                size="large"
++++                disabled={!tplFile || !tplTitle.trim() || tplLoading}
++++              >
++++                {tplLoading ? <CircularProgress size={18} /> : 'Enviar e Processar'}
++++              </Button>
++++            </Stack>
++++
++++            {tplId && (
++++              <Stack direction="row" spacing={1} alignItems="center">
++++                <Chip label={`Template ID: ${tplId}`} color="success" variant="outlined" />
++++                <Typography variant="body2" color="text.secondary">
++++                  Template processado com sucesso! Agora pode ser usado na geração de documentos.
++++                </Typography>
++++              </Stack>
++++            )}
++++          </Stack>
++++        </MainCard>
++++      </Grid>
++++    </Grid>
++++  );
++++}
+++diff --git a/src/types/ai-docs.ts b/src/types/ai-docs.ts
+++new file mode 100644
+++index 0000000..04ad90a
+++--- /dev/null
++++++ b/src/types/ai-docs.ts
+++@@ -0,0 +1,63 @@
++++// src/types/ai-docs.ts
++++export type AiTemplate = {
++++  id: string;
++++  kind: string;
++++  title: string;
++++  description?: string | null;
++++  createdAt?: string;
++++};
++++
++++export type AiCase = {
++++  id: string;
++++  userId: string;
++++  companyId?: string | null;
++++  type: string;
++++  requestText: string;
++++  status: 'DRAFT'|'GENERATING'|'READY'|'APPROVED'|'REJECTED'|string;
++++  createdAt: string;
++++};
++++
++++export type DraftJson = {
++++  enderecamento: string;
++++  qualificacao: string;
++++  fatos: string;
++++  fundamentos: string;
++++  pedidos: string[];
++++  jurisprudencia: string[];
++++  observacoes: string;
++++  [k: string]: any;
++++};
++++
++++export type AiDraft = {
++++  id: string;
++++  caseId: string;
++++  templateId?: string | null;
++++  version: number;
++++  status: string; // 'draft' | ...
++++  json: DraftJson;
++++  createdAt: string;
++++  updatedAt: string;
++++};
++++
++++export type AiSuggestion = {
++++  id: string;
++++  sessionId: string;
++++  draftId: string;
++++  draftVersion: number;
++++  ops: Array<{ op: string; path: string; value?: any; from?: string }>;
++++  rationale?: string | null;
++++  confidence?: number | null;
++++  targets: string[];
++++  status: 'PENDING'|'ACCEPTED'|'REJECTED';
++++  createdAt: string;
++++};
++++
++++export type AiExport = {
++++  id: string;
++++  draftId: string;
++++  kind: 'DOCX'|'PDF';
++++  status: 'PENDING'|'DONE'|'ERROR';
++++  fileId?: string | null;
++++  error?: string | null;
++++  createdAt: string;
++++};
++diff --git a/src/api/aiCategories.ts b/src/api/aiCategories.ts
++new file mode 100644
++index 0000000..d5ae243
++--- /dev/null
+++++ b/src/api/aiCategories.ts
++@@ -0,0 +1,47 @@
+++// src/api/aiCategories.ts
+++import api from '../utils/axios';
+++
+++const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
+++
+++export type AiCategory = { 
+++  id: string; 
+++  name: string; 
+++  slug: string; 
+++  companyId?: string | null;
+++  companyScope?: 'global' | 'company';
+++};
+++
+++export type AiCategoryListResponse = {
+++  message: string;
+++  data: AiCategory[];
+++  pagination: { page: number; limit: number; total: number };
+++};
+++
+++export async function listCategories(params?: { search?: string; page?: number; limit?: number }) {
+++  const res = await api.get<AiCategoryListResponse>('/ai/categories', {
+++    params,
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data;
+++}
+++
+++export async function createCategory(payload: { name: string; companyScope?: 'global' | 'company' }) {
+++  const res = await api.post<{ message: string; data: AiCategory }>('/ai/categories', payload, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data.data;
+++}
+++
+++export async function updateCategory(id: string, payload: { name: string }) {
+++  const res = await api.patch<{ message: string; data: AiCategory }>(`/ai/categories/${id}`, payload, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data.data;
+++}
+++
+++export async function deleteCategory(id: string) {
+++  const res = await api.delete<{ message: string }>(`/ai/categories/${id}`, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data;
+++}
++diff --git a/src/api/aiDocs.ts b/src/api/aiDocs.ts
++new file mode 100644
++index 0000000..802cfff
++--- /dev/null
+++++ b/src/api/aiDocs.ts
++@@ -0,0 +1,174 @@
+++// src/api/aiDocs.ts
+++import api from '../utils/axios';
+++
+++// lembre: LANG vem de VITE_APP_ACCEPT_LANGUAGE
+++const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
+++
+++// ===== Types (ou coloque em src/types/ai-docs.ts) =====
+++export type AiTemplate = {
+++  id: string;
+++  kind: string;
+++  title: string;
+++  description?: string | null;
+++  createdAt?: string;
+++};
+++
+++export type AiTemplateListResponse = {
+++  data: AiTemplate[];
+++  pagination: { page: number; limit: number; total: number };
+++};
+++
+++// ===== Templates - list/update/delete =====
+++export async function listTemplates(params?: { search?: string; categoryId?: string; page?: number; limit?: number }) {
+++  const res = await api.get<AiTemplateListResponse>('/ai/templates', { params, headers: { 'Accept-Language': LANG } }); return res.data;
+++}
+++
+++export type AiCase = {
+++  id: string;
+++  userId: string;
+++  companyId?: string | null;
+++  type: string;
+++  requestText: string;
+++  status: 'DRAFT'|'GENERATING'|'READY'|'APPROVED'|'REJECTED'|string;
+++  createdAt: string;
+++};
+++
+++export type DraftJson = {
+++  enderecamento: string;
+++  qualificacao: string;
+++  fatos: string;
+++  fundamentos: string;
+++  pedidos: string[];
+++  jurisprudencia: string[];
+++  observacoes: string;
+++  [k: string]: any;
+++};
+++
+++export type AiDraft = {
+++  id: string;
+++  caseId: string;
+++  templateId?: string | null;
+++  version: number;
+++  status: string; // 'draft' | ...
+++  json: DraftJson;
+++  createdAt: string;
+++  updatedAt: string;
+++};
+++
+++export type AiSuggestion = {
+++  id: string;
+++  sessionId: string;
+++  draftId: string;
+++  draftVersion: number;
+++  ops: Array<{ op: string; path: string; value?: any; from?: string }>;
+++  rationale?: string | null;
+++  confidence?: number | null;
+++  targets: string[];
+++  status: 'PENDING'|'ACCEPTED'|'REJECTED';
+++  createdAt: string;
+++};
+++
+++export type AiExport = {
+++  id: string;
+++  draftId: string;
+++  kind: 'DOCX'|'PDF';
+++  status: 'PENDING'|'DONE'|'ERROR';
+++  fileId?: string | null;
+++  error?: string | null;
+++  createdAt: string;
+++};
+++
+++
+++// ===== Templates =====
+++export async function createTemplate(params: { file: File; title: string; description?: string; categoryId?: string | null }) {
+++  const fd = new FormData();
+++  fd.append('file', params.file);
+++  fd.append('title', params.title);
+++  if (params.description) fd.append('description', params.description);
+++  if (params.categoryId) fd.append('categoryId', params.categoryId);
+++
+++  const res = await api.post<{ message: string; data: AiTemplate }>(`/ai/templates`, fd, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data.data;
+++}
+++
+++export async function updateTemplate(id: string, payload: { title?: string; description?: string | null; categoryId?: string | null; kind?: string }) {
+++  const res = await api.patch<{ message: string; data: AiTemplate }>(`/ai/templates/${id}`, payload, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data.data;
+++}
+++
+++export async function deleteTemplate(id: string) {
+++  const res = await api.delete<{ message: string }>(`/ai/templates/${id}`, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data;
+++}
+++
+++// ===== Cases =====
+++export async function createCase(params: { type: string; requestText: string }) {
+++  const res = await api.post<{ message: string; data: AiCase }>(`/ai/cases`, params, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data.data;
+++}
+++
+++export async function uploadCaseDoc(caseId: string, file: File) {
+++  const fd = new FormData();
+++  fd.append('file', file);
+++  const res = await api.post<{ message: string }>(`/ai/cases/${caseId}/doc`, fd, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data;
+++}
+++
+++// ===== Drafts =====
+++export async function generateDraft(caseId: string, templateId?: string) {
+++  const res = await api.post<{ message: string; data: AiDraft }>(`/ai/drafts/${caseId}/generate`, { templateId }, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data.data;
+++}
+++
+++export async function updateDraft(draftId: string, payload: { json: DraftJson; status?: string }) {
+++  const res = await api.patch<{ message: string; data: AiDraft }>(`/ai/drafts/${draftId}`, payload, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data.data;
+++}
+++
+++export async function exportDraft(draftId: string, kind: 'DOCX'|'PDF') {
+++  const res = await api.post<{ message: string; data: AiExport }>(`/ai/drafts/${draftId}/export`, { kind }, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data.data;
+++}
+++
+++// ===== Chat & Sugestões =====
+++export async function postChatMessage(caseId: string, text: string) {
+++  type Resp = { message: string; data: { sessionId: string; draftId: string; suggestions: AiSuggestion[]; messageId: string } };
+++  const res = await api.post<Resp>(`/ai/chats/${caseId}/messages`, { text }, {
+++    headers: { 'Accept-Language': LANG }
+++  });
+++  return res.data.data;
+++}
+++
+++export async function acceptSuggestion(draftId: string, suggestionId: string) {
+++  const res = await api.post<{ message: string; data: { draft: AiDraft; suggestion: AiSuggestion } }>(
+++    `/ai/drafts/${draftId}/suggestions/${suggestionId}/accept`,
+++    null,
+++    { headers: { 'Accept-Language': LANG } }
+++  );
+++  return res.data.data;
+++}
+++
+++export async function rejectSuggestion(draftId: string, suggestionId: string) {
+++  const res = await api.post<{ message: string; data: { suggestion: AiSuggestion } }>(
+++    `/ai/drafts/${draftId}/suggestions/${suggestionId}/reject`,
+++    null,
+++    { headers: { 'Accept-Language': LANG } }
+++  );
+++  return res.data.data;
+++}
++diff --git a/src/menu-items/pages.ts b/src/menu-items/pages.ts
++index 15da4b9..a0c7ae8 100644
++--- a/src/menu-items/pages.ts
+++++ b/src/menu-items/pages.ts
++@@ -53,6 +53,34 @@ const pages: NavItemType = {
++       icon: icons.TeamOutlined,
++       url: '/users'
++     },
+++    // 👇 AI Docs
+++    {
+++      id: 'ai-docs',
+++      title: 'IA Docs',
+++      type: 'collapse',
+++      icon: icons.AppstoreOutlined,
+++      isDropdown: true,
+++      children: [
+++        {
+++          id: 'ai-docs-mvp',
+++          title: 'Gerar Documentos',
+++          type: 'item',
+++          url: '/ai-docs'
+++        },
+++        {
+++          id: 'ai-docs-templates',
+++          title: 'Templates',
+++          type: 'item',
+++          url: '/ai-docs/templates'
+++        },
+++        {
+++          id: 'ai-docs-categories',
+++          title: 'Categorias',
+++          type: 'item',
+++          url: '/ai-docs/categories'
+++        }
+++      ]
+++    },
++   ]
++ };
++ 
++diff --git a/src/pages/ai-docs/AiDocsMVP.tsx b/src/pages/ai-docs/AiDocsMVP.tsx
++new file mode 100644
++index 0000000..d6c935f
++--- /dev/null
+++++ b/src/pages/ai-docs/AiDocsMVP.tsx
++@@ -0,0 +1,308 @@
+++// src/pages/ai-docs/AiDocsMVP.tsx
+++import { useState } from 'react';
+++import Grid from '@mui/material/Grid';
+++import Stack from '@mui/material/Stack';
+++import TextField from '@mui/material/TextField';
+++import Button from '@mui/material/Button';
+++import Divider from '@mui/material/Divider';
+++import Typography from '@mui/material/Typography';
+++import Chip from '@mui/material/Chip';
+++import Paper from '@mui/material/Paper';
+++import Box from '@mui/material/Box';
+++import CircularProgress from '@mui/material/CircularProgress';
+++import MainCard from 'components/MainCard';
+++import { openSnackbar } from 'api/snackbar';
+++
+++import {
+++  createTemplate,
+++  createCase,
+++  uploadCaseDoc,
+++  generateDraft,
+++  postChatMessage,
+++  acceptSuggestion,
+++  rejectSuggestion,
+++  updateDraft,
+++  exportDraft,
+++  type AiDraft,
+++  type DraftJson,
+++  type AiSuggestion
+++} from 'api/aiDocs';
+++
+++const emptyDraft: DraftJson = {
+++  enderecamento: '',
+++  qualificacao: '',
+++  fatos: '',
+++  fundamentos: '',
+++  pedidos: [],
+++  jurisprudencia: [],
+++  observacoes: ''
+++};
+++
+++export default function AiDocsMVP() {
+++  // ===== Case =====
+++  const [caseType, setCaseType] = useState('acao-rescisoria');
+++  const [requestText, setRequestText] = useState('Preciso de uma petição de ação rescisória baseada no fato X ...');
+++  const [caseId, setCaseId] = useState<string | null>(null);
+++  const [caseStatus, setCaseStatus] = useState<string | null>(null);
+++
+++  // ===== Case Docs =====
+++  const [docFile, setDocFile] = useState<File | null>(null);
+++  const [docLoading, setDocLoading] = useState(false);
+++
+++  // ===== Draft =====
+++  const [draft, setDraft] = useState<AiDraft | null>(null);
+++  const [draftJson, setDraftJson] = useState<DraftJson>(emptyDraft);
+++  const [genLoading, setGenLoading] = useState(false);
+++  const [saveLoading, setSaveLoading] = useState(false);
+++
+++  // ===== Chat =====
+++  const [chatText, setChatText] = useState('reforce os fundamentos com X e inclua jurisprudência Y');
+++  const [chatLoading, setChatLoading] = useState(false);
+++  const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
+++
+++  // ===== Export =====
+++  const [expLoading, setExpLoading] = useState(false);
+++  const [lastExportFileId, setLastExportFileId] = useState<string | null>(null);
+++
+++  // Handlers
+++  async function handleCreateCase() {
+++    try {
+++      const c = await createCase({ type: caseType, requestText });
+++      setCaseId(c.id);
+++      setCaseStatus(c.status);
+++      openSnackbar({ open: true, message: 'Caso criado!', variant: 'alert', alert: { color: 'success' } } as any);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    }
+++  }
+++
+++  async function handleUploadDoc() {
+++    if (!caseId || !docFile) return;
+++    try {
+++      setDocLoading(true);
+++      await uploadCaseDoc(caseId, docFile);
+++      openSnackbar({ open: true, message: 'Documento anexado!', variant: 'alert', alert: { color: 'success' } } as any);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    } finally { setDocLoading(false); }
+++  }
+++
+++  async function handleGenerate() {
+++    if (!caseId) return;
+++    try {
+++      setGenLoading(true);
+++      const d = await generateDraft(caseId);
+++      setDraft(d);
+++      setDraftJson(d.json);
+++      openSnackbar({ open: true, message: 'Draft gerado!', variant: 'alert', alert: { color: 'success' } } as any);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    } finally { setGenLoading(false); }
+++  }
+++
+++  async function handleSaveDraft() {
+++    if (!draft) return;
+++    try {
+++      setSaveLoading(true);
+++      const updated = await updateDraft(draft.id, { json: draftJson });
+++      setDraft(updated);
+++      setDraftJson(updated.json);
+++      openSnackbar({ open: true, message: 'Rascunho salvo!', variant: 'alert', alert: { color: 'success' } } as any);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    } finally { setSaveLoading(false); }
+++  }
+++
+++  async function handleChat() {
+++    if (!caseId) return;
+++    try {
+++      setChatLoading(true);
+++      const out = await postChatMessage(caseId, chatText.trim());
+++      if (out.draftId && draft && out.draftId !== draft.id) {
+++        // Se o backend abriu sessão para outro draft (ex.: mais novo), considere buscar…
+++      }
+++      setSuggestions(out.suggestions || []);
+++      openSnackbar({ open: true, message: `Geradas ${out.suggestions?.length || 0} sugestão(ões).`, variant: 'alert', alert: { color: 'success' } } as any);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    } finally { setChatLoading(false); }
+++  }
+++
+++  async function onAccept(sug: AiSuggestion) {
+++    if (!draft) return;
+++    try {
+++      const res = await acceptSuggestion(draft.id, sug.id);
+++      setDraft(res.draft);
+++      setDraftJson(res.draft.json);
+++      setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'ACCEPTED' } : s)));
+++      openSnackbar({ open: true, message: 'Sugestão aplicada!', variant: 'alert', alert: { color: 'success' } } as any);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    }
+++  }
+++
+++  async function onReject(sug: AiSuggestion) {
+++    if (!draft) return;
+++    try {
+++      await rejectSuggestion(draft.id, sug.id);
+++      setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'REJECTED' } : s)));
+++      openSnackbar({ open: true, message: 'Sugestão rejeitada.', variant: 'alert', alert: { color: 'info' } } as any);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    }
+++  }
+++
+++  async function handleExport(kind: 'DOCX'|'PDF') {
+++    if (!draft) return;
+++    try {
+++      setExpLoading(true);
+++      const ex = await exportDraft(draft.id, kind);
+++      setLastExportFileId(ex.fileId || null);
+++      openSnackbar({ open: true, message: `Export ${kind} gerado (fileId: ${ex.fileId || '—'})`, variant: 'alert', alert: { color: 'success' } } as any);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    } finally { setExpLoading(false); }
+++  }
+++
+++  return (
+++    <Grid container spacing={3}>
+++      {/* 1) Case */}
+++      <Grid item xs={12}>
+++        <MainCard title="1) Criar Caso (Advogado)">
+++          <Stack spacing={2}>
+++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+++              <TextField label="Tipo" value={caseType} onChange={(e) => setCaseType(e.target.value)} sx={{ minWidth: 220 }} />
+++              <Button variant="contained" onClick={handleCreateCase}>Criar Caso</Button>
+++              {caseId && <Chip label={`caseId: ${caseId}`} />}
+++              {caseStatus && <Chip label={`status: ${caseStatus}`} color="info" />}
+++            </Stack>
+++            <TextField label="Pedido (linguagem natural)" multiline minRows={3} value={requestText} onChange={(e) => setRequestText(e.target.value)} />
+++          </Stack>
+++        </MainCard>
+++      </Grid>
+++
+++      {/* 2) Upload de Documentos do Caso */}
+++      <Grid item xs={12}>
+++        <MainCard title="2) (Opcional) Anexar PDFs ao Caso">
+++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }}>
+++            <Button component="label" variant="outlined" disabled={!caseId}>
+++              {docFile ? docFile.name : 'Selecionar PDF do Caso'}
+++              <input type="file" accept="application/pdf" hidden onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
+++            </Button>
+++            <Button onClick={handleUploadDoc} variant="contained" disabled={!caseId || !docFile || docLoading}>
+++              {docLoading ? <CircularProgress size={18} /> : 'Anexar'}
+++            </Button>
+++            {!caseId && <Typography variant="caption" color="text.secondary">Crie o caso primeiro</Typography>}
+++          </Stack>
+++        </MainCard>
+++      </Grid>
+++
+++      {/* 3) Gerar Rascunho */}
+++      <Grid item xs={12}>
+++        <MainCard title="3) Gerar Rascunho (RAG com Templates + Docs do Caso)">
+++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+++            <Button variant="contained" onClick={handleGenerate} disabled={!caseId || genLoading}>
+++              {genLoading ? <CircularProgress size={18} /> : 'Gerar rascunho'}
+++            </Button>
+++            <Typography variant="body2" color="text.secondary">(usa templates cadastrados automaticamente)</Typography>
+++            {draft && (
+++              <Stack direction="row" spacing={1}>
+++                <Chip label={`draftId: ${draft.id}`} color="success" variant="outlined" />
+++                <Chip label={`versão: ${draft.version}`} variant="outlined" />
+++              </Stack>
+++            )}
+++          </Stack>
+++
+++          <Divider sx={{ my: 2 }} />
+++
+++          {/* Editor simples do JSON */}
+++          <Grid container spacing={2}>
+++            <Grid item xs={12} md={6}>
+++              <TextField label="Endereçamento" value={draftJson.enderecamento} onChange={(e) => setDraftJson({ ...draftJson, enderecamento: e.target.value })} fullWidth multiline minRows={2} />
+++            </Grid>
+++            <Grid item xs={12} md={6}>
+++              <TextField label="Qualificação" value={draftJson.qualificacao} onChange={(e) => setDraftJson({ ...draftJson, qualificacao: e.target.value })} fullWidth multiline minRows={2} />
+++            </Grid>
+++            <Grid item xs={12}>
+++              <TextField label="Fatos" value={draftJson.fatos} onChange={(e) => setDraftJson({ ...draftJson, fatos: e.target.value })} fullWidth multiline minRows={3} />
+++            </Grid>
+++            <Grid item xs={12}>
+++              <TextField label="Fundamentos" value={draftJson.fundamentos} onChange={(e) => setDraftJson({ ...draftJson, fundamentos: e.target.value })} fullWidth multiline minRows={3} />
+++            </Grid>
+++            <Grid item xs={12} md={6}>
+++              <TextField label="Pedidos (um por linha)" value={(draftJson.pedidos || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, pedidos: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
+++            </Grid>
+++            <Grid item xs={12} md={6}>
+++              <TextField label="Jurisprudência (uma por linha)" value={(draftJson.jurisprudencia || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, jurisprudencia: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
+++            </Grid>
+++            <Grid item xs={12}>
+++              <TextField label="Observações" value={draftJson.observacoes} onChange={(e) => setDraftJson({ ...draftJson, observacoes: e.target.value })} fullWidth multiline minRows={2} />
+++            </Grid>
+++            <Grid item xs={12}>
+++              <Stack direction="row" spacing={1}>
+++                <Button onClick={handleSaveDraft} variant="contained" disabled={!draft || saveLoading}>
+++                  {saveLoading ? <CircularProgress size={18} /> : 'Salvar rascunho'}
+++                </Button>
+++                {draft && <Chip label={`versão atual: ${draft.version}`} />}
+++              </Stack>
+++            </Grid>
+++          </Grid>
+++        </MainCard>
+++      </Grid>
+++
+++      {/* 4) Chat & Sugestões */}
+++      <Grid item xs={12}>
+++        <MainCard title="4) Chat do Caso (Sugestões em JSON-Patch)">
+++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
+++            <TextField label="Mensagem" value={chatText} onChange={(e) => setChatText(e.target.value)} fullWidth />
+++            <Button variant="contained" onClick={handleChat} disabled={!caseId || !draft || chatLoading}>
+++              {chatLoading ? <CircularProgress size={18} /> : 'Enviar'}
+++            </Button>
+++          </Stack>
+++
+++          <Divider sx={{ my: 2 }} />
+++
+++          <Stack spacing={1.5}>
+++            {suggestions.map((s) => (
+++              <Paper key={s.id} variant="outlined" sx={{ p: 1.5 }}>
+++                <Stack spacing={0.75}>
+++                  <Stack direction="row" spacing={1} alignItems="center">
+++                    <Chip size="small" label={s.status} color={s.status === 'PENDING' ? 'warning' : s.status === 'ACCEPTED' ? 'success' : 'default'} />
+++                    {typeof s.confidence === 'number' && (
+++                      <Chip size="small" label={`conf: ${(s.confidence * 100).toFixed(0)}%`} variant="outlined" />
+++                    )}
+++                    {!!s.targets?.length && <Chip size="small" variant="outlined" label={`alvo: ${s.targets.join(', ')}`}/>}                    
+++                  </Stack>
+++                  {s.rationale && <Typography variant="body2" color="text.secondary">{s.rationale}</Typography>}
+++                  <Box sx={{ p: 1, bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
+++                    <Typography variant="caption" color="text.secondary">ops (RFC-6902):</Typography>
+++                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
+++                  </Box>
+++                  <Stack direction="row" spacing={1}>
+++                    <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || s.status !== 'PENDING'}>Aceitar</Button>
+++                    <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || s.status !== 'PENDING'}>Rejeitar</Button>
+++                  </Stack>
+++                </Stack>
+++              </Paper>
+++            ))}
+++            {!suggestions.length && (
+++              <Typography variant="body2" color="text.secondary">Sem sugestões no momento.</Typography>
+++            )}
+++          </Stack>
+++        </MainCard>
+++      </Grid>
+++
+++      {/* 5) Export */}
+++      <Grid item xs={12}>
+++        <MainCard title="5) Exportar">
+++          <Stack direction="row" spacing={1} alignItems="center">
+++            <Button variant="outlined" onClick={() => handleExport('DOCX')} disabled={!draft || expLoading}>DOCX</Button>
+++            <Button variant="outlined" onClick={() => handleExport('PDF')} disabled={!draft || expLoading}>PDF</Button>
+++            {expLoading && <CircularProgress size={18} />}
+++            {lastExportFileId && <Chip label={`fileId: ${lastExportFileId}`} color="success" variant="outlined" />}
+++          </Stack>
+++        </MainCard>
+++      </Grid>
+++    </Grid>
+++  );
+++}
++diff --git a/src/pages/ai-docs/CategoriesPage.tsx b/src/pages/ai-docs/CategoriesPage.tsx
++new file mode 100644
++index 0000000..205af67
++--- /dev/null
+++++ b/src/pages/ai-docs/CategoriesPage.tsx
++@@ -0,0 +1,342 @@
+++// src/pages/ai-docs/CategoriesPage.tsx
+++import { useState, useEffect } from 'react';
+++import {
+++  Grid,
+++  Stack,
+++  TextField,
+++  Button,
+++  Typography,
+++  Chip,
+++  CircularProgress,
+++  Table,
+++  TableBody,
+++  TableCell,
+++  TableContainer,
+++  TableHead,
+++  TableRow,
+++  Paper,
+++  IconButton,
+++  Dialog,
+++  DialogTitle,
+++  DialogContent,
+++  DialogActions,
+++  FormControlLabel,
+++  Switch,
+++  Box
+++} from '@mui/material';
+++import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+++import MainCard from 'components/MainCard';
+++import { openSnackbar } from 'api/snackbar';
+++import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
+++
+++import {
+++  listCategories,
+++  createCategory,
+++  updateCategory,
+++  deleteCategory,
+++  type AiCategory
+++} from 'api/aiCategories';
+++
+++export default function CategoriesPage() {
+++  const [categories, setCategories] = useState<AiCategory[]>([]);
+++  const [loading, setLoading] = useState(false);
+++  const [search, setSearch] = useState('');
+++  const [dialogOpen, setDialogOpen] = useState(false);
+++  const [editingCategory, setEditingCategory] = useState<AiCategory | null>(null);
+++  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+++  const [categoryToDelete, setCategoryToDelete] = useState<AiCategory | null>(null);
+++  const [formData, setFormData] = useState({
+++    name: '',
+++    companyScope: 'company' as 'global' | 'company'
+++  });
+++  const [submitting, setSubmitting] = useState(false);
+++
+++  // Carregar categorias
+++  const loadCategories = async () => {
+++    try {
+++      setLoading(true);
+++      const response = await listCategories({ search, page: 1, limit: 100 });
+++      setCategories(response.data);
+++    } catch (error: any) {
+++      openSnackbar({ 
+++        open: true, 
+++        message: error?.response?.data?.message || 'Erro ao carregar categorias', 
+++        variant: 'alert', 
+++        alert: { color: 'error' } 
+++      } as any);
+++    } finally {
+++      setLoading(false);
+++    }
+++  };
+++
+++  useEffect(() => {
+++    loadCategories();
+++  }, [search]);
+++
+++  // Handlers
+++  const handleOpenDialog = (category?: AiCategory) => {
+++    if (category) {
+++      setEditingCategory(category);
+++      setFormData({
+++        name: category.name,
+++        companyScope: category.companyScope || 'company'
+++      });
+++    } else {
+++      setEditingCategory(null);
+++      setFormData({
+++        name: '',
+++        companyScope: 'company'
+++      });
+++    }
+++    setDialogOpen(true);
+++  };
+++
+++  const handleCloseDialog = () => {
+++    setDialogOpen(false);
+++    setEditingCategory(null);
+++    setFormData({
+++      name: '',
+++      companyScope: 'company'
+++    });
+++  };
+++
+++  const handleSubmit = async () => {
+++    if (!formData.name.trim()) {
+++      openSnackbar({ 
+++        open: true, 
+++        message: 'Nome é obrigatório', 
+++        variant: 'alert', 
+++        alert: { color: 'warning' } 
+++      } as any);
+++      return;
+++    }
+++
+++    try {
+++      setSubmitting(true);
+++      
+++      if (editingCategory) {
+++        const updated = await updateCategory(editingCategory.id, { name: formData.name });
+++        setCategories(prev => prev.map(c => c.id === updated.id ? updated : c));
+++        openSnackbar({ 
+++          open: true, 
+++          message: 'Categoria atualizada com sucesso!', 
+++          variant: 'alert', 
+++          alert: { color: 'success' } 
+++        } as any);
+++      } else {
+++        const created = await createCategory({ 
+++          name: formData.name, 
+++          companyScope: formData.companyScope 
+++        });
+++        setCategories(prev => [...prev, created]);
+++        openSnackbar({ 
+++          open: true, 
+++          message: 'Categoria criada com sucesso!', 
+++          variant: 'alert', 
+++          alert: { color: 'success' } 
+++        } as any);
+++      }
+++      
+++      handleCloseDialog();
+++    } catch (error: any) {
+++      openSnackbar({ 
+++        open: true, 
+++        message: error?.response?.data?.message || 'Erro ao salvar categoria', 
+++        variant: 'alert', 
+++        alert: { color: 'error' } 
+++      } as any);
+++    } finally {
+++      setSubmitting(false);
+++    }
+++  };
+++
+++  const handleDeleteClick = (category: AiCategory) => {
+++    setCategoryToDelete(category);
+++    setDeleteDialogOpen(true);
+++  };
+++
+++  const handleDeleteConfirm = async () => {
+++    if (!categoryToDelete) return;
+++
+++    try {
+++      await deleteCategory(categoryToDelete.id);
+++      setCategories(prev => prev.filter(c => c.id !== categoryToDelete.id));
+++      openSnackbar({ 
+++        open: true, 
+++        message: 'Categoria excluída com sucesso!', 
+++        variant: 'alert', 
+++        alert: { color: 'success' } 
+++      } as any);
+++    } catch (error: any) {
+++      openSnackbar({ 
+++        open: true, 
+++        message: error?.response?.data?.message || 'Erro ao excluir categoria', 
+++        variant: 'alert', 
+++        alert: { color: 'error' } 
+++      } as any);
+++    } finally {
+++      setDeleteDialogOpen(false);
+++      setCategoryToDelete(null);
+++    }
+++  };
+++
+++  return (
+++    <Box sx={{ p: 3 }}>
+++      <MainCard title="Categorias de Templates AI">
+++          <Stack spacing={3}>
+++            {/* Header com busca e botão adicionar */}
+++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+++              <TextField
+++                label="Buscar categorias"
+++                value={search}
+++                onChange={(e) => setSearch(e.target.value)}
+++                sx={{ minWidth: 300 }}
+++                placeholder="Digite o nome da categoria..."
+++              />
+++              <Button
+++                variant="contained"
+++                startIcon={<PlusOutlined />}
+++                onClick={() => handleOpenDialog()}
+++                sx={{ minWidth: 150 }}
+++              >
+++                Nova Categoria
+++              </Button>
+++            </Stack>
+++
+++            {/* Tabela de categorias */}
+++            <TableContainer component={Paper} variant="outlined">
+++              <Table>
+++                <TableHead>
+++                  <TableRow>
+++                    <TableCell>Nome</TableCell>
+++                    <TableCell>Slug</TableCell>
+++                    <TableCell>Escopo</TableCell>
+++                    <TableCell align="center">Ações</TableCell>
+++                  </TableRow>
+++                </TableHead>
+++                <TableBody>
+++                  {loading ? (
+++                    <TableRow>
+++                      <TableCell colSpan={4} align="center">
+++                        <CircularProgress size={24} />
+++                      </TableCell>
+++                    </TableRow>
+++                  ) : categories.length === 0 ? (
+++                    <TableRow>
+++                      <TableCell colSpan={4} align="center">
+++                        <Typography variant="body2" color="text.secondary">
+++                          Nenhuma categoria encontrada
+++                        </Typography>
+++                      </TableCell>
+++                    </TableRow>
+++                  ) : (
+++                    categories.map((category) => (
+++                      <TableRow key={category.id}>
+++                        <TableCell>
+++                          <Typography variant="body2" fontWeight="medium">
+++                            {category.name}
+++                          </Typography>
+++                        </TableCell>
+++                        <TableCell>
+++                          <Typography variant="body2" color="text.secondary">
+++                            {category.slug}
+++                          </Typography>
+++                        </TableCell>
+++                        <TableCell>
+++                          <Chip
+++                            label={category.companyScope === 'global' ? 'Global' : 'Empresa'}
+++                            color={category.companyScope === 'global' ? 'primary' : 'default'}
+++                            size="small"
+++                            variant="outlined"
+++                          />
+++                        </TableCell>
+++                        <TableCell align="center">
+++                          <Stack direction="row" spacing={1} justifyContent="center">
+++                            <IconButton
+++                              size="small"
+++                              onClick={() => handleOpenDialog(category)}
+++                              color="primary"
+++                            >
+++                              <EditOutlined />
+++                            </IconButton>
+++                            <IconButton
+++                              size="small"
+++                              onClick={() => handleDeleteClick(category)}
+++                              color="error"
+++                            >
+++                              <DeleteOutlined />
+++                            </IconButton>
+++                          </Stack>
+++                        </TableCell>
+++                      </TableRow>
+++                    ))
+++                  )}
+++                </TableBody>
+++              </Table>
+++            </TableContainer>
+++          </Stack>
+++        </MainCard>
+++
+++      {/* Dialog de criação/edição */}
+++      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+++        <DialogTitle>
+++          {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
+++        </DialogTitle>
+++        <DialogContent>
+++          <Stack spacing={3} sx={{ mt: 1 }}>
+++            <TextField
+++              label="Nome da Categoria"
+++              value={formData.name}
+++              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+++              fullWidth
+++              required
+++              placeholder="Ex: Ações Trabalhistas, Contratos, etc."
+++            />
+++            
+++            {!editingCategory && (
+++              <FormControlLabel
+++                control={
+++                  <Switch
+++                    checked={formData.companyScope === 'global'}
+++                    onChange={(e) => setFormData({ 
+++                      ...formData, 
+++                      companyScope: e.target.checked ? 'global' : 'company' 
+++                    })}
+++                  />
+++                }
+++                label="Disponível para toda a empresa"
+++              />
+++            )}
+++            
+++            {editingCategory && (
+++              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+++                <Typography variant="body2" color="text.secondary">
+++                  <strong>Nota:</strong> O escopo da categoria não pode ser alterado após a criação.
+++                </Typography>
+++              </Box>
+++            )}
+++          </Stack>
+++        </DialogContent>
+++        <DialogActions>
+++          <Button onClick={handleCloseDialog}>Cancelar</Button>
+++          <Button
+++            onClick={handleSubmit}
+++            variant="contained"
+++            disabled={submitting || !formData.name.trim()}
+++          >
+++            {submitting ? <CircularProgress size={18} /> : (editingCategory ? 'Atualizar' : 'Criar')}
+++          </Button>
+++        </DialogActions>
+++      </Dialog>
+++
+++      {/* Dialog de confirmação de exclusão */}
+++      <ConfirmDeleteDialog
+++        open={deleteDialogOpen}
+++        onCancel={() => setDeleteDialogOpen(false)}
+++        onConfirm={handleDeleteConfirm}
+++        title="Excluir Categoria"
+++        description={`Tem certeza que deseja excluir a categoria "${categoryToDelete?.name}"? Esta ação não pode ser desfeita.`}
+++      />
+++    </Box>
+++  );
+++}
++diff --git a/src/pages/ai-docs/TemplatesPage.tsx b/src/pages/ai-docs/TemplatesPage.tsx
++new file mode 100644
++index 0000000..6a67cab
++--- /dev/null
+++++ b/src/pages/ai-docs/TemplatesPage.tsx
++@@ -0,0 +1,297 @@
+++// src/pages/ai-docs/TemplatesPage.tsx
+++import { useEffect, useMemo, useState } from 'react';
+++import {
+++  Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+++  IconButton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+++  TextField, Typography, Paper
+++} from '@mui/material';
+++import Autocomplete from '@mui/material/Autocomplete';
+++import { EditOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+++import MainCard from 'components/MainCard';
+++import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
+++import { openSnackbar } from 'api/snackbar';
+++
+++import {
+++  listTemplates, createTemplate, updateTemplate, deleteTemplate,
+++  type AiTemplate, type AiTemplateListResponse
+++} from 'api/aiDocs';
+++import { listCategories, type AiCategory } from 'api/aiCategories';
+++
+++export default function TemplatesPage() {
+++  // listagem
+++  const [rows, setRows] = useState<AiTemplate[]>([]);
+++  const [loading, setLoading] = useState(false);
+++  const [search, setSearch] = useState('');
+++  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+++  const [page, setPage] = useState(1);
+++  const [limit] = useState(20);
+++  const [total, setTotal] = useState(0);
+++
+++  // categorias
+++  const [categories, setCategories] = useState<AiCategory[]>([]);
+++  const [catLoading, setCatLoading] = useState(false);
+++  const catById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
+++
+++  // dialog criar/editar
+++  const [dialogOpen, setDialogOpen] = useState(false);
+++  const [editing, setEditing] = useState<AiTemplate | null>(null);
+++  const [formTitle, setFormTitle] = useState('');
+++  const [formDescription, setFormDescription] = useState('');
+++  const [formCategoryId, setFormCategoryId] = useState<string | null>(null);
+++  const [formFile, setFormFile] = useState<File | null>(null); // só no criar
+++  const [submitting, setSubmitting] = useState(false);
+++
+++  // delete
+++  const [delOpen, setDelOpen] = useState(false);
+++  const [toDelete, setToDelete] = useState<AiTemplate | null>(null);
+++
+++  async function loadCategories() {
+++    try {
+++      setCatLoading(true);
+++      const r = await listCategories({ page: 1, limit: 200 });
+++      setCategories(r.data);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar categorias', variant: 'alert', alert: { color: 'error' } } as any);
+++    } finally {
+++      setCatLoading(false);
+++    }
+++  }
+++
+++  async function loadRows() {
+++    try {
+++      setLoading(true);
+++      const r: AiTemplateListResponse = await listTemplates({
+++        search: search || undefined,
+++        categoryId: categoryFilter || undefined,
+++        page, limit
+++      });
+++      setRows(r.data);
+++      setTotal(r.pagination.total);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar templates', variant: 'alert', alert: { color: 'error' } } as any);
+++    } finally {
+++      setLoading(false);
+++    }
+++  }
+++
+++  useEffect(() => { loadCategories(); }, []);
+++  useEffect(() => { loadRows(); /* eslint-disable-next-line */ }, [search, categoryFilter, page, limit]);
+++
+++  // abrir/fechar dialog
+++  function openCreate() {
+++    setEditing(null);
+++    setFormTitle('');
+++    setFormDescription('');
+++    setFormCategoryId(null);
+++    setFormFile(null);
+++    setDialogOpen(true);
+++  }
+++  function openEdit(t: AiTemplate) {
+++    setEditing(t);
+++    setFormTitle(t.title);
+++    setFormDescription(t.description || '');
+++    setFormCategoryId((t as any).categoryId ?? null);
+++    setFormFile(null);
+++    setDialogOpen(true);
+++  }
+++  function closeDialog() { setDialogOpen(false); }
+++
+++  // submit criar/editar
+++  async function handleSubmit() {
+++    try {
+++      setSubmitting(true);
+++      if (editing) {
+++        const updated = await updateTemplate(editing.id, {
+++          title: formTitle,
+++          description: formDescription || null,
+++          categoryId: formCategoryId
+++        });
+++        setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
+++        openSnackbar({ open: true, message: 'Template atualizado.', variant: 'alert', alert: { color: 'success' } } as any);
+++      } else {
+++        if (!formFile) {
+++          openSnackbar({ open: true, message: 'Selecione um PDF', variant: 'alert', alert: { color: 'warning' } } as any);
+++          return;
+++        }
+++        if (!formTitle.trim()) {
+++          openSnackbar({ open: true, message: 'Título é obrigatório', variant: 'alert', alert: { color: 'warning' } } as any);
+++          return;
+++        }
+++        await createTemplate({
+++          file: formFile,
+++          title: formTitle.trim(),
+++          description: formDescription || undefined,
+++          categoryId: formCategoryId
+++        });
+++        openSnackbar({ open: true, message: 'Template criado e processado!', variant: 'alert', alert: { color: 'success' } } as any);
+++        // recarrega a lista do início
+++        setPage(1);
+++        await loadRows();
+++      }
+++      closeDialog();
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    } finally {
+++      setSubmitting(false);
+++    }
+++  }
+++
+++  // delete
+++  function askDelete(t: AiTemplate) {
+++    setToDelete(t);
+++    setDelOpen(true);
+++  }
+++  async function confirmDelete() {
+++    if (!toDelete) return;
+++    try {
+++      await deleteTemplate(toDelete.id);
+++      setRows(prev => prev.filter(r => r.id !== toDelete.id));
+++      openSnackbar({ open: true, message: 'Template removido.', variant: 'alert', alert: { color: 'success' } } as any);
+++    } catch (e: any) {
+++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+++    } finally {
+++      setDelOpen(false);
+++      setToDelete(null);
+++    }
+++  }
+++
+++  return (
+++    <Stack spacing={3}>
+++        <MainCard title="Templates">
+++          <Stack spacing={2}>
+++            {/* filtros */}
+++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+++              <TextField
+++                value={search}
+++                onChange={(e) => { setPage(1); setSearch(e.target.value); }}
+++                placeholder="Buscar por título, descrição ou kind..."
+++                InputProps={{ startAdornment: <SearchOutlined style={{ marginRight: 8, opacity: .6 }} /> as any }}
+++                sx={{ minWidth: 320 }}
+++              />
+++              <Autocomplete
+++                options={categories}
+++                loading={catLoading}
+++                getOptionLabel={(o) => o.name}
+++                value={categories.find(c => c.id === categoryFilter) || null}
+++                onChange={(_, v) => { setPage(1); setCategoryFilter(v?.id ?? null); }}
+++                sx={{ minWidth: 280 }}
+++                renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Todas" />}
+++              />
+++              <Box sx={{ flex: 1 }} />
+++              <Button startIcon={<PlusOutlined />} variant="contained" onClick={openCreate}>
+++                Novo Template
+++              </Button>
+++              <Button startIcon={<ReloadOutlined />} onClick={loadRows}>
+++                Atualizar
+++              </Button>
+++            </Stack>
+++
+++            {/* tabela */}
+++            <TableContainer component={Paper} variant="outlined">
+++              <Table>
+++                <TableHead>
+++                  <TableRow>
+++                    <TableCell>Título</TableCell>
+++                    <TableCell>Categoria</TableCell>
+++                    <TableCell>Criado</TableCell>
+++                    <TableCell align="center">Ações</TableCell>
+++                  </TableRow>
+++                </TableHead>
+++                <TableBody>
+++                  {loading ? (
+++                    <TableRow><TableCell colSpan={4} align="center"><CircularProgress size={22} /></TableCell></TableRow>
+++                  ) : rows.length === 0 ? (
+++                    <TableRow><TableCell colSpan={4} align="center"><Typography variant="body2" color="text.secondary">Nenhum template encontrado</Typography></TableCell></TableRow>
+++                  ) : rows.map((t) => {
+++                    const catName = (t as any).categoryId ? catById.get((t as any).categoryId)?.name : undefined;
+++                    return (
+++                      <TableRow key={t.id} hover>
+++                        <TableCell>
+++                          <Stack spacing={0.25}>
+++                            <Typography variant="body2" fontWeight={600} noWrap title={t.title}>{t.title}</Typography>
+++                            {t.description && (
+++                              <Typography 
+++                                variant="caption" 
+++                                color="text.secondary" 
+++                                noWrap 
+++                                title={t.description}
+++                                sx={{ 
+++                                  maxWidth: 200,
+++                                  overflow: 'hidden',
+++                                  textOverflow: 'ellipsis',
+++                                  whiteSpace: 'nowrap'
+++                                }}
+++                              >
+++                                {t.description}
+++                              </Typography>
+++                            )}
+++                          </Stack>
+++                        </TableCell>
+++                        <TableCell>{catName ? <Chip size="small" label={catName} /> : <Typography variant="caption" color="text.secondary">—</Typography>}</TableCell>
+++                        <TableCell><Typography variant="caption" color="text.secondary">{new Date(t.createdAt || '').toLocaleString()}</Typography></TableCell>
+++                        <TableCell align="center">
+++                          <Stack direction="row" spacing={1} justifyContent="center">
+++                            <IconButton size="small" color="primary" onClick={() => openEdit(t)}><EditOutlined /></IconButton>
+++                            <IconButton size="small" color="error" onClick={() => askDelete(t)}><DeleteOutlined /></IconButton>
+++                          </Stack>
+++                        </TableCell>
+++                      </TableRow>
+++                    );
+++                  })}
+++                </TableBody>
+++              </Table>
+++            </TableContainer>
+++
+++            {/* paginação simples (opcional: trocar por seu componente de paginação) */}
+++            <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
+++              <Typography variant="caption" color="text.secondary">
+++                {total} itens • pág. {page}
+++              </Typography>
+++              <Button size="small" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
+++              <Button size="small" disabled={rows.length < limit} onClick={() => setPage(p => p + 1)}>Próxima</Button>
+++            </Stack>
+++          </Stack>
+++        </MainCard>
+++
+++      {/* Dialog criar/editar */}
+++      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
+++        <DialogTitle>{editing ? 'Editar Template' : 'Novo Template'}</DialogTitle>
+++        <DialogContent>
+++          <Stack spacing={2} sx={{ mt: 1 }}>
+++            <TextField label="Título *" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} required fullWidth />
+++            <TextField label="Descrição" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} fullWidth multiline minRows={2} />
+++            <Autocomplete
+++              options={categories}
+++              loading={catLoading}
+++              getOptionLabel={(o) => o.name}
+++              value={categories.find(c => c.id === formCategoryId) || null}
+++              onChange={(_, v) => setFormCategoryId(v?.id ?? null)}
+++              renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Opcional" />}
+++            />
+++            {!editing && (
+++              <Button component="label" variant="outlined">
+++                {formFile ? formFile.name : 'Selecionar PDF'}
+++                <input type="file" accept="application/pdf" hidden onChange={(e) => setFormFile(e.target.files?.[0] || null)} />
+++              </Button>
+++            )}
+++          </Stack>
+++        </DialogContent>
+++        <DialogActions>
+++          <Button onClick={closeDialog}>Cancelar</Button>
+++          <Button variant="contained" onClick={handleSubmit} disabled={submitting || (!editing && (!formTitle.trim() || !formFile))}>
+++            {submitting ? <CircularProgress size={18} /> : (editing ? 'Salvar' : 'Criar')}
+++          </Button>
+++        </DialogActions>
+++      </Dialog>
+++
+++      {/* Confirmar exclusão */}
+++      <ConfirmDeleteDialog
+++        open={delOpen}
+++        onCancel={() => setDelOpen(false)}
+++        onConfirm={confirmDelete}
+++        title="Excluir Template"
+++        description={`Tem certeza que deseja excluir o template "${toDelete?.title}"? Esta ação não pode ser desfeita.`}
+++      />
+++    </Stack>
+++  );
+++}
++\ No newline at end of file
++diff --git a/src/routes/MainRoutes.tsx b/src/routes/MainRoutes.tsx
++index e40a4e9..eb57be8 100644
++--- a/src/routes/MainRoutes.tsx
+++++ b/src/routes/MainRoutes.tsx
++@@ -36,6 +36,11 @@ const CompanyPage = Loadable(lazy(() => import('pages/company')));
++ // NOVO: Bloqueios de Conta
++ const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
++ 
+++// NOVO: AI Docs MVP
+++const AiDocsMVP = Loadable(lazy(() => import('pages/ai-docs/AiDocsMVP')));
+++const AiDocsTemplates = Loadable(lazy(() => import('pages/ai-docs/TemplatesPage')));
+++const AiDocsCategories = Loadable(lazy(() => import('pages/ai-docs/CategoriesPage')));
+++
++ // ==============================|| MAIN ROUTING ||============================== //
++ 
++ const MainRoutes = {
++@@ -77,6 +82,18 @@ const MainRoutes = {
++         {
++           path: 'sensitive-fields',
++           element: <SensitiveFieldsPage />
+++        },
+++        {
+++          path: 'ai-docs',
+++          element: <AiDocsMVP />
+++        },
+++        {
+++          path: 'ai-docs/templates',
+++          element: <AiDocsTemplates />
+++        },
+++        {
+++          path: 'ai-docs/categories',
+++          element: <AiDocsCategories />
++         }
++       ]
++     },
++diff --git a/src/types/ai-docs.ts b/src/types/ai-docs.ts
++new file mode 100644
++index 0000000..04ad90a
++--- /dev/null
+++++ b/src/types/ai-docs.ts
++@@ -0,0 +1,63 @@
+++// src/types/ai-docs.ts
+++export type AiTemplate = {
+++  id: string;
+++  kind: string;
+++  title: string;
+++  description?: string | null;
+++  createdAt?: string;
+++};
+++
+++export type AiCase = {
+++  id: string;
+++  userId: string;
+++  companyId?: string | null;
+++  type: string;
+++  requestText: string;
+++  status: 'DRAFT'|'GENERATING'|'READY'|'APPROVED'|'REJECTED'|string;
+++  createdAt: string;
+++};
+++
+++export type DraftJson = {
+++  enderecamento: string;
+++  qualificacao: string;
+++  fatos: string;
+++  fundamentos: string;
+++  pedidos: string[];
+++  jurisprudencia: string[];
+++  observacoes: string;
+++  [k: string]: any;
+++};
+++
+++export type AiDraft = {
+++  id: string;
+++  caseId: string;
+++  templateId?: string | null;
+++  version: number;
+++  status: string; // 'draft' | ...
+++  json: DraftJson;
+++  createdAt: string;
+++  updatedAt: string;
+++};
+++
+++export type AiSuggestion = {
+++  id: string;
+++  sessionId: string;
+++  draftId: string;
+++  draftVersion: number;
+++  ops: Array<{ op: string; path: string; value?: any; from?: string }>;
+++  rationale?: string | null;
+++  confidence?: number | null;
+++  targets: string[];
+++  status: 'PENDING'|'ACCEPTED'|'REJECTED';
+++  createdAt: string;
+++};
+++
+++export type AiExport = {
+++  id: string;
+++  draftId: string;
+++  kind: 'DOCX'|'PDF';
+++  status: 'PENDING'|'DONE'|'ERROR';
+++  fileId?: string | null;
+++  error?: string | null;
+++  createdAt: string;
+++};
+diff --git a/src/api/aiCategories.ts b/src/api/aiCategories.ts
+new file mode 100644
+index 0000000..d5ae243
+--- /dev/null
++++ b/src/api/aiCategories.ts
+@@ -0,0 +1,47 @@
++// src/api/aiCategories.ts
++import api from '../utils/axios';
++
++const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
++
++export type AiCategory = { 
++  id: string; 
++  name: string; 
++  slug: string; 
++  companyId?: string | null;
++  companyScope?: 'global' | 'company';
++};
++
++export type AiCategoryListResponse = {
++  message: string;
++  data: AiCategory[];
++  pagination: { page: number; limit: number; total: number };
++};
++
++export async function listCategories(params?: { search?: string; page?: number; limit?: number }) {
++  const res = await api.get<AiCategoryListResponse>('/ai/categories', {
++    params,
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data;
++}
++
++export async function createCategory(payload: { name: string; companyScope?: 'global' | 'company' }) {
++  const res = await api.post<{ message: string; data: AiCategory }>('/ai/categories', payload, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data.data;
++}
++
++export async function updateCategory(id: string, payload: { name: string }) {
++  const res = await api.patch<{ message: string; data: AiCategory }>(`/ai/categories/${id}`, payload, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data.data;
++}
++
++export async function deleteCategory(id: string) {
++  const res = await api.delete<{ message: string }>(`/ai/categories/${id}`, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data;
++}
+diff --git a/src/api/aiDocs.ts b/src/api/aiDocs.ts
+new file mode 100644
+index 0000000..802cfff
+--- /dev/null
++++ b/src/api/aiDocs.ts
+@@ -0,0 +1,174 @@
++// src/api/aiDocs.ts
++import api from '../utils/axios';
++
++// lembre: LANG vem de VITE_APP_ACCEPT_LANGUAGE
++const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
++
++// ===== Types (ou coloque em src/types/ai-docs.ts) =====
++export type AiTemplate = {
++  id: string;
++  kind: string;
++  title: string;
++  description?: string | null;
++  createdAt?: string;
++};
++
++export type AiTemplateListResponse = {
++  data: AiTemplate[];
++  pagination: { page: number; limit: number; total: number };
++};
++
++// ===== Templates - list/update/delete =====
++export async function listTemplates(params?: { search?: string; categoryId?: string; page?: number; limit?: number }) {
++  const res = await api.get<AiTemplateListResponse>('/ai/templates', { params, headers: { 'Accept-Language': LANG } }); return res.data;
++}
++
++export type AiCase = {
++  id: string;
++  userId: string;
++  companyId?: string | null;
++  type: string;
++  requestText: string;
++  status: 'DRAFT'|'GENERATING'|'READY'|'APPROVED'|'REJECTED'|string;
++  createdAt: string;
++};
++
++export type DraftJson = {
++  enderecamento: string;
++  qualificacao: string;
++  fatos: string;
++  fundamentos: string;
++  pedidos: string[];
++  jurisprudencia: string[];
++  observacoes: string;
++  [k: string]: any;
++};
++
++export type AiDraft = {
++  id: string;
++  caseId: string;
++  templateId?: string | null;
++  version: number;
++  status: string; // 'draft' | ...
++  json: DraftJson;
++  createdAt: string;
++  updatedAt: string;
++};
++
++export type AiSuggestion = {
++  id: string;
++  sessionId: string;
++  draftId: string;
++  draftVersion: number;
++  ops: Array<{ op: string; path: string; value?: any; from?: string }>;
++  rationale?: string | null;
++  confidence?: number | null;
++  targets: string[];
++  status: 'PENDING'|'ACCEPTED'|'REJECTED';
++  createdAt: string;
++};
++
++export type AiExport = {
++  id: string;
++  draftId: string;
++  kind: 'DOCX'|'PDF';
++  status: 'PENDING'|'DONE'|'ERROR';
++  fileId?: string | null;
++  error?: string | null;
++  createdAt: string;
++};
++
++
++// ===== Templates =====
++export async function createTemplate(params: { file: File; title: string; description?: string; categoryId?: string | null }) {
++  const fd = new FormData();
++  fd.append('file', params.file);
++  fd.append('title', params.title);
++  if (params.description) fd.append('description', params.description);
++  if (params.categoryId) fd.append('categoryId', params.categoryId);
++
++  const res = await api.post<{ message: string; data: AiTemplate }>(`/ai/templates`, fd, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data.data;
++}
++
++export async function updateTemplate(id: string, payload: { title?: string; description?: string | null; categoryId?: string | null; kind?: string }) {
++  const res = await api.patch<{ message: string; data: AiTemplate }>(`/ai/templates/${id}`, payload, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data.data;
++}
++
++export async function deleteTemplate(id: string) {
++  const res = await api.delete<{ message: string }>(`/ai/templates/${id}`, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data;
++}
++
++// ===== Cases =====
++export async function createCase(params: { type: string; requestText: string }) {
++  const res = await api.post<{ message: string; data: AiCase }>(`/ai/cases`, params, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data.data;
++}
++
++export async function uploadCaseDoc(caseId: string, file: File) {
++  const fd = new FormData();
++  fd.append('file', file);
++  const res = await api.post<{ message: string }>(`/ai/cases/${caseId}/doc`, fd, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data;
++}
++
++// ===== Drafts =====
++export async function generateDraft(caseId: string, templateId?: string) {
++  const res = await api.post<{ message: string; data: AiDraft }>(`/ai/drafts/${caseId}/generate`, { templateId }, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data.data;
++}
++
++export async function updateDraft(draftId: string, payload: { json: DraftJson; status?: string }) {
++  const res = await api.patch<{ message: string; data: AiDraft }>(`/ai/drafts/${draftId}`, payload, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data.data;
++}
++
++export async function exportDraft(draftId: string, kind: 'DOCX'|'PDF') {
++  const res = await api.post<{ message: string; data: AiExport }>(`/ai/drafts/${draftId}/export`, { kind }, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data.data;
++}
++
++// ===== Chat & Sugestões =====
++export async function postChatMessage(caseId: string, text: string) {
++  type Resp = { message: string; data: { sessionId: string; draftId: string; suggestions: AiSuggestion[]; messageId: string } };
++  const res = await api.post<Resp>(`/ai/chats/${caseId}/messages`, { text }, {
++    headers: { 'Accept-Language': LANG }
++  });
++  return res.data.data;
++}
++
++export async function acceptSuggestion(draftId: string, suggestionId: string) {
++  const res = await api.post<{ message: string; data: { draft: AiDraft; suggestion: AiSuggestion } }>(
++    `/ai/drafts/${draftId}/suggestions/${suggestionId}/accept`,
++    null,
++    { headers: { 'Accept-Language': LANG } }
++  );
++  return res.data.data;
++}
++
++export async function rejectSuggestion(draftId: string, suggestionId: string) {
++  const res = await api.post<{ message: string; data: { suggestion: AiSuggestion } }>(
++    `/ai/drafts/${draftId}/suggestions/${suggestionId}/reject`,
++    null,
++    { headers: { 'Accept-Language': LANG } }
++  );
++  return res.data.data;
++}
+diff --git a/src/menu-items/pages.ts b/src/menu-items/pages.ts
+index 15da4b9..a0c7ae8 100644
+--- a/src/menu-items/pages.ts
++++ b/src/menu-items/pages.ts
+@@ -53,6 +53,34 @@ const pages: NavItemType = {
+       icon: icons.TeamOutlined,
+       url: '/users'
+     },
++    // 👇 AI Docs
++    {
++      id: 'ai-docs',
++      title: 'IA Docs',
++      type: 'collapse',
++      icon: icons.AppstoreOutlined,
++      isDropdown: true,
++      children: [
++        {
++          id: 'ai-docs-mvp',
++          title: 'Gerar Documentos',
++          type: 'item',
++          url: '/ai-docs'
++        },
++        {
++          id: 'ai-docs-templates',
++          title: 'Templates',
++          type: 'item',
++          url: '/ai-docs/templates'
++        },
++        {
++          id: 'ai-docs-categories',
++          title: 'Categorias',
++          type: 'item',
++          url: '/ai-docs/categories'
++        }
++      ]
++    },
+   ]
+ };
+ 
+diff --git a/src/pages/ai-docs/AiDocsMVP.tsx b/src/pages/ai-docs/AiDocsMVP.tsx
+new file mode 100644
+index 0000000..f51af19
+--- /dev/null
++++ b/src/pages/ai-docs/AiDocsMVP.tsx
+@@ -0,0 +1,341 @@
++// src/pages/ai-docs/AiDocsMVP.tsx
++import { useState } from 'react';
++import Grid from '@mui/material/Grid';
++import Stack from '@mui/material/Stack';
++import TextField from '@mui/material/TextField';
++import Button from '@mui/material/Button';
++import Divider from '@mui/material/Divider';
++import Typography from '@mui/material/Typography';
++import Chip from '@mui/material/Chip';
++import Paper from '@mui/material/Paper';
++import Box from '@mui/material/Box';
++import CircularProgress from '@mui/material/CircularProgress';
++import MainCard from 'components/MainCard';
++import { openSnackbar } from 'api/snackbar';
++import { buildStreamUrl } from 'utils/files';
++
++import {
++  createTemplate,
++  createCase,
++  uploadCaseDoc,
++  generateDraft,
++  postChatMessage,
++  acceptSuggestion,
++  rejectSuggestion,
++  updateDraft,
++  exportDraft,
++  type AiDraft,
++  type DraftJson,
++  type AiSuggestion
++} from 'api/aiDocs';
++
++const emptyDraft: DraftJson = {
++  enderecamento: '',
++  qualificacao: '',
++  fatos: '',
++  fundamentos: '',
++  pedidos: [],
++  jurisprudencia: [],
++  observacoes: ''
++};
++
++export default function AiDocsMVP() {
++  // ===== Case =====
++  const [caseType, setCaseType] = useState('acao-rescisoria');
++  const [requestText, setRequestText] = useState('Preciso de uma petição de ação rescisória baseada no fato X ...');
++  const [caseId, setCaseId] = useState<string | null>(null);
++  const [caseStatus, setCaseStatus] = useState<string | null>(null);
++
++  // ===== Case Docs =====
++  const [docFile, setDocFile] = useState<File | null>(null);
++  const [docLoading, setDocLoading] = useState(false);
++
++  // ===== Draft =====
++  const [draft, setDraft] = useState<AiDraft | null>(null);
++  const [draftJson, setDraftJson] = useState<DraftJson>(emptyDraft);
++  const [genLoading, setGenLoading] = useState(false);
++  const [saveLoading, setSaveLoading] = useState(false);
++
++  // ===== Chat =====
++  const [chatText, setChatText] = useState('reforce os fundamentos com X e inclua jurisprudência Y');
++  const [chatLoading, setChatLoading] = useState(false);
++  const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
++
++  // ===== Export =====
++  const [expLoading, setExpLoading] = useState(false);
++  const [lastExportFileId, setLastExportFileId] = useState<string | null>(null);
++
++  // Handlers
++  async function handleCreateCase() {
++    try {
++      const c = await createCase({ type: caseType, requestText });
++      setCaseId(c.id);
++      setCaseStatus(c.status);
++      openSnackbar({ open: true, message: 'Caso criado!', variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    }
++  }
++
++  async function handleUploadDoc() {
++    if (!caseId || !docFile) return;
++    try {
++      setDocLoading(true);
++      await uploadCaseDoc(caseId, docFile);
++      openSnackbar({ open: true, message: 'Documento anexado!', variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    } finally { setDocLoading(false); }
++  }
++
++  async function handleGenerate() {
++    if (!caseId) return;
++    try {
++      setGenLoading(true);
++      const d = await generateDraft(caseId);
++      setDraft(d);
++      setDraftJson(d.json);
++      openSnackbar({ open: true, message: 'Draft gerado!', variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    } finally { setGenLoading(false); }
++  }
++
++  async function handleSaveDraft() {
++    if (!draft) return;
++    try {
++      setSaveLoading(true);
++      const updated = await updateDraft(draft.id, { json: draftJson });
++      setDraft(updated);
++      setDraftJson(updated.json);
++      openSnackbar({ open: true, message: 'Rascunho salvo!', variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    } finally { setSaveLoading(false); }
++  }
++
++  async function handleChat() {
++    if (!caseId) return;
++    try {
++      setChatLoading(true);
++      const out = await postChatMessage(caseId, chatText.trim());
++      if (out.draftId && draft && out.draftId !== draft.id) {
++        // Se o backend abriu sessão para outro draft (ex.: mais novo), considere buscar…
++      }
++      setSuggestions(out.suggestions || []);
++      openSnackbar({ open: true, message: `Geradas ${out.suggestions?.length || 0} sugestão(ões).`, variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    } finally { setChatLoading(false); }
++  }
++
++  async function onAccept(sug: AiSuggestion) {
++    if (!draft) return;
++    try {
++      const res = await acceptSuggestion(draft.id, sug.id);
++      setDraft(res.draft);
++      setDraftJson(res.draft.json);
++      setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'ACCEPTED' } : s)));
++      openSnackbar({ open: true, message: 'Sugestão aplicada!', variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    }
++  }
++
++  async function onReject(sug: AiSuggestion) {
++    if (!draft) return;
++    try {
++      await rejectSuggestion(draft.id, sug.id);
++      setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'REJECTED' } : s)));
++      openSnackbar({ open: true, message: 'Sugestão rejeitada.', variant: 'alert', alert: { color: 'info' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    }
++  }
++
++  async function handleExport(kind: 'DOCX'|'PDF') {
++    if (!draft) return;
++    try {
++      setExpLoading(true);
++      const ex = await exportDraft(draft.id, kind);
++      setLastExportFileId(ex.fileId || null);
++      openSnackbar({ open: true, message: `Export ${kind} gerado (fileId: ${ex.fileId || '—'})`, variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    } finally { setExpLoading(false); }
++  }
++
++  return (
++    <Grid container spacing={3}>
++      {/* 1) Case */}
++      <Grid item xs={12}>
++        <MainCard title="1) Criar Caso (Advogado)">
++          <Stack spacing={2}>
++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
++              <TextField label="Tipo" value={caseType} onChange={(e) => setCaseType(e.target.value)} sx={{ minWidth: 220 }} />
++              <Button variant="contained" onClick={handleCreateCase}>Criar Caso</Button>
++              {caseId && <Chip label={`caseId: ${caseId}`} />}
++              {caseStatus && <Chip label={`status: ${caseStatus}`} color="info" />}
++            </Stack>
++            <TextField label="Pedido (linguagem natural)" multiline minRows={3} value={requestText} onChange={(e) => setRequestText(e.target.value)} />
++          </Stack>
++        </MainCard>
++      </Grid>
++
++      {/* 2) Upload de Documentos do Caso */}
++      <Grid item xs={12}>
++        <MainCard title="2) (Opcional) Anexar PDFs ao Caso">
++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }}>
++            <Button component="label" variant="outlined" disabled={!caseId}>
++              {docFile ? docFile.name : 'Selecionar PDF do Caso'}
++              <input type="file" accept="application/pdf" hidden onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
++            </Button>
++            <Button onClick={handleUploadDoc} variant="contained" disabled={!caseId || !docFile || docLoading}>
++              {docLoading ? <CircularProgress size={18} /> : 'Anexar'}
++            </Button>
++            {!caseId && <Typography variant="caption" color="text.secondary">Crie o caso primeiro</Typography>}
++          </Stack>
++        </MainCard>
++      </Grid>
++
++      {/* 3) Gerar Rascunho */}
++      <Grid item xs={12}>
++        <MainCard title="3) Gerar Rascunho (RAG com Templates + Docs do Caso)">
++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
++            <Button variant="contained" onClick={handleGenerate} disabled={!caseId || genLoading}>
++              {genLoading ? <CircularProgress size={18} /> : 'Gerar rascunho'}
++            </Button>
++            <Typography variant="body2" color="text.secondary">(usa templates cadastrados automaticamente)</Typography>
++            {draft && (
++              <Stack direction="row" spacing={1}>
++                <Chip label={`draftId: ${draft.id}`} color="success" variant="outlined" />
++                <Chip label={`versão: ${draft.version}`} variant="outlined" />
++              </Stack>
++            )}
++          </Stack>
++
++          <Divider sx={{ my: 2 }} />
++
++          {/* Editor simples do JSON */}
++          <Grid container spacing={2}>
++            <Grid item xs={12} md={6}>
++              <TextField label="Endereçamento" value={draftJson.enderecamento} onChange={(e) => setDraftJson({ ...draftJson, enderecamento: e.target.value })} fullWidth multiline minRows={2} />
++            </Grid>
++            <Grid item xs={12} md={6}>
++              <TextField label="Qualificação" value={draftJson.qualificacao} onChange={(e) => setDraftJson({ ...draftJson, qualificacao: e.target.value })} fullWidth multiline minRows={2} />
++            </Grid>
++            <Grid item xs={12}>
++              <TextField label="Fatos" value={draftJson.fatos} onChange={(e) => setDraftJson({ ...draftJson, fatos: e.target.value })} fullWidth multiline minRows={3} />
++            </Grid>
++            <Grid item xs={12}>
++              <TextField label="Fundamentos" value={draftJson.fundamentos} onChange={(e) => setDraftJson({ ...draftJson, fundamentos: e.target.value })} fullWidth multiline minRows={3} />
++            </Grid>
++            <Grid item xs={12} md={6}>
++              <TextField label="Pedidos (um por linha)" value={(draftJson.pedidos || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, pedidos: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
++            </Grid>
++            <Grid item xs={12} md={6}>
++              <TextField label="Jurisprudência (uma por linha)" value={(draftJson.jurisprudencia || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, jurisprudencia: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
++            </Grid>
++            <Grid item xs={12}>
++              <TextField label="Observações" value={draftJson.observacoes} onChange={(e) => setDraftJson({ ...draftJson, observacoes: e.target.value })} fullWidth multiline minRows={2} />
++            </Grid>
++            <Grid item xs={12}>
++              <Stack direction="row" spacing={1}>
++                <Button onClick={handleSaveDraft} variant="contained" disabled={!draft || saveLoading}>
++                  {saveLoading ? <CircularProgress size={18} /> : 'Salvar rascunho'}
++                </Button>
++                {draft && <Chip label={`versão atual: ${draft.version}`} />}
++              </Stack>
++            </Grid>
++          </Grid>
++        </MainCard>
++      </Grid>
++
++      {/* 4) Chat & Sugestões */}
++      <Grid item xs={12}>
++        <MainCard title="4) Chat do Caso (Sugestões em JSON-Patch)">
++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
++            <TextField label="Mensagem" value={chatText} onChange={(e) => setChatText(e.target.value)} fullWidth />
++            <Button variant="contained" onClick={handleChat} disabled={!caseId || !draft || chatLoading}>
++              {chatLoading ? <CircularProgress size={18} /> : 'Enviar'}
++            </Button>
++          </Stack>
++
++          <Divider sx={{ my: 2 }} />
++
++          <Stack spacing={1.5}>
++            {suggestions.map((s) => (
++              <Paper key={s.id} variant="outlined" sx={{ p: 1.5 }}>
++                <Stack spacing={0.75}>
++                  <Stack direction="row" spacing={1} alignItems="center">
++                    <Chip size="small" label={s.status} color={s.status === 'PENDING' ? 'warning' : s.status === 'ACCEPTED' ? 'success' : 'default'} />
++                    {typeof s.confidence === 'number' && (
++                      <Chip size="small" label={`conf: ${(s.confidence * 100).toFixed(0)}%`} variant="outlined" />
++                    )}
++                    {!!s.targets?.length && <Chip size="small" variant="outlined" label={`alvo: ${s.targets.join(', ')}`}/>}                    
++                  </Stack>
++                  {s.rationale && <Typography variant="body2" color="text.secondary">{s.rationale}</Typography>}
++                  <Box sx={{ p: 1, bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
++                    <Typography variant="caption" color="text.secondary">ops (RFC-6902):</Typography>
++                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
++                  </Box>
++                  <Stack direction="row" spacing={1}>
++                    <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || s.status !== 'PENDING'}>Aceitar</Button>
++                    <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || s.status !== 'PENDING'}>Rejeitar</Button>
++                  </Stack>
++                </Stack>
++              </Paper>
++            ))}
++            {!suggestions.length && (
++              <Typography variant="body2" color="text.secondary">Sem sugestões no momento.</Typography>
++            )}
++          </Stack>
++        </MainCard>
++      </Grid>
++
++      {/* 5) Export */}
++      <Grid item xs={12}>
++        <MainCard title="5) Exportar">
++          <Stack spacing={2}>
++            <Stack direction="row" spacing={1} alignItems="center">
++              <Button variant="outlined" onClick={() => handleExport('DOCX')} disabled={!draft || expLoading}>DOCX</Button>
++              <Button variant="outlined" onClick={() => handleExport('PDF')} disabled={!draft || expLoading}>PDF</Button>
++              {expLoading && <CircularProgress size={18} />}
++            </Stack>
++            
++            {lastExportFileId && (
++              <Stack direction="row" spacing={1} alignItems="center">
++                <Typography variant="body2" color="text.secondary">
++                  Documento exportado:
++                </Typography>
++                <Button
++                  component="a"
++                  href={buildStreamUrl(`/ai/exports/current/file`, {
++                    v: lastExportFileId
++                  })}
++                  target="_blank"
++                  rel="noopener"
++                  variant="outlined"
++                  size="small"
++                >
++                  Abrir
++                </Button>
++                <Button
++                  component="a"
++                  href={buildStreamUrl(`/ai/exports/current/file`, {
++                    v: lastExportFileId,
++                    download: 'documento.pdf'
++                  })}
++                  variant="outlined"
++                  size="small"
++                >
++                  Baixar
++                </Button>
++              </Stack>
++            )}
++          </Stack>
++        </MainCard>
++      </Grid>
++    </Grid>
++  );
++}
+diff --git a/src/pages/ai-docs/CategoriesPage.tsx b/src/pages/ai-docs/CategoriesPage.tsx
+new file mode 100644
+index 0000000..205af67
+--- /dev/null
++++ b/src/pages/ai-docs/CategoriesPage.tsx
+@@ -0,0 +1,342 @@
++// src/pages/ai-docs/CategoriesPage.tsx
++import { useState, useEffect } from 'react';
++import {
++  Grid,
++  Stack,
++  TextField,
++  Button,
++  Typography,
++  Chip,
++  CircularProgress,
++  Table,
++  TableBody,
++  TableCell,
++  TableContainer,
++  TableHead,
++  TableRow,
++  Paper,
++  IconButton,
++  Dialog,
++  DialogTitle,
++  DialogContent,
++  DialogActions,
++  FormControlLabel,
++  Switch,
++  Box
++} from '@mui/material';
++import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
++import MainCard from 'components/MainCard';
++import { openSnackbar } from 'api/snackbar';
++import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
++
++import {
++  listCategories,
++  createCategory,
++  updateCategory,
++  deleteCategory,
++  type AiCategory
++} from 'api/aiCategories';
++
++export default function CategoriesPage() {
++  const [categories, setCategories] = useState<AiCategory[]>([]);
++  const [loading, setLoading] = useState(false);
++  const [search, setSearch] = useState('');
++  const [dialogOpen, setDialogOpen] = useState(false);
++  const [editingCategory, setEditingCategory] = useState<AiCategory | null>(null);
++  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
++  const [categoryToDelete, setCategoryToDelete] = useState<AiCategory | null>(null);
++  const [formData, setFormData] = useState({
++    name: '',
++    companyScope: 'company' as 'global' | 'company'
++  });
++  const [submitting, setSubmitting] = useState(false);
++
++  // Carregar categorias
++  const loadCategories = async () => {
++    try {
++      setLoading(true);
++      const response = await listCategories({ search, page: 1, limit: 100 });
++      setCategories(response.data);
++    } catch (error: any) {
++      openSnackbar({ 
++        open: true, 
++        message: error?.response?.data?.message || 'Erro ao carregar categorias', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
++    } finally {
++      setLoading(false);
++    }
++  };
++
++  useEffect(() => {
++    loadCategories();
++  }, [search]);
++
++  // Handlers
++  const handleOpenDialog = (category?: AiCategory) => {
++    if (category) {
++      setEditingCategory(category);
++      setFormData({
++        name: category.name,
++        companyScope: category.companyScope || 'company'
++      });
++    } else {
++      setEditingCategory(null);
++      setFormData({
++        name: '',
++        companyScope: 'company'
++      });
++    }
++    setDialogOpen(true);
++  };
++
++  const handleCloseDialog = () => {
++    setDialogOpen(false);
++    setEditingCategory(null);
++    setFormData({
++      name: '',
++      companyScope: 'company'
++    });
++  };
++
++  const handleSubmit = async () => {
++    if (!formData.name.trim()) {
++      openSnackbar({ 
++        open: true, 
++        message: 'Nome é obrigatório', 
++        variant: 'alert', 
++        alert: { color: 'warning' } 
++      } as any);
++      return;
++    }
++
++    try {
++      setSubmitting(true);
++      
++      if (editingCategory) {
++        const updated = await updateCategory(editingCategory.id, { name: formData.name });
++        setCategories(prev => prev.map(c => c.id === updated.id ? updated : c));
++        openSnackbar({ 
++          open: true, 
++          message: 'Categoria atualizada com sucesso!', 
++          variant: 'alert', 
++          alert: { color: 'success' } 
++        } as any);
++      } else {
++        const created = await createCategory({ 
++          name: formData.name, 
++          companyScope: formData.companyScope 
++        });
++        setCategories(prev => [...prev, created]);
++        openSnackbar({ 
++          open: true, 
++          message: 'Categoria criada com sucesso!', 
++          variant: 'alert', 
++          alert: { color: 'success' } 
++        } as any);
++      }
++      
++      handleCloseDialog();
++    } catch (error: any) {
++      openSnackbar({ 
++        open: true, 
++        message: error?.response?.data?.message || 'Erro ao salvar categoria', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  const handleDeleteClick = (category: AiCategory) => {
++    setCategoryToDelete(category);
++    setDeleteDialogOpen(true);
++  };
++
++  const handleDeleteConfirm = async () => {
++    if (!categoryToDelete) return;
++
++    try {
++      await deleteCategory(categoryToDelete.id);
++      setCategories(prev => prev.filter(c => c.id !== categoryToDelete.id));
++      openSnackbar({ 
++        open: true, 
++        message: 'Categoria excluída com sucesso!', 
++        variant: 'alert', 
++        alert: { color: 'success' } 
++      } as any);
++    } catch (error: any) {
++      openSnackbar({ 
++        open: true, 
++        message: error?.response?.data?.message || 'Erro ao excluir categoria', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
++    } finally {
++      setDeleteDialogOpen(false);
++      setCategoryToDelete(null);
++    }
++  };
++
++  return (
++    <Box sx={{ p: 3 }}>
++      <MainCard title="Categorias de Templates AI">
++          <Stack spacing={3}>
++            {/* Header com busca e botão adicionar */}
++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
++              <TextField
++                label="Buscar categorias"
++                value={search}
++                onChange={(e) => setSearch(e.target.value)}
++                sx={{ minWidth: 300 }}
++                placeholder="Digite o nome da categoria..."
++              />
++              <Button
++                variant="contained"
++                startIcon={<PlusOutlined />}
++                onClick={() => handleOpenDialog()}
++                sx={{ minWidth: 150 }}
++              >
++                Nova Categoria
++              </Button>
++            </Stack>
++
++            {/* Tabela de categorias */}
++            <TableContainer component={Paper} variant="outlined">
++              <Table>
++                <TableHead>
++                  <TableRow>
++                    <TableCell>Nome</TableCell>
++                    <TableCell>Slug</TableCell>
++                    <TableCell>Escopo</TableCell>
++                    <TableCell align="center">Ações</TableCell>
++                  </TableRow>
++                </TableHead>
++                <TableBody>
++                  {loading ? (
++                    <TableRow>
++                      <TableCell colSpan={4} align="center">
++                        <CircularProgress size={24} />
++                      </TableCell>
++                    </TableRow>
++                  ) : categories.length === 0 ? (
++                    <TableRow>
++                      <TableCell colSpan={4} align="center">
++                        <Typography variant="body2" color="text.secondary">
++                          Nenhuma categoria encontrada
++                        </Typography>
++                      </TableCell>
++                    </TableRow>
++                  ) : (
++                    categories.map((category) => (
++                      <TableRow key={category.id}>
++                        <TableCell>
++                          <Typography variant="body2" fontWeight="medium">
++                            {category.name}
++                          </Typography>
++                        </TableCell>
++                        <TableCell>
++                          <Typography variant="body2" color="text.secondary">
++                            {category.slug}
++                          </Typography>
++                        </TableCell>
++                        <TableCell>
++                          <Chip
++                            label={category.companyScope === 'global' ? 'Global' : 'Empresa'}
++                            color={category.companyScope === 'global' ? 'primary' : 'default'}
++                            size="small"
++                            variant="outlined"
++                          />
++                        </TableCell>
++                        <TableCell align="center">
++                          <Stack direction="row" spacing={1} justifyContent="center">
++                            <IconButton
++                              size="small"
++                              onClick={() => handleOpenDialog(category)}
++                              color="primary"
++                            >
++                              <EditOutlined />
++                            </IconButton>
++                            <IconButton
++                              size="small"
++                              onClick={() => handleDeleteClick(category)}
++                              color="error"
++                            >
++                              <DeleteOutlined />
++                            </IconButton>
++                          </Stack>
++                        </TableCell>
++                      </TableRow>
++                    ))
++                  )}
++                </TableBody>
++              </Table>
++            </TableContainer>
++          </Stack>
++        </MainCard>
++
++      {/* Dialog de criação/edição */}
++      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
++        <DialogTitle>
++          {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
++        </DialogTitle>
++        <DialogContent>
++          <Stack spacing={3} sx={{ mt: 1 }}>
++            <TextField
++              label="Nome da Categoria"
++              value={formData.name}
++              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
++              fullWidth
++              required
++              placeholder="Ex: Ações Trabalhistas, Contratos, etc."
++            />
++            
++            {!editingCategory && (
++              <FormControlLabel
++                control={
++                  <Switch
++                    checked={formData.companyScope === 'global'}
++                    onChange={(e) => setFormData({ 
++                      ...formData, 
++                      companyScope: e.target.checked ? 'global' : 'company' 
++                    })}
++                  />
++                }
++                label="Disponível para toda a empresa"
++              />
++            )}
++            
++            {editingCategory && (
++              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
++                <Typography variant="body2" color="text.secondary">
++                  <strong>Nota:</strong> O escopo da categoria não pode ser alterado após a criação.
++                </Typography>
++              </Box>
++            )}
++          </Stack>
++        </DialogContent>
++        <DialogActions>
++          <Button onClick={handleCloseDialog}>Cancelar</Button>
++          <Button
++            onClick={handleSubmit}
++            variant="contained"
++            disabled={submitting || !formData.name.trim()}
++          >
++            {submitting ? <CircularProgress size={18} /> : (editingCategory ? 'Atualizar' : 'Criar')}
++          </Button>
++        </DialogActions>
++      </Dialog>
++
++      {/* Dialog de confirmação de exclusão */}
++      <ConfirmDeleteDialog
++        open={deleteDialogOpen}
++        onCancel={() => setDeleteDialogOpen(false)}
++        onConfirm={handleDeleteConfirm}
++        title="Excluir Categoria"
++        description={`Tem certeza que deseja excluir a categoria "${categoryToDelete?.name}"? Esta ação não pode ser desfeita.`}
++      />
++    </Box>
++  );
++}
+diff --git a/src/pages/ai-docs/TemplatesPage.tsx b/src/pages/ai-docs/TemplatesPage.tsx
+new file mode 100644
+index 0000000..b4b9962
+--- /dev/null
++++ b/src/pages/ai-docs/TemplatesPage.tsx
+@@ -0,0 +1,311 @@
++// src/pages/ai-docs/TemplatesPage.tsx
++import { useEffect, useMemo, useState } from 'react';
++import {
++  Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
++  IconButton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
++  TextField, Typography, Paper
++} from '@mui/material';
++import Autocomplete from '@mui/material/Autocomplete';
++import { EditOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
++import MainCard from 'components/MainCard';
++import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
++import { openSnackbar } from 'api/snackbar';
++import { buildStreamUrl } from 'utils/files';
++
++import {
++  listTemplates, createTemplate, updateTemplate, deleteTemplate,
++  type AiTemplate, type AiTemplateListResponse
++} from 'api/aiDocs';
++import { listCategories, type AiCategory } from 'api/aiCategories';
++
++export default function TemplatesPage() {
++  // listagem
++  const [rows, setRows] = useState<AiTemplate[]>([]);
++  const [loading, setLoading] = useState(false);
++  const [search, setSearch] = useState('');
++  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
++  const [page, setPage] = useState(1);
++  const [limit] = useState(20);
++  const [total, setTotal] = useState(0);
++
++  // categorias
++  const [categories, setCategories] = useState<AiCategory[]>([]);
++  const [catLoading, setCatLoading] = useState(false);
++  const catById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
++
++  // dialog criar/editar
++  const [dialogOpen, setDialogOpen] = useState(false);
++  const [editing, setEditing] = useState<AiTemplate | null>(null);
++  const [formTitle, setFormTitle] = useState('');
++  const [formDescription, setFormDescription] = useState('');
++  const [formCategoryId, setFormCategoryId] = useState<string | null>(null);
++  const [formFile, setFormFile] = useState<File | null>(null); // só no criar
++  const [submitting, setSubmitting] = useState(false);
++
++  // delete
++  const [delOpen, setDelOpen] = useState(false);
++  const [toDelete, setToDelete] = useState<AiTemplate | null>(null);
++
++  async function loadCategories() {
++    try {
++      setCatLoading(true);
++      const r = await listCategories({ page: 1, limit: 200 });
++      setCategories(r.data);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar categorias', variant: 'alert', alert: { color: 'error' } } as any);
++    } finally {
++      setCatLoading(false);
++    }
++  }
++
++  async function loadRows() {
++    try {
++      setLoading(true);
++      const r: AiTemplateListResponse = await listTemplates({
++        search: search || undefined,
++        categoryId: categoryFilter || undefined,
++        page, limit
++      });
++      setRows(r.data);
++      setTotal(r.pagination.total);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar templates', variant: 'alert', alert: { color: 'error' } } as any);
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  useEffect(() => { loadCategories(); }, []);
++  useEffect(() => { loadRows(); /* eslint-disable-next-line */ }, [search, categoryFilter, page, limit]);
++
++  // abrir/fechar dialog
++  function openCreate() {
++    setEditing(null);
++    setFormTitle('');
++    setFormDescription('');
++    setFormCategoryId(null);
++    setFormFile(null);
++    setDialogOpen(true);
++  }
++  function openEdit(t: AiTemplate) {
++    setEditing(t);
++    setFormTitle(t.title);
++    setFormDescription(t.description || '');
++    setFormCategoryId((t as any).categoryId ?? null);
++    setFormFile(null);
++    setDialogOpen(true);
++  }
++  function closeDialog() { setDialogOpen(false); }
++
++  // submit criar/editar
++  async function handleSubmit() {
++    try {
++      setSubmitting(true);
++      if (editing) {
++        const updated = await updateTemplate(editing.id, {
++          title: formTitle,
++          description: formDescription || null,
++          categoryId: formCategoryId
++        });
++        setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
++        openSnackbar({ open: true, message: 'Template atualizado.', variant: 'alert', alert: { color: 'success' } } as any);
++      } else {
++        if (!formFile) {
++          openSnackbar({ open: true, message: 'Selecione um PDF', variant: 'alert', alert: { color: 'warning' } } as any);
++          return;
++        }
++        if (!formTitle.trim()) {
++          openSnackbar({ open: true, message: 'Título é obrigatório', variant: 'alert', alert: { color: 'warning' } } as any);
++          return;
++        }
++        await createTemplate({
++          file: formFile,
++          title: formTitle.trim(),
++          description: formDescription || undefined,
++          categoryId: formCategoryId
++        });
++        openSnackbar({ open: true, message: 'Template criado e processado!', variant: 'alert', alert: { color: 'success' } } as any);
++        // recarrega a lista do início
++        setPage(1);
++        await loadRows();
++      }
++      closeDialog();
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    } finally {
++      setSubmitting(false);
++    }
++  }
++
++  // delete
++  function askDelete(t: AiTemplate) {
++    setToDelete(t);
++    setDelOpen(true);
++  }
++  async function confirmDelete() {
++    if (!toDelete) return;
++    try {
++      await deleteTemplate(toDelete.id);
++      setRows(prev => prev.filter(r => r.id !== toDelete.id));
++      openSnackbar({ open: true, message: 'Template removido.', variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    } finally {
++      setDelOpen(false);
++      setToDelete(null);
++    }
++  }
++
++  return (
++    <Stack spacing={3}>
++        <MainCard title="Templates">
++          <Stack spacing={2}>
++            {/* filtros */}
++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
++              <TextField
++                value={search}
++                onChange={(e) => { setPage(1); setSearch(e.target.value); }}
++                placeholder="Buscar por título, descrição ou kind..."
++                InputProps={{ startAdornment: <SearchOutlined style={{ marginRight: 8, opacity: .6 }} /> as any }}
++                sx={{ minWidth: 320 }}
++              />
++              <Autocomplete
++                options={categories}
++                loading={catLoading}
++                getOptionLabel={(o) => o.name}
++                value={categories.find(c => c.id === categoryFilter) || null}
++                onChange={(_, v) => { setPage(1); setCategoryFilter(v?.id ?? null); }}
++                sx={{ minWidth: 280 }}
++                renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Todas" />}
++              />
++              <Box sx={{ flex: 1 }} />
++              <Button startIcon={<PlusOutlined />} variant="contained" onClick={openCreate}>
++                Novo Template
++              </Button>
++              <Button startIcon={<ReloadOutlined />} onClick={loadRows}>
++                Atualizar
++              </Button>
++            </Stack>
++
++            {/* tabela */}
++            <TableContainer component={Paper} variant="outlined">
++              <Table>
++                <TableHead>
++                  <TableRow>
++                    <TableCell>Título</TableCell>
++                    <TableCell>Categoria</TableCell>
++                    <TableCell>Criado</TableCell>
++                    <TableCell align="center">Ações</TableCell>
++                  </TableRow>
++                </TableHead>
++                <TableBody>
++                  {loading ? (
++                    <TableRow><TableCell colSpan={4} align="center"><CircularProgress size={22} /></TableCell></TableRow>
++                  ) : rows.length === 0 ? (
++                    <TableRow><TableCell colSpan={4} align="center"><Typography variant="body2" color="text.secondary">Nenhum template encontrado</Typography></TableCell></TableRow>
++                  ) : rows.map((t) => {
++                    const catName = (t as any).categoryId ? catById.get((t as any).categoryId)?.name : undefined;
++                    return (
++                      <TableRow key={t.id} hover>
++                        <TableCell>
++                          <Stack spacing={0.25}>
++                            <Typography variant="body2" fontWeight={600} noWrap title={t.title}>{t.title}</Typography>
++                            {t.description && (
++                              <Typography 
++                                variant="caption" 
++                                color="text.secondary" 
++                                noWrap 
++                                title={t.description}
++                                sx={{ 
++                                  maxWidth: 200,
++                                  overflow: 'hidden',
++                                  textOverflow: 'ellipsis',
++                                  whiteSpace: 'nowrap'
++                                }}
++                              >
++                                {t.description}
++                              </Typography>
++                            )}
++                          </Stack>
++                        </TableCell>
++                        <TableCell>{catName ? <Chip size="small" label={catName} /> : <Typography variant="caption" color="text.secondary">—</Typography>}</TableCell>
++                        <TableCell><Typography variant="caption" color="text.secondary">{new Date(t.createdAt || '').toLocaleString()}</Typography></TableCell>
++                        <TableCell align="center">
++                          <Stack direction="row" spacing={1} justifyContent="center">
++                            {(t as any).fileId && (
++                              <IconButton 
++                                size="small" 
++                                color="info" 
++                                component="a"
++                                href={buildStreamUrl(`/ai/templates/${t.id}/pdf`, { v: (t as any).fileId })}
++                                target="_blank"
++                                rel="noopener"
++                                title="Visualizar PDF"
++                              >
++                                <EyeOutlined />
++                              </IconButton>
++                            )}
++                            <IconButton size="small" color="primary" onClick={() => openEdit(t)}><EditOutlined /></IconButton>
++                            <IconButton size="small" color="error" onClick={() => askDelete(t)}><DeleteOutlined /></IconButton>
++                          </Stack>
++                        </TableCell>
++                      </TableRow>
++                    );
++                  })}
++                </TableBody>
++              </Table>
++            </TableContainer>
++
++            {/* paginação simples (opcional: trocar por seu componente de paginação) */}
++            <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
++              <Typography variant="caption" color="text.secondary">
++                {total} itens • pág. {page}
++              </Typography>
++              <Button size="small" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
++              <Button size="small" disabled={rows.length < limit} onClick={() => setPage(p => p + 1)}>Próxima</Button>
++            </Stack>
++          </Stack>
++        </MainCard>
++
++      {/* Dialog criar/editar */}
++      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
++        <DialogTitle>{editing ? 'Editar Template' : 'Novo Template'}</DialogTitle>
++        <DialogContent>
++          <Stack spacing={2} sx={{ mt: 1 }}>
++            <TextField label="Título *" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} required fullWidth />
++            <TextField label="Descrição" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} fullWidth multiline minRows={2} />
++            <Autocomplete
++              options={categories}
++              loading={catLoading}
++              getOptionLabel={(o) => o.name}
++              value={categories.find(c => c.id === formCategoryId) || null}
++              onChange={(_, v) => setFormCategoryId(v?.id ?? null)}
++              renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Opcional" />}
++            />
++            {!editing && (
++              <Button component="label" variant="outlined">
++                {formFile ? formFile.name : 'Selecionar PDF'}
++                <input type="file" accept="application/pdf" hidden onChange={(e) => setFormFile(e.target.files?.[0] || null)} />
++              </Button>
++            )}
++          </Stack>
++        </DialogContent>
++        <DialogActions>
++          <Button onClick={closeDialog}>Cancelar</Button>
++          <Button variant="contained" onClick={handleSubmit} disabled={submitting || (!editing && (!formTitle.trim() || !formFile))}>
++            {submitting ? <CircularProgress size={18} /> : (editing ? 'Salvar' : 'Criar')}
++          </Button>
++        </DialogActions>
++      </Dialog>
++
++      {/* Confirmar exclusão */}
++      <ConfirmDeleteDialog
++        open={delOpen}
++        onCancel={() => setDelOpen(false)}
++        onConfirm={confirmDelete}
++        title="Excluir Template"
++        description={`Tem certeza que deseja excluir o template "${toDelete?.title}"? Esta ação não pode ser desfeita.`}
++      />
++    </Stack>
++  );
++}
+\ No newline at end of file
+diff --git a/src/routes/MainRoutes.tsx b/src/routes/MainRoutes.tsx
+index e40a4e9..eb57be8 100644
+--- a/src/routes/MainRoutes.tsx
++++ b/src/routes/MainRoutes.tsx
+@@ -36,6 +36,11 @@ const CompanyPage = Loadable(lazy(() => import('pages/company')));
+ // NOVO: Bloqueios de Conta
+ const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
+ 
++// NOVO: AI Docs MVP
++const AiDocsMVP = Loadable(lazy(() => import('pages/ai-docs/AiDocsMVP')));
++const AiDocsTemplates = Loadable(lazy(() => import('pages/ai-docs/TemplatesPage')));
++const AiDocsCategories = Loadable(lazy(() => import('pages/ai-docs/CategoriesPage')));
++
+ // ==============================|| MAIN ROUTING ||============================== //
+ 
+ const MainRoutes = {
+@@ -77,6 +82,18 @@ const MainRoutes = {
+         {
+           path: 'sensitive-fields',
+           element: <SensitiveFieldsPage />
++        },
++        {
++          path: 'ai-docs',
++          element: <AiDocsMVP />
++        },
++        {
++          path: 'ai-docs/templates',
++          element: <AiDocsTemplates />
++        },
++        {
++          path: 'ai-docs/categories',
++          element: <AiDocsCategories />
+         }
+       ]
+     },
+diff --git a/src/types/ai-docs.ts b/src/types/ai-docs.ts
+new file mode 100644
+index 0000000..04ad90a
+--- /dev/null
++++ b/src/types/ai-docs.ts
+@@ -0,0 +1,63 @@
++// src/types/ai-docs.ts
++export type AiTemplate = {
++  id: string;
++  kind: string;
++  title: string;
++  description?: string | null;
++  createdAt?: string;
++};
++
++export type AiCase = {
++  id: string;
++  userId: string;
++  companyId?: string | null;
++  type: string;
++  requestText: string;
++  status: 'DRAFT'|'GENERATING'|'READY'|'APPROVED'|'REJECTED'|string;
++  createdAt: string;
++};
++
++export type DraftJson = {
++  enderecamento: string;
++  qualificacao: string;
++  fatos: string;
++  fundamentos: string;
++  pedidos: string[];
++  jurisprudencia: string[];
++  observacoes: string;
++  [k: string]: any;
++};
++
++export type AiDraft = {
++  id: string;
++  caseId: string;
++  templateId?: string | null;
++  version: number;
++  status: string; // 'draft' | ...
++  json: DraftJson;
++  createdAt: string;
++  updatedAt: string;
++};
++
++export type AiSuggestion = {
++  id: string;
++  sessionId: string;
++  draftId: string;
++  draftVersion: number;
++  ops: Array<{ op: string; path: string; value?: any; from?: string }>;
++  rationale?: string | null;
++  confidence?: number | null;
++  targets: string[];
++  status: 'PENDING'|'ACCEPTED'|'REJECTED';
++  createdAt: string;
++};
++
++export type AiExport = {
++  id: string;
++  draftId: string;
++  kind: 'DOCX'|'PDF';
++  status: 'PENDING'|'DONE'|'ERROR';
++  fileId?: string | null;
++  error?: string | null;
++  createdAt: string;
++};
+diff --git a/src/utils/files.ts b/src/utils/files.ts
+new file mode 100644
+index 0000000..18bd2ef
+--- /dev/null
++++ b/src/utils/files.ts
+@@ -0,0 +1,9 @@
++// src/utils/files.ts
++const API = import.meta.env.VITE_APP_API_URL;
++
++export function buildStreamUrl(path: string, opts?: { v?: string; download?: string }) {
++  const url = new URL(`${API}${path}`);
++  if (opts?.v) url.searchParams.set('v', opts.v);
++  if (opts?.download) url.searchParams.set('download', opts.download);
++  return url.toString();
++}

@@ -53,6 +53,34 @@ const pages: NavItemType = {
       icon: icons.TeamOutlined,
       url: '/users'
     },
+    // 👇 AI Docs
+    {
+      id: 'ai-docs',
+      title: 'IA Docs',
+      type: 'collapse',
+      icon: icons.AppstoreOutlined,
+      isDropdown: true,
+      children: [
+        {
+          id: 'ai-docs-mvp',
+          title: 'Gerar Documentos',
+          type: 'item',
+          url: '/ai-docs'
+        },
+        {
+          id: 'ai-docs-templates',
+          title: 'Templates',
+          type: 'item',
+          url: '/ai-docs/templates'
+        },
+        {
+          id: 'ai-docs-categories',
+          title: 'Categorias',
+          type: 'item',
+          url: '/ai-docs/categories'
+        }
+      ]
+    },
   ]
 };
 
