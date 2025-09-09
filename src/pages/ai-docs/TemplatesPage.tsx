@@ -10,10 +10,12 @@ import { EditOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, SearchOutli
 import MainCard from 'components/MainCard';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import LoadingTicker from 'components/LoadingTicker';
+// MIME oficial de DOCX
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 import { openSnackbar } from 'api/snackbar';
 
 import {
-  listTemplates, createTemplate, updateTemplate, deleteTemplate, getTemplateFileBlob,
+  listTemplates, createTemplate, updateTemplate, deleteTemplate, getTemplateDocxBlob,
   type AiTemplate, type AiTemplateListResponse
 } from 'api/aiDocs';
 import { listCategories, type AiCategory } from 'api/aiCategories';
@@ -42,6 +44,10 @@ export default function TemplatesPage() {
   const [formFile, setFormFile] = useState<File | null>(null); // só no criar
   const [submitting, setSubmitting] = useState(false);
   const [showTicker, setShowTicker] = useState(false);
+
+  // Aceita .docx por extensão ou MIME (alguns browsers não preenchem type)
+  const isDocx = (f: File | null) =>
+    !!f && (f.name.toLowerCase().endsWith('.docx') || f.type === DOCX_MIME);
 
   // delete
   const [delOpen, setDelOpen] = useState(false);
@@ -112,11 +118,20 @@ export default function TemplatesPage() {
         openSnackbar({ open: true, message: 'Template atualizado.', variant: 'alert', alert: { color: 'success' } } as any);
       } else {
         if (!formFile) {
-          openSnackbar({ open: true, message: 'Selecione um PDF', variant: 'alert', alert: { color: 'warning' } } as any);
+          openSnackbar({ open: true, message: 'Selecione um arquivo .docx', variant: 'alert', alert: { color: 'warning' } } as any);
           return;
         }
         if (!formTitle.trim()) {
           openSnackbar({ open: true, message: 'Título é obrigatório', variant: 'alert', alert: { color: 'warning' } } as any);
+          return;
+        }
+        // NOVO: exige DOCX
+        if (!isDocx(formFile)) {
+          openSnackbar({
+            open: true,
+            message: 'Selecione um arquivo .docx para criar o template.',
+            variant: 'alert', alert: { color: 'warning' }
+          } as any);
           return;
         }
         setShowTicker(true);
@@ -136,8 +151,8 @@ export default function TemplatesPage() {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
     } finally {
       setSubmitting(false);
-      // deixa o ticker respirar 1 seg e some
-      setTimeout(() => setShowTicker(false), 1000);
+      // O LoadingTicker vai controlar o tempo mínimo internamente
+      setShowTicker(false);
     }
   }
 
@@ -167,7 +182,7 @@ export default function TemplatesPage() {
     
     try {
       setLoading(true);
-      const { blob } = await getTemplateFileBlob(template.id, fileId);
+      const { blob } = await getTemplateDocxBlob(template.id, fileId);
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
       // revoga depois de um tempo pra liberar memória
@@ -260,7 +275,7 @@ export default function TemplatesPage() {
                                 size="small" 
                                 color="info" 
                                 onClick={() => viewTemplate(t)}
-                                title="Visualizar PDF"
+                                title="Baixar DOCX"
                               >
                                 <EyeOutlined />
                               </IconButton>
@@ -304,8 +319,27 @@ export default function TemplatesPage() {
             />
             {!editing && (
               <Button component="label" variant="outlined">
-                {formFile ? formFile.name : 'Selecionar PDF'}
-                <input type="file" accept="application/pdf" hidden onChange={(e) => setFormFile(e.target.files?.[0] || null)} />
+                {formFile ? formFile.name : 'Selecionar modelo (.docx)'}
+                <input
+                  type="file"
+                  hidden
+                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    if (f && !isDocx(f)) {
+                      openSnackbar({
+                        open: true,
+                        message: 'Envie um arquivo .docx (Word).',
+                        variant: 'alert',
+                        alert: { color: 'warning' }
+                      } as any);
+                      e.currentTarget.value = '';
+                      setFormFile(null);
+                      return;
+                    }
+                    setFormFile(f);
+                  }}
+                />
               </Button>
             )}
           </Stack>
@@ -325,9 +359,10 @@ export default function TemplatesPage() {
               size="small"
               showSpinner={true}
               spinnerSize={16}
+              minDuration={13000} // 13 segundos mínimo para templates
               script={[
                 'Preparando upload...',
-                'Validando arquivo PDF...',
+                'Validando arquivo DOCX...',
                 'Processando template...',
                 'Extraindo conteúdo...',
                 'Gerando metadados...',

@@ -1,5 +1,6 @@
 // src/pages/ai-docs/AiDocsMVP.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -14,7 +15,6 @@ import LoadingTicker from 'components/LoadingTicker';
 import { openSnackbar } from 'api/snackbar';
 
 import {
-  createTemplate,
   createCase,
   uploadCaseDoc,
   generateDraft,
@@ -24,10 +24,9 @@ import {
   updateDraft,
   exportDraft,
   getExportFileBlob,
-  type AiDraft,
-  type DraftJson,
-  type AiSuggestion
+  type DraftJson
 } from 'api/aiDocs';
+import type { AiDraft, AiSuggestion } from 'types/wdoc';
 
 const emptyDraft: DraftJson = {
   enderecamento: '',
@@ -41,8 +40,17 @@ const emptyDraft: DraftJson = {
 
 export default function AiDocsMVP() {
   // ===== Case =====
-  const [caseType, setCaseType] = useState('acao-rescisoria');
-  const [requestText, setRequestText] = useState('Preciso de uma petição de ação rescisória baseada no fato X ...');
+  const [searchParams] = useSearchParams();
+  const initialTemplateId = searchParams.get('templateId') || null;
+  const initialKind = searchParams.get('kind') || 'acao-rescisoria';
+  const initialCaseId = searchParams.get('caseId');
+  const initialPedido = searchParams.get('pedido');
+
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(initialTemplateId);
+  const [caseType, setCaseType] = useState(initialKind);
+  const [requestText, setRequestText] = useState(
+    initialPedido ? decodeURIComponent(initialPedido) : 'Preciso de uma petição de ação rescisória baseada no fato X ...'
+  );
   const [caseId, setCaseId] = useState<string | null>(null);
   const [caseStatus, setCaseStatus] = useState<string | null>(null);
 
@@ -66,12 +74,20 @@ export default function AiDocsMVP() {
   const [expLoading, setExpLoading] = useState(false);
   const [lastExportFileId, setLastExportFileId] = useState<string | null>(null);
 
+  // se chegamos a partir do /ai-docs/create com caseId, já deixamos pronto
+  useEffect(() => {
+    if (initialCaseId) {
+      setCaseId(initialCaseId);
+      setCaseStatus('DRAFT');
+    }
+  }, [initialCaseId]);
+
   // Handlers
   async function handleCreateCase() {
     try {
       const c = await createCase({ type: caseType, requestText });
       setCaseId(c.id);
-      setCaseStatus(c.status);
+      setCaseStatus('DRAFT');
       openSnackbar({ open: true, message: 'Caso criado!', variant: 'alert', alert: { color: 'success' } } as any);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
@@ -94,16 +110,16 @@ export default function AiDocsMVP() {
     try {
       setGenLoading(true);
       setShowTicker(true);
-      const d = await generateDraft(caseId);
+      const d = await generateDraft(caseId, selectedTemplateId || undefined);
       setDraft(d);
-      setDraftJson(d.json);
+      setDraftJson(d.json as unknown as DraftJson);
       openSnackbar({ open: true, message: 'Draft gerado!', variant: 'alert', alert: { color: 'success' } } as any);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
     } finally {
       setGenLoading(false);
-      // deixa o ticker respirar 1 seg e some
-      setTimeout(() => setShowTicker(false), 1000);
+      // O LoadingTicker vai controlar o tempo mínimo internamente
+      setShowTicker(false);
     }
   }
 
@@ -111,9 +127,9 @@ export default function AiDocsMVP() {
     if (!draft) return;
     try {
       setSaveLoading(true);
-      const updated = await updateDraft(draft.id, { json: draftJson });
+      const updated = await updateDraft(draft.id, { json: draftJson as any });
       setDraft(updated);
-      setDraftJson(updated.json);
+      setDraftJson(updated.json as unknown as DraftJson);
       openSnackbar({ open: true, message: 'Rascunho salvo!', variant: 'alert', alert: { color: 'success' } } as any);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
@@ -140,7 +156,7 @@ export default function AiDocsMVP() {
     try {
       const res = await acceptSuggestion(draft.id, sug.id);
       setDraft(res.draft);
-      setDraftJson(res.draft.json);
+      setDraftJson(res.draft.json as unknown as DraftJson);
       setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'ACCEPTED' } : s)));
       openSnackbar({ open: true, message: 'Sugestão aplicada!', variant: 'alert', alert: { color: 'success' } } as any);
     } catch (e: any) {
@@ -192,11 +208,11 @@ export default function AiDocsMVP() {
     if (!lastExportFileId) return;
     try {
       setExpLoading(true);
-      const { blob, filename } = await getExportFileBlob(lastExportFileId);
+      const { blob } = await getExportFileBlob(lastExportFileId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename || 'documento.pdf';
+      a.download = 'documento.pdf';
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -215,7 +231,10 @@ export default function AiDocsMVP() {
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <TextField label="Tipo" value={caseType} onChange={(e) => setCaseType(e.target.value)} sx={{ minWidth: 220 }} />
-            <Button variant="contained" onClick={handleCreateCase}>Criar Caso</Button>
+            <Button variant="contained" onClick={handleCreateCase} disabled={!!caseId}>Criar Caso</Button>
+            {selectedTemplateId && (
+              <Chip label={`templateId: ${selectedTemplateId}`} color="info" variant="outlined" />
+            )}
             {caseId && <Chip label={`caseId: ${caseId}`} />}
             {caseStatus && <Chip label={`status: ${caseStatus}`} color="info" />}
           </Stack>
@@ -259,6 +278,7 @@ export default function AiDocsMVP() {
               size="medium"
               showSpinner={true}
               spinnerSize={18}
+              minDuration={15000} // 5 segundos mínimo
               // Se quiser customizar as frases, passe "script={[...]}"
             />
           </Box>

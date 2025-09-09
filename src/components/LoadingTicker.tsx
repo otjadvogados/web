@@ -22,6 +22,8 @@ type LoadingTickerProps = {
   showSpinner?: boolean;
   /** Tamanho do spinner */
   spinnerSize?: number;
+  /** Duração mínima em ms que o ticker deve ficar ativo (mesmo que running vire false) */
+  minDuration?: number;
 };
 
 type Item = { id: number; text: string };
@@ -47,13 +49,49 @@ export default function LoadingTicker({
   size = 'medium',
   maxWidth,
   showSpinner = false,
-  spinnerSize = 18
+  spinnerSize = 18,
+  minDuration = 0
 }: LoadingTickerProps) {
   const [items, setItems] = useState<Item[]>([]);
+  const [internalRunning, setInternalRunning] = useState(false);
   const idRef = useRef(0);
   const timerRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const minDurationTimerRef = useRef<number | null>(null);
 
   const isManual = Array.isArray(messagesFeed) && messagesFeed.length > 0;
+
+  // Controla a duração mínima
+  useEffect(() => {
+    if (running && !startTimeRef.current) {
+      // Inicia o ticker
+      startTimeRef.current = Date.now();
+      setInternalRunning(true);
+    } else if (!running && startTimeRef.current) {
+      // Para o ticker, mas verifica se já passou o tempo mínimo
+      const elapsed = Date.now() - startTimeRef.current;
+      const remaining = minDuration - elapsed;
+      
+      if (remaining > 0) {
+        // Ainda não passou o tempo mínimo, aguarda
+        minDurationTimerRef.current = window.setTimeout(() => {
+          setInternalRunning(false);
+          startTimeRef.current = null;
+        }, remaining);
+      } else {
+        // Já passou o tempo mínimo, para imediatamente
+        setInternalRunning(false);
+        startTimeRef.current = null;
+      }
+    }
+
+    return () => {
+      if (minDurationTimerRef.current) {
+        window.clearTimeout(minDurationTimerRef.current);
+        minDurationTimerRef.current = null;
+      }
+    };
+  }, [running, minDuration]);
 
   // Configurações baseadas no tamanho
   const sizeConfig = useMemo(() => {
@@ -87,7 +125,7 @@ export default function LoadingTicker({
   // Modo "scriptado" (sem backend): gera as linhas no intervalo definido
   useEffect(() => {
     if (isManual) return; // não roda script se vier feed externo
-    if (!running) {
+    if (!internalRunning) {
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
         timerRef.current = null;
@@ -113,7 +151,7 @@ export default function LoadingTicker({
         timerRef.current = null;
       }
     };
-  }, [running, script, finalIntervalMs, isManual]);
+  }, [internalRunning, script, finalIntervalMs, isManual]);
 
   // Calcula deslocamento vertical (scroll) para manter só as últimas N visíveis
   const translateY = useMemo(() => {
@@ -121,7 +159,7 @@ export default function LoadingTicker({
     return overflow * finalRowHeight;
   }, [items.length, finalMaxVisible, finalRowHeight]);
 
-  if (!running && !items.length) return null;
+  if (!internalRunning && !items.length) return null;
 
   const tickerContent = (
     <Box sx={{ overflow: 'hidden', height: finalMaxVisible * finalRowHeight, maxWidth: finalMaxWidth }}>

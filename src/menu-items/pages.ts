@@ -68,6 +68,12 @@ const pages: NavItemType = {
           url: '/ai-docs'
         },
         {
+          id: 'ai-docs-create',
+          title: 'Criar Caso',
+          type: 'item',
+          url: '/ai-docs/create'
+        },
+        {
           id: 'ai-docs-templates',
           title: 'Templates',
           type: 'item',

@@ -1,0 +1,14 @@
+{
+  "editor.title": "Editor (WDoc)",
+  "editor.generating": "Gerando…",
+  "editor.save": "Rascunho salvo",
+  "editor.export.docx": "DOCX gerado",
+  "editor.export.pdf": "Export solicitado",
+  "chat.title": "Chat",
+  "chat.send": "Enviar",
+  "chat.suggestions": "Sugestões",
+  "structure.title": "Estrutura",
+  "structure.add.heading": "+ Heading",
+  "structure.add.paragraph": "+ Parágrafo",
+  "structure.add.bullet": "+ Lista com marcadores"
+}

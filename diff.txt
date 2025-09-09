@@ -1,361 +1,1304 @@
-diff --git a/src/api/aiCategories.ts b/src/api/aiCategories.ts
-new file mode 100644
-index 0000000..d5ae243
---- /dev/null
-+++ b/src/api/aiCategories.ts
-@@ -0,0 +1,47 @@
-+// src/api/aiCategories.ts
-+import api from '../utils/axios';
-+
-+const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
-+
-+export type AiCategory = { 
-+  id: string; 
-+  name: string; 
-+  slug: string; 
-+  companyId?: string | null;
-+  companyScope?: 'global' | 'company';
+diff --git a/src/api/aiDocs.ts b/src/api/aiDocs.ts
+index 093ab06..c4029ba 100644
+--- a/src/api/aiDocs.ts
++++ b/src/api/aiDocs.ts
+@@ -1,6 +1,8 @@
+ // src/api/aiDocs.ts
+-import api from '../utils/axios';
++import axios from 'utils/axios';
++import type { AiDraft, AiSuggestion, WDoc } from 'types/wdoc';
+ 
++// ==============================================================
+ // lembre: LANG vem de VITE_APP_ACCEPT_LANGUAGE
+ const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
+ 
+@@ -18,9 +20,40 @@ export type AiTemplateListResponse = {
+   pagination: { page: number; limit: number; total: number };
+ };
+ 
++// ====== BY CATEGORY ======
++export type TemplatesByCategoryItem = {
++  categoryId: string | null;
++  templates: Array<{
++    id: string;
++    name: string;
++    kind: string;
++    description?: string | null;
++    fileId?: string | null;
++    updatedAt?: string;
++  }>;
 +};
-+
-+export type AiCategoryListResponse = {
++export type TemplatesByCategoryResponse = {
 +  message: string;
-+  data: AiCategory[];
-+  pagination: { page: number; limit: number; total: number };
++  data: TemplatesByCategoryItem[];
 +};
 +
-+export async function listCategories(params?: { search?: string; page?: number; limit?: number }) {
-+  const res = await api.get<AiCategoryListResponse>('/ai/categories', {
++export async function listTemplatesByCategory(params?: {
++  type?: string;
++  search?: string;
++  limitPerCategory?: number;
++  onlyWithTemplates?: boolean;
++}) {
++  const { data } = await axios.get<TemplatesByCategoryResponse>('/ai/templates/by-category', {
 +    params,
 +    headers: { 'Accept-Language': LANG }
 +  });
-+  return res.data;
++  return data;
 +}
 +
-+export async function createCategory(payload: { name: string; companyScope?: 'global' | 'company' }) {
-+  const res = await api.post<{ message: string; data: AiCategory }>('/ai/categories', payload, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data.data;
+ // ===== Templates - list/update/delete =====
+ export async function listTemplates(params?: { search?: string; categoryId?: string; page?: number; limit?: number }) {
+-  const res = await api.get<AiTemplateListResponse>('/ai/templates', { params, headers: { 'Accept-Language': LANG } }); return res.data;
++  const { data } = await axios.get<AiTemplateListResponse>('/ai/templates', { params, headers: { 'Accept-Language': LANG } }); 
++  return data;
+ }
+ 
+ export type AiCase = {
+@@ -44,30 +77,6 @@ export type DraftJson = {
+   [k: string]: any;
+ };
+ 
+-export type AiDraft = {
+-  id: string;
+-  caseId: string;
+-  templateId?: string | null;
+-  version: number;
+-  status: string; // 'draft' | ...
+-  json: DraftJson;
+-  createdAt: string;
+-  updatedAt: string;
+-};
+-
+-export type AiSuggestion = {
+-  id: string;
+-  sessionId: string;
+-  draftId: string;
+-  draftVersion: number;
+-  ops: Array<{ op: string; path: string; value?: any; from?: string }>;
+-  rationale?: string | null;
+-  confidence?: number | null;
+-  targets: string[];
+-  status: 'PENDING'|'ACCEPTED'|'REJECTED';
+-  createdAt: string;
+-};
+-
+ export type AiExport = {
+   id: string;
+   draftId: string;
+@@ -79,144 +88,130 @@ export type AiExport = {
+ };
+ 
+ 
+-// ===== Templates =====
+-export async function createTemplate(params: { file: File; title: string; description?: string; categoryId?: string | null }) {
+-  const fd = new FormData();
+-  fd.append('file', params.file);
+-  fd.append('title', params.title);
+-  if (params.description) fd.append('description', params.description);
+-  if (params.categoryId) fd.append('categoryId', params.categoryId);
++//
++// Drafts
++//
++export async function generateDraft(caseId: string, templateId?: string) {
++  const { data } = await axios.post<{ data: AiDraft }>(
++    `/ai/drafts/${encodeURIComponent(caseId)}/generate`,
++    templateId ? { templateId } : {}
++  );
++  return data.data;
 +}
-+
-+export async function updateCategory(id: string, payload: { name: string }) {
-+  const res = await api.patch<{ message: string; data: AiCategory }>(`/ai/categories/${id}`, payload, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data.data;
-+}
-+
-+export async function deleteCategory(id: string) {
-+  const res = await api.delete<{ message: string }>(`/ai/categories/${id}`, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data;
-+}
-diff --git a/src/api/aiDocs.ts b/src/api/aiDocs.ts
-new file mode 100644
-index 0000000..093ab06
---- /dev/null
-+++ b/src/api/aiDocs.ts
-@@ -0,0 +1,222 @@
-+// src/api/aiDocs.ts
-+import api from '../utils/axios';
-+
-+// lembre: LANG vem de VITE_APP_ACCEPT_LANGUAGE
-+const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
-+
-+// ===== Types (ou coloque em src/types/ai-docs.ts) =====
-+export type AiTemplate = {
-+  id: string;
-+  kind: string;
-+  title: string;
-+  description?: string | null;
-+  createdAt?: string;
-+};
-+
-+export type AiTemplateListResponse = {
-+  data: AiTemplate[];
-+  pagination: { page: number; limit: number; total: number };
-+};
-+
-+// ===== Templates - list/update/delete =====
-+export async function listTemplates(params?: { search?: string; categoryId?: string; page?: number; limit?: number }) {
-+  const res = await api.get<AiTemplateListResponse>('/ai/templates', { params, headers: { 'Accept-Language': LANG } }); return res.data;
-+}
-+
-+export type AiCase = {
-+  id: string;
-+  userId: string;
-+  companyId?: string | null;
-+  type: string;
-+  requestText: string;
-+  status: 'DRAFT'|'GENERATING'|'READY'|'APPROVED'|'REJECTED'|string;
-+  createdAt: string;
-+};
-+
-+export type DraftJson = {
-+  enderecamento: string;
-+  qualificacao: string;
-+  fatos: string;
-+  fundamentos: string;
-+  pedidos: string[];
-+  jurisprudencia: string[];
-+  observacoes: string;
-+  [k: string]: any;
-+};
-+
-+export type AiDraft = {
-+  id: string;
-+  caseId: string;
-+  templateId?: string | null;
-+  version: number;
-+  status: string; // 'draft' | ...
-+  json: DraftJson;
-+  createdAt: string;
-+  updatedAt: string;
-+};
-+
-+export type AiSuggestion = {
-+  id: string;
-+  sessionId: string;
-+  draftId: string;
-+  draftVersion: number;
-+  ops: Array<{ op: string; path: string; value?: any; from?: string }>;
-+  rationale?: string | null;
-+  confidence?: number | null;
-+  targets: string[];
-+  status: 'PENDING'|'ACCEPTED'|'REJECTED';
-+  createdAt: string;
-+};
-+
-+export type AiExport = {
-+  id: string;
-+  draftId: string;
-+  kind: 'DOCX'|'PDF';
-+  status: 'PENDING'|'DONE'|'ERROR';
-+  fileId?: string | null;
-+  error?: string | null;
-+  createdAt: string;
-+};
-+
-+
-+// ===== Templates =====
+ 
+-  const res = await api.post<{ message: string; data: AiTemplate }>(`/ai/templates`, fd, {
+-    headers: { 'Accept-Language': LANG }
+-  });
+-  return res.data.data;
++export async function updateDraft(
++  draftId: string,
++  payload: { json: WDoc; status?: string }
++) {
++  const { data } = await axios.patch<{ data: AiDraft }>(
++    `/ai/drafts/${encodeURIComponent(draftId)}`,
++    payload
++  );
++  return data.data;
+ }
+ 
+-export async function updateTemplate(id: string, payload: { title?: string; description?: string | null; categoryId?: string | null; kind?: string }) {
+-  const res = await api.patch<{ message: string; data: AiTemplate }>(`/ai/templates/${id}`, payload, {
+-    headers: { 'Accept-Language': LANG }
+-  });
+-  return res.data.data;
++export async function exportDraft(
++  draftId: string,
++  kind: 'DOCX' | 'PDF'
++): Promise<{ id: string; draftId: string; kind: 'DOCX' | 'PDF'; status: string; fileId?: string }> {
++  const { data } = await axios.post<{ data: any }>(
++    `/ai/drafts/${encodeURIComponent(draftId)}/export`,
++    { kind }
++  );
++  return data.data;
+ }
+ 
+-export async function deleteTemplate(id: string) {
+-  const res = await api.delete<{ message: string }>(`/ai/templates/${id}`, {
+-    headers: { 'Accept-Language': LANG }
++//
++// Arquivos (storage)
++//
++export async function getExportFileBlob(fileId: string) {
++  const res = await axios.get(`/files/${encodeURIComponent(fileId)}`, {
++    responseType: 'blob'
+   });
+-  return res.data;
++  return { blob: res.data as Blob };
+ }
+ 
+-// ===== Cases =====
+-export async function createCase(params: { type: string; requestText: string }) {
+-  const res = await api.post<{ message: string; data: AiCase }>(`/ai/cases`, params, {
+-    headers: { 'Accept-Language': LANG }
+-  });
+-  return res.data.data;
++//
++// Chat & sugestões
++//
++export async function postChatMessage(caseId: string, text: string) {
++  const { data } = await axios.post<{ data: { sessionId: string; draftId: string; suggestions: AiSuggestion[]; messageId: string } }>(
++    `/ai/chats/${encodeURIComponent(caseId)}/messages`,
++    { text }
++  );
++  return data.data;
+ }
+ 
+-export async function uploadCaseDoc(caseId: string, file: File) {
+-  const fd = new FormData();
+-  fd.append('file', file);
+-  const res = await api.post<{ message: string }>(`/ai/cases/${caseId}/doc`, fd, {
+-    headers: { 'Accept-Language': LANG }
+-  });
+-  return res.data;
++export async function acceptSuggestion(draftId: string, suggestionId: string) {
++  const { data } = await axios.post<{ data: { draft: AiDraft; suggestion: AiSuggestion } }>(
++    `/ai/drafts/${encodeURIComponent(draftId)}/suggestions/${encodeURIComponent(suggestionId)}/accept`
++  );
++  return data.data;
+ }
+ 
+-// ===== Drafts =====
+-export async function generateDraft(caseId: string, templateId?: string) {
+-  const res = await api.post<{ message: string; data: AiDraft }>(`/ai/drafts/${caseId}/generate`, { templateId }, {
+-    headers: { 'Accept-Language': LANG }
+-  });
+-  return res.data.data;
++export async function rejectSuggestion(draftId: string, suggestionId: string) {
++  const { data } = await axios.post<{ data: { suggestion: AiSuggestion } }>(
++    `/ai/drafts/${encodeURIComponent(draftId)}/suggestions/${encodeURIComponent(suggestionId)}/reject`
++  );
++  return data.data;
+ }
+ 
+-export async function updateDraft(draftId: string, payload: { json: DraftJson; status?: string }) {
+-  const res = await api.patch<{ message: string; data: AiDraft }>(`/ai/drafts/${draftId}`, payload, {
+-    headers: { 'Accept-Language': LANG }
+-  });
+-  return res.data.data;
++//
++// Cases
++//
++export async function createCase(payload: { type: string; requestText: string }) {
++  const { data } = await axios.post<{ data: { id: string } }>(`/ai/cases`, payload);
++  return data.data;
+ }
+ 
+-export async function exportDraft(draftId: string, kind: 'DOCX'|'PDF') {
+-  const res = await api.post<{ message: string; data: AiExport }>(`/ai/drafts/${draftId}/export`, { kind }, {
+-    headers: { 'Accept-Language': LANG }
++export async function uploadCaseDoc(caseId: string, file: File) {
++  const form = new FormData();
++  form.append('file', file);
++  const { data } = await axios.post(`/ai/cases/${encodeURIComponent(caseId)}/doc`, form, {
++    headers: { 'Content-Type': 'multipart/form-data' }
+   });
+-  return res.data.data;
++  return data;
+ }
+ 
+-// ===== Chat & Sugestões =====
+-export async function postChatMessage(caseId: string, text: string) {
+-  type Resp = { message: string; data: { sessionId: string; draftId: string; suggestions: AiSuggestion[]; messageId: string } };
+-  const res = await api.post<Resp>(`/ai/chats/${caseId}/messages`, { text }, {
+-    headers: { 'Accept-Language': LANG }
++export async function uploadCaseDocs(caseId: string, files: File[]) {
++  const form = new FormData();
++  files.forEach((f) => form.append('files', f));
++  const { data } = await axios.post(`/ai/cases/${encodeURIComponent(caseId)}/docs`, form, {
++    headers: { 'Content-Type': 'multipart/form-data' }
+   });
+-  return res.data.data;
++  return data;
+ }
+ 
+-export async function acceptSuggestion(draftId: string, suggestionId: string) {
+-  const res = await api.post<{ message: string; data: { draft: AiDraft; suggestion: AiSuggestion } }>(
+-    `/ai/drafts/${draftId}/suggestions/${suggestionId}/accept`,
+-    null,
+-    { headers: { 'Accept-Language': LANG } }
+-  );
+-  return res.data.data;
+-}
++//
++// Templates
++//
 +export async function createTemplate(params: { file: File; title: string; description?: string; categoryId?: string | null }) {
 +  const fd = new FormData();
 +  fd.append('file', params.file);
 +  fd.append('title', params.title);
 +  if (params.description) fd.append('description', params.description);
 +  if (params.categoryId) fd.append('categoryId', params.categoryId);
-+
-+  const res = await api.post<{ message: string; data: AiTemplate }>(`/ai/templates`, fd, {
-+    headers: { 'Accept-Language': LANG }
+ 
+-export async function rejectSuggestion(draftId: string, suggestionId: string) {
+-  const res = await api.post<{ message: string; data: { suggestion: AiSuggestion } }>(
+-    `/ai/drafts/${draftId}/suggestions/${suggestionId}/reject`,
+-    null,
+-    { headers: { 'Accept-Language': LANG } }
+-  );
+-  return res.data.data;
++  const { data } = await axios.post<{ data: AiTemplate }>(`/ai/templates`, fd, {
++    headers: { 'Content-Type': 'multipart/form-data' }
 +  });
-+  return res.data.data;
-+}
-+
++  return data.data;
+ }
+ 
+-// ===== File (Export) -> retorna BLOB autenticado (JWT via axios) =====
+-export async function getExportFileBlob(fileId: string) {
+-  const res = await api.get(`/ai/exports/current/file`, {
+-    params: { v: fileId },
+-    responseType: 'blob',
+-    headers: { 'Accept-Language': LANG }
+-  });
 +export async function updateTemplate(id: string, payload: { title?: string; description?: string | null; categoryId?: string | null; kind?: string }) {
-+  const res = await api.patch<{ message: string; data: AiTemplate }>(`/ai/templates/${id}`, payload, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data.data;
++  const { data } = await axios.patch<{ data: AiTemplate }>(`/ai/templates/${id}`, payload);
++  return data.data;
 +}
-+
+ 
+-  // tenta extrair filename do Content-Disposition
+-  const cd = (res.headers as any)['content-disposition'] as string | undefined;
+-  let filename = 'documento.pdf';
+-  if (cd) {
+-    // filename*=UTF-8''name.pdf OU filename="name.pdf"
+-    const m1 = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(cd);
+-    const m2 = /filename="?([^"]+)"?/i.exec(cd);
+-    const raw = (m1?.[1] || m2?.[1])?.trim();
+-    if (raw) {
+-      try { filename = decodeURIComponent(raw.replace(/^UTF-8''/i, '')); } catch { filename = raw; }
+-    }
+-  }
+-  const contentType = (res.headers as any)['content-type'] as string | undefined;
+-  return { blob: res.data as Blob, filename, contentType };
+-}
+-
+-// ===== Template PDF -> retorna BLOB autenticado (JWT via axios) =====
+-export async function getTemplateFileBlob(templateId: string, fileId: string) {
+-  const res = await api.get(`/ai/templates/${templateId}/pdf`, {
+-    params: { v: fileId },
+-    responseType: 'blob',
+-    headers: { 'Accept-Language': LANG }
+-  });
 +export async function deleteTemplate(id: string) {
-+  const res = await api.delete<{ message: string }>(`/ai/templates/${id}`, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data;
++  const { data } = await axios.delete<{ message: string }>(`/ai/templates/${id}`);
++  return data;
 +}
-+
-+// ===== Cases =====
-+export async function createCase(params: { type: string; requestText: string }) {
-+  const res = await api.post<{ message: string; data: AiCase }>(`/ai/cases`, params, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data.data;
-+}
-+
-+export async function uploadCaseDoc(caseId: string, file: File) {
-+  const fd = new FormData();
-+  fd.append('file', file);
-+  const res = await api.post<{ message: string }>(`/ai/cases/${caseId}/doc`, fd, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data;
-+}
-+
-+// ===== Drafts =====
-+export async function generateDraft(caseId: string, templateId?: string) {
-+  const res = await api.post<{ message: string; data: AiDraft }>(`/ai/drafts/${caseId}/generate`, { templateId }, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data.data;
-+}
-+
-+export async function updateDraft(draftId: string, payload: { json: DraftJson; status?: string }) {
-+  const res = await api.patch<{ message: string; data: AiDraft }>(`/ai/drafts/${draftId}`, payload, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data.data;
-+}
-+
-+export async function exportDraft(draftId: string, kind: 'DOCX'|'PDF') {
-+  const res = await api.post<{ message: string; data: AiExport }>(`/ai/drafts/${draftId}/export`, { kind }, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data.data;
-+}
-+
-+// ===== Chat & Sugestões =====
-+export async function postChatMessage(caseId: string, text: string) {
-+  type Resp = { message: string; data: { sessionId: string; draftId: string; suggestions: AiSuggestion[]; messageId: string } };
-+  const res = await api.post<Resp>(`/ai/chats/${caseId}/messages`, { text }, {
-+    headers: { 'Accept-Language': LANG }
-+  });
-+  return res.data.data;
-+}
-+
-+export async function acceptSuggestion(draftId: string, suggestionId: string) {
-+  const res = await api.post<{ message: string; data: { draft: AiDraft; suggestion: AiSuggestion } }>(
-+    `/ai/drafts/${draftId}/suggestions/${suggestionId}/accept`,
-+    null,
-+    { headers: { 'Accept-Language': LANG } }
+ 
+-  // tenta extrair filename do Content-Disposition
+-  const cd = (res.headers as any)['content-disposition'] as string | undefined;
+-  let filename = 'template.pdf';
+-  if (cd) {
+-    // filename*=UTF-8''name.pdf OU filename="name.pdf"
+-    const m1 = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(cd);
+-    const m2 = /filename="?([^"]+)"?/i.exec(cd);
+-    const raw = (m1?.[1] || m2?.[1])?.trim();
+-    if (raw) {
+-      try { filename = decodeURIComponent(raw.replace(/^UTF-8''/i, '')); } catch { filename = raw; }
+-    }
+-  }
+-  const contentType = (res.headers as any)['content-type'] as string | undefined;
+-  return { blob: res.data as Blob, filename, contentType };
++export async function getTemplatePdfBlob(templateId: string, v?: string) {
++  const { data } = await axios.get(
++    `/ai/templates/${encodeURIComponent(templateId)}/pdf`,
++    { params: v ? { v } : undefined, responseType: 'blob' }
 +  );
-+  return res.data.data;
-+}
++  return { blob: data as Blob };
+ }
+diff --git a/src/components/LoadingTicker.tsx b/src/components/LoadingTicker.tsx
+new file mode 100644
+index 0000000..c96b486
+--- /dev/null
++++ b/src/components/LoadingTicker.tsx
+@@ -0,0 +1,206 @@
++// src/components/LoadingTicker.tsx
++import { useEffect, useMemo, useRef, useState } from 'react';
++import { Box, Stack, Typography, CircularProgress } from '@mui/material';
 +
-+export async function rejectSuggestion(draftId: string, suggestionId: string) {
-+  const res = await api.post<{ message: string; data: { suggestion: AiSuggestion } }>(
-+    `/ai/drafts/${draftId}/suggestions/${suggestionId}/reject`,
-+    null,
-+    { headers: { 'Accept-Language': LANG } }
++type LoadingTickerProps = {
++  running: boolean;
++  /** Mensagens "fake" que vão subindo enquanto running=true */
++  script?: string[];
++  /** Tempo entre mensagens do script */
++  intervalMs?: number;
++  /** Quantas linhas ficam visíveis no viewport */
++  maxVisible?: number;
++  /** Altura de cada linha (precisa ser fixa p/ animação suave) */
++  rowHeight?: number;
++  /** Quando quiser alimentar manualmente (SSE/polling), passe msgs aqui */
++  messagesFeed?: string[];
++  /** Tamanho do componente: 'small' | 'medium' | 'large' | 'full' */
++  size?: 'small' | 'medium' | 'large' | 'full';
++  /** Largura máxima do componente */
++  maxWidth?: string | number;
++  /** Se deve mostrar o CircularProgress junto */
++  showSpinner?: boolean;
++  /** Tamanho do spinner */
++  spinnerSize?: number;
++  /** Duração mínima em ms que o ticker deve ficar ativo (mesmo que running vire false) */
++  minDuration?: number;
++};
++
++type Item = { id: number; text: string };
++
++const DEFAULT_SCRIPT = [
++  'Ligando os motores de IA…',
++  'Carregando template base…',
++  'Lendo anexos do caso…',
++  'Buscando jurisprudência relevante…',
++  'Extraindo fatos principais…',
++  'Montando rascunho…',
++  'Verificando coerência…',
++  'Quase lá…'
++];
++
++export default function LoadingTicker({
++  running,
++  script = DEFAULT_SCRIPT,
++  intervalMs = 1200,
++  maxVisible = 3,
++  rowHeight = 24,
++  messagesFeed,
++  size = 'medium',
++  maxWidth,
++  showSpinner = false,
++  spinnerSize = 18,
++  minDuration = 0
++}: LoadingTickerProps) {
++  const [items, setItems] = useState<Item[]>([]);
++  const [internalRunning, setInternalRunning] = useState(false);
++  const idRef = useRef(0);
++  const timerRef = useRef<number | null>(null);
++  const startTimeRef = useRef<number | null>(null);
++  const minDurationTimerRef = useRef<number | null>(null);
++
++  const isManual = Array.isArray(messagesFeed) && messagesFeed.length > 0;
++
++  // Controla a duração mínima
++  useEffect(() => {
++    if (running && !startTimeRef.current) {
++      // Inicia o ticker
++      startTimeRef.current = Date.now();
++      setInternalRunning(true);
++    } else if (!running && startTimeRef.current) {
++      // Para o ticker, mas verifica se já passou o tempo mínimo
++      const elapsed = Date.now() - startTimeRef.current;
++      const remaining = minDuration - elapsed;
++      
++      if (remaining > 0) {
++        // Ainda não passou o tempo mínimo, aguarda
++        minDurationTimerRef.current = window.setTimeout(() => {
++          setInternalRunning(false);
++          startTimeRef.current = null;
++        }, remaining);
++      } else {
++        // Já passou o tempo mínimo, para imediatamente
++        setInternalRunning(false);
++        startTimeRef.current = null;
++      }
++    }
++
++    return () => {
++      if (minDurationTimerRef.current) {
++        window.clearTimeout(minDurationTimerRef.current);
++        minDurationTimerRef.current = null;
++      }
++    };
++  }, [running, minDuration]);
++
++  // Configurações baseadas no tamanho
++  const sizeConfig = useMemo(() => {
++    switch (size) {
++      case 'small':
++        return { maxVisible: 2, rowHeight: 20, intervalMs: 1000, maxWidth: '200px' };
++      case 'medium':
++        return { maxVisible: 3, rowHeight: 24, intervalMs: 1200, maxWidth: '300px' };
++      case 'large':
++        return { maxVisible: 4, rowHeight: 28, intervalMs: 1500, maxWidth: '400px' };
++      case 'full':
++        return { maxVisible: 5, rowHeight: 32, intervalMs: 1800, maxWidth: '100%' };
++      default:
++        return { maxVisible: 3, rowHeight: 24, intervalMs: 1200, maxWidth: '300px' };
++    }
++  }, [size]);
++
++  // Usa configurações do size ou props customizadas
++  const finalMaxVisible = maxVisible || sizeConfig.maxVisible;
++  const finalRowHeight = rowHeight || sizeConfig.rowHeight;
++  const finalIntervalMs = intervalMs || sizeConfig.intervalMs;
++  const finalMaxWidth = maxWidth || sizeConfig.maxWidth;
++
++  // Quando for manual (SSE/poll), só refletimos o feed recebido.
++  useEffect(() => {
++    if (!isManual) return;
++    const mapped = messagesFeed.map((text) => ({ id: ++idRef.current, text }));
++    setItems(mapped.slice(-20)); // conserva só as últimas 20
++  }, [isManual, messagesFeed]);
++
++  // Modo "scriptado" (sem backend): gera as linhas no intervalo definido
++  useEffect(() => {
++    if (isManual) return; // não roda script se vier feed externo
++    if (!internalRunning) {
++      if (timerRef.current) {
++        window.clearInterval(timerRef.current);
++        timerRef.current = null;
++      }
++      return;
++    }
++    // zera items ao iniciar
++    setItems([{ id: ++idRef.current, text: script[0] }]);
++    let i = 1;
++
++    timerRef.current = window.setInterval(() => {
++      setItems((prev) => {
++        const nextText = script[i % script.length];
++        i++;
++        const next = [...prev, { id: ++idRef.current, text: nextText }];
++        return next.slice(-20);
++      });
++    }, finalIntervalMs);
++
++    return () => {
++      if (timerRef.current) {
++        window.clearInterval(timerRef.current);
++        timerRef.current = null;
++      }
++    };
++  }, [internalRunning, script, finalIntervalMs, isManual]);
++
++  // Calcula deslocamento vertical (scroll) para manter só as últimas N visíveis
++  const translateY = useMemo(() => {
++    const overflow = Math.max(0, items.length - finalMaxVisible);
++    return overflow * finalRowHeight;
++  }, [items.length, finalMaxVisible, finalRowHeight]);
++
++  if (!internalRunning && !items.length) return null;
++
++  const tickerContent = (
++    <Box sx={{ overflow: 'hidden', height: finalMaxVisible * finalRowHeight, maxWidth: finalMaxWidth }}>
++      <Stack
++        sx={{
++          transform: `translateY(-${translateY}px)`,
++          transition: 'transform .45s ease-out'
++        }}
++      >
++        {items.map((it, idx) => {
++          const isLast = idx === items.length - 1;
++          return (
++            <Typography
++              key={it.id}
++              variant="body2"
++              noWrap
++              sx={{
++                height: finalRowHeight,
++                lineHeight: `${finalRowHeight}px`,
++                color: isLast ? 'primary.main' : 'text.secondary',
++                fontWeight: isLast ? 600 : 400,
++                opacity: isLast ? 1 : 0.85
++              }}
++              title={it.text}
++            >
++              {it.text}
++            </Typography>
++          );
++        })}
++      </Stack>
++    </Box>
 +  );
-+  return res.data.data;
-+}
 +
-+// ===== File (Export) -> retorna BLOB autenticado (JWT via axios) =====
-+export async function getExportFileBlob(fileId: string) {
-+  const res = await api.get(`/ai/exports/current/file`, {
-+    params: { v: fileId },
-+    responseType: 'blob',
-+    headers: { 'Accept-Language': LANG }
-+  });
-+
-+  // tenta extrair filename do Content-Disposition
-+  const cd = (res.headers as any)['content-disposition'] as string | undefined;
-+  let filename = 'documento.pdf';
-+  if (cd) {
-+    // filename*=UTF-8''name.pdf OU filename="name.pdf"
-+    const m1 = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(cd);
-+    const m2 = /filename="?([^"]+)"?/i.exec(cd);
-+    const raw = (m1?.[1] || m2?.[1])?.trim();
-+    if (raw) {
-+      try { filename = decodeURIComponent(raw.replace(/^UTF-8''/i, '')); } catch { filename = raw; }
-+    }
++  if (showSpinner) {
++    return (
++      <Stack direction="row" spacing={2} alignItems="center">
++        <CircularProgress size={spinnerSize} />
++        {tickerContent}
++      </Stack>
++    );
 +  }
-+  const contentType = (res.headers as any)['content-type'] as string | undefined;
-+  return { blob: res.data as Blob, filename, contentType };
-+}
 +
-+// ===== Template PDF -> retorna BLOB autenticado (JWT via axios) =====
-+export async function getTemplateFileBlob(templateId: string, fileId: string) {
-+  const res = await api.get(`/ai/templates/${templateId}/pdf`, {
-+    params: { v: fileId },
-+    responseType: 'blob',
-+    headers: { 'Accept-Language': LANG }
-+  });
-+
-+  // tenta extrair filename do Content-Disposition
-+  const cd = (res.headers as any)['content-disposition'] as string | undefined;
-+  let filename = 'template.pdf';
-+  if (cd) {
-+    // filename*=UTF-8''name.pdf OU filename="name.pdf"
-+    const m1 = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(cd);
-+    const m2 = /filename="?([^"]+)"?/i.exec(cd);
-+    const raw = (m1?.[1] || m2?.[1])?.trim();
-+    if (raw) {
-+      try { filename = decodeURIComponent(raw.replace(/^UTF-8''/i, '')); } catch { filename = raw; }
-+    }
-+  }
-+  const contentType = (res.headers as any)['content-type'] as string | undefined;
-+  return { blob: res.data as Blob, filename, contentType };
++  return tickerContent;
 +}
 diff --git a/src/menu-items/pages.ts b/src/menu-items/pages.ts
-index 15da4b9..a0c7ae8 100644
+index a0c7ae8..cdd42aa 100644
 --- a/src/menu-items/pages.ts
 +++ b/src/menu-items/pages.ts
-@@ -53,6 +53,34 @@ const pages: NavItemType = {
-       icon: icons.TeamOutlined,
-       url: '/users'
-     },
-+    // 👇 AI Docs
-+    {
-+      id: 'ai-docs',
-+      title: 'IA Docs',
-+      type: 'collapse',
-+      icon: icons.AppstoreOutlined,
-+      isDropdown: true,
-+      children: [
+@@ -67,6 +67,12 @@ const pages: NavItemType = {
+           type: 'item',
+           url: '/ai-docs'
+         },
 +        {
-+          id: 'ai-docs-mvp',
-+          title: 'Gerar Documentos',
++          id: 'ai-docs-create',
++          title: 'Criar Caso',
 +          type: 'item',
-+          url: '/ai-docs'
++          url: '/ai-docs/create'
 +        },
-+        {
-+          id: 'ai-docs-templates',
-+          title: 'Templates',
-+          type: 'item',
-+          url: '/ai-docs/templates'
-+        },
-+        {
-+          id: 'ai-docs-categories',
-+          title: 'Categorias',
-+          type: 'item',
-+          url: '/ai-docs/categories'
-+        }
-+      ]
-+    },
-   ]
- };
- 
+         {
+           id: 'ai-docs-templates',
+           title: 'Templates',
 diff --git a/src/pages/ai-docs/AiDocsMVP.tsx b/src/pages/ai-docs/AiDocsMVP.tsx
-new file mode 100644
-index 0000000..f6269a8
---- /dev/null
+index f6269a8..e5308dd 100644
+--- a/src/pages/ai-docs/AiDocsMVP.tsx
 +++ b/src/pages/ai-docs/AiDocsMVP.tsx
-@@ -0,0 +1,358 @@
-+// src/pages/ai-docs/AiDocsMVP.tsx
-+import { useState } from 'react';
-+import Grid from '@mui/material/Grid';
-+import Stack from '@mui/material/Stack';
-+import TextField from '@mui/material/TextField';
-+import Button from '@mui/material/Button';
-+import Divider from '@mui/material/Divider';
-+import Typography from '@mui/material/Typography';
-+import Chip from '@mui/material/Chip';
-+import Paper from '@mui/material/Paper';
-+import Box from '@mui/material/Box';
-+import CircularProgress from '@mui/material/CircularProgress';
+@@ -1,6 +1,6 @@
+ // src/pages/ai-docs/AiDocsMVP.tsx
+-import { useState } from 'react';
+-import Grid from '@mui/material/Grid';
++import { useState, useEffect } from 'react';
++import { useSearchParams } from 'react-router-dom';
+ import Stack from '@mui/material/Stack';
+ import TextField from '@mui/material/TextField';
+ import Button from '@mui/material/Button';
+@@ -11,10 +11,10 @@ import Paper from '@mui/material/Paper';
+ import Box from '@mui/material/Box';
+ import CircularProgress from '@mui/material/CircularProgress';
+ import MainCard from 'components/MainCard';
++import LoadingTicker from 'components/LoadingTicker';
+ import { openSnackbar } from 'api/snackbar';
+ 
+ import {
+-  createTemplate,
+   createCase,
+   uploadCaseDoc,
+   generateDraft,
+@@ -24,10 +24,9 @@ import {
+   updateDraft,
+   exportDraft,
+   getExportFileBlob,
+-  type AiDraft,
+-  type DraftJson,
+-  type AiSuggestion
++  type DraftJson
+ } from 'api/aiDocs';
++import type { AiDraft, AiSuggestion } from 'types/wdoc';
+ 
+ const emptyDraft: DraftJson = {
+   enderecamento: '',
+@@ -41,8 +40,17 @@ const emptyDraft: DraftJson = {
+ 
+ export default function AiDocsMVP() {
+   // ===== Case =====
+-  const [caseType, setCaseType] = useState('acao-rescisoria');
+-  const [requestText, setRequestText] = useState('Preciso de uma petição de ação rescisória baseada no fato X ...');
++  const [searchParams] = useSearchParams();
++  const initialTemplateId = searchParams.get('templateId') || null;
++  const initialKind = searchParams.get('kind') || 'acao-rescisoria';
++  const initialCaseId = searchParams.get('caseId');
++  const initialPedido = searchParams.get('pedido');
++
++  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(initialTemplateId);
++  const [caseType, setCaseType] = useState(initialKind);
++  const [requestText, setRequestText] = useState(
++    initialPedido ? decodeURIComponent(initialPedido) : 'Preciso de uma petição de ação rescisória baseada no fato X ...'
++  );
+   const [caseId, setCaseId] = useState<string | null>(null);
+   const [caseStatus, setCaseStatus] = useState<string | null>(null);
+ 
+@@ -54,6 +62,7 @@ export default function AiDocsMVP() {
+   const [draft, setDraft] = useState<AiDraft | null>(null);
+   const [draftJson, setDraftJson] = useState<DraftJson>(emptyDraft);
+   const [genLoading, setGenLoading] = useState(false);
++  const [showTicker, setShowTicker] = useState(false);
+   const [saveLoading, setSaveLoading] = useState(false);
+ 
+   // ===== Chat =====
+@@ -65,12 +74,20 @@ export default function AiDocsMVP() {
+   const [expLoading, setExpLoading] = useState(false);
+   const [lastExportFileId, setLastExportFileId] = useState<string | null>(null);
+ 
++  // se chegamos a partir do /ai-docs/create com caseId, já deixamos pronto
++  useEffect(() => {
++    if (initialCaseId) {
++      setCaseId(initialCaseId);
++      setCaseStatus('DRAFT');
++    }
++  }, [initialCaseId]);
++
+   // Handlers
+   async function handleCreateCase() {
+     try {
+       const c = await createCase({ type: caseType, requestText });
+       setCaseId(c.id);
+-      setCaseStatus(c.status);
++      setCaseStatus('DRAFT');
+       openSnackbar({ open: true, message: 'Caso criado!', variant: 'alert', alert: { color: 'success' } } as any);
+     } catch (e: any) {
+       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+@@ -92,22 +109,27 @@ export default function AiDocsMVP() {
+     if (!caseId) return;
+     try {
+       setGenLoading(true);
+-      const d = await generateDraft(caseId);
++      setShowTicker(true);
++      const d = await generateDraft(caseId, selectedTemplateId || undefined);
+       setDraft(d);
+-      setDraftJson(d.json);
++      setDraftJson(d.json as unknown as DraftJson);
+       openSnackbar({ open: true, message: 'Draft gerado!', variant: 'alert', alert: { color: 'success' } } as any);
+     } catch (e: any) {
+       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+-    } finally { setGenLoading(false); }
++    } finally {
++      setGenLoading(false);
++      // O LoadingTicker vai controlar o tempo mínimo internamente
++      setShowTicker(false);
++    }
+   }
+ 
+   async function handleSaveDraft() {
+     if (!draft) return;
+     try {
+       setSaveLoading(true);
+-      const updated = await updateDraft(draft.id, { json: draftJson });
++      const updated = await updateDraft(draft.id, { json: draftJson as any });
+       setDraft(updated);
+-      setDraftJson(updated.json);
++      setDraftJson(updated.json as unknown as DraftJson);
+       openSnackbar({ open: true, message: 'Rascunho salvo!', variant: 'alert', alert: { color: 'success' } } as any);
+     } catch (e: any) {
+       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+@@ -134,7 +156,7 @@ export default function AiDocsMVP() {
+     try {
+       const res = await acceptSuggestion(draft.id, sug.id);
+       setDraft(res.draft);
+-      setDraftJson(res.draft.json);
++      setDraftJson(res.draft.json as unknown as DraftJson);
+       setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'ACCEPTED' } : s)));
+       openSnackbar({ open: true, message: 'Sugestão aplicada!', variant: 'alert', alert: { color: 'success' } } as any);
+     } catch (e: any) {
+@@ -186,11 +208,11 @@ export default function AiDocsMVP() {
+     if (!lastExportFileId) return;
+     try {
+       setExpLoading(true);
+-      const { blob, filename } = await getExportFileBlob(lastExportFileId);
++      const { blob } = await getExportFileBlob(lastExportFileId);
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.href = url;
+-      a.download = filename || 'documento.pdf';
++      a.download = 'documento.pdf';
+       document.body.appendChild(a);
+       a.click();
+       a.remove();
+@@ -203,156 +225,150 @@ export default function AiDocsMVP() {
+   }
+ 
+   return (
+-    <Grid container spacing={3}>
++    <Stack spacing={3}>
+       {/* 1) Case */}
+-      <Grid item xs={12}>
+-        <MainCard title="1) Criar Caso (Advogado)">
+-          <Stack spacing={2}>
+-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+-              <TextField label="Tipo" value={caseType} onChange={(e) => setCaseType(e.target.value)} sx={{ minWidth: 220 }} />
+-              <Button variant="contained" onClick={handleCreateCase}>Criar Caso</Button>
+-              {caseId && <Chip label={`caseId: ${caseId}`} />}
+-              {caseStatus && <Chip label={`status: ${caseStatus}`} color="info" />}
+-            </Stack>
+-            <TextField label="Pedido (linguagem natural)" multiline minRows={3} value={requestText} onChange={(e) => setRequestText(e.target.value)} />
++      <MainCard title="1) Criar Caso (Advogado)">
++        <Stack spacing={2}>
++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
++            <TextField label="Tipo" value={caseType} onChange={(e) => setCaseType(e.target.value)} sx={{ minWidth: 220 }} />
++            <Button variant="contained" onClick={handleCreateCase} disabled={!!caseId}>Criar Caso</Button>
++            {selectedTemplateId && (
++              <Chip label={`templateId: ${selectedTemplateId}`} color="info" variant="outlined" />
++            )}
++            {caseId && <Chip label={`caseId: ${caseId}`} />}
++            {caseStatus && <Chip label={`status: ${caseStatus}`} color="info" />}
+           </Stack>
+-        </MainCard>
+-      </Grid>
++          <TextField label="Pedido (linguagem natural)" multiline minRows={3} value={requestText} onChange={(e) => setRequestText(e.target.value)} />
++        </Stack>
++      </MainCard>
+ 
+       {/* 2) Upload de Documentos do Caso */}
+-      <Grid item xs={12}>
+-        <MainCard title="2) (Opcional) Anexar PDFs ao Caso">
+-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }}>
+-            <Button component="label" variant="outlined" disabled={!caseId}>
+-              {docFile ? docFile.name : 'Selecionar PDF do Caso'}
+-              <input type="file" accept="application/pdf" hidden onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
+-            </Button>
+-            <Button onClick={handleUploadDoc} variant="contained" disabled={!caseId || !docFile || docLoading}>
+-              {docLoading ? <CircularProgress size={18} /> : 'Anexar'}
+-            </Button>
+-            {!caseId && <Typography variant="caption" color="text.secondary">Crie o caso primeiro</Typography>}
+-          </Stack>
+-        </MainCard>
+-      </Grid>
++      <MainCard title="2) (Opcional) Anexar PDFs ao Caso">
++        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }}>
++          <Button component="label" variant="outlined" disabled={!caseId}>
++            {docFile ? docFile.name : 'Selecionar PDF do Caso'}
++            <input type="file" accept="application/pdf" hidden onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
++          </Button>
++          <Button onClick={handleUploadDoc} variant="contained" disabled={!caseId || !docFile || docLoading}>
++            {docLoading ? <CircularProgress size={18} /> : 'Anexar'}
++          </Button>
++          {!caseId && <Typography variant="caption" color="text.secondary">Crie o caso primeiro</Typography>}
++        </Stack>
++      </MainCard>
+ 
+       {/* 3) Gerar Rascunho */}
+-      <Grid item xs={12}>
+-        <MainCard title="3) Gerar Rascunho (RAG com Templates + Docs do Caso)">
+-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+-            <Button variant="contained" onClick={handleGenerate} disabled={!caseId || genLoading}>
+-              {genLoading ? <CircularProgress size={18} /> : 'Gerar rascunho'}
+-            </Button>
+-            <Typography variant="body2" color="text.secondary">(usa templates cadastrados automaticamente)</Typography>
+-            {draft && (
+-              <Stack direction="row" spacing={1}>
+-                <Chip label={`draftId: ${draft.id}`} color="success" variant="outlined" />
+-                <Chip label={`versão: ${draft.version}`} variant="outlined" />
+-              </Stack>
+-            )}
+-          </Stack>
++      <MainCard title="3) Gerar Rascunho (RAG com Templates + Docs do Caso)">
++        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
++          <Button variant="contained" onClick={handleGenerate} disabled={!caseId || genLoading}>
++            {genLoading ? <CircularProgress size={18} /> : 'Gerar rascunho'}
++          </Button>
++          <Typography variant="body2" color="text.secondary">(usa templates cadastrados automaticamente)</Typography>
++          {draft && (
++            <Stack direction="row" spacing={1}>
++              <Chip label={`draftId: ${draft.id}`} color="success" variant="outlined" />
++              <Chip label={`versão: ${draft.version}`} variant="outlined" />
++            </Stack>
++          )}
++        </Stack>
+ 
+-          <Divider sx={{ my: 2 }} />
++        {(genLoading || showTicker) && (
++          <Box sx={{ mt: 1 }}>
++            <LoadingTicker
++              running={genLoading || showTicker}
++              size="medium"
++              showSpinner={true}
++              spinnerSize={18}
++              minDuration={15000} // 5 segundos mínimo
++              // Se quiser customizar as frases, passe "script={[...]}"
++            />
++          </Box>
++        )}
+ 
+-          {/* Editor simples do JSON */}
+-          <Grid container spacing={2}>
+-            <Grid item xs={12} md={6}>
+-              <TextField label="Endereçamento" value={draftJson.enderecamento} onChange={(e) => setDraftJson({ ...draftJson, enderecamento: e.target.value })} fullWidth multiline minRows={2} />
+-            </Grid>
+-            <Grid item xs={12} md={6}>
+-              <TextField label="Qualificação" value={draftJson.qualificacao} onChange={(e) => setDraftJson({ ...draftJson, qualificacao: e.target.value })} fullWidth multiline minRows={2} />
+-            </Grid>
+-            <Grid item xs={12}>
+-              <TextField label="Fatos" value={draftJson.fatos} onChange={(e) => setDraftJson({ ...draftJson, fatos: e.target.value })} fullWidth multiline minRows={3} />
+-            </Grid>
+-            <Grid item xs={12}>
+-              <TextField label="Fundamentos" value={draftJson.fundamentos} onChange={(e) => setDraftJson({ ...draftJson, fundamentos: e.target.value })} fullWidth multiline minRows={3} />
+-            </Grid>
+-            <Grid item xs={12} md={6}>
+-              <TextField label="Pedidos (um por linha)" value={(draftJson.pedidos || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, pedidos: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
+-            </Grid>
+-            <Grid item xs={12} md={6}>
+-              <TextField label="Jurisprudência (uma por linha)" value={(draftJson.jurisprudencia || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, jurisprudencia: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
+-            </Grid>
+-            <Grid item xs={12}>
+-              <TextField label="Observações" value={draftJson.observacoes} onChange={(e) => setDraftJson({ ...draftJson, observacoes: e.target.value })} fullWidth multiline minRows={2} />
+-            </Grid>
+-            <Grid item xs={12}>
+-              <Stack direction="row" spacing={1}>
+-                <Button onClick={handleSaveDraft} variant="contained" disabled={!draft || saveLoading}>
+-                  {saveLoading ? <CircularProgress size={18} /> : 'Salvar rascunho'}
+-                </Button>
+-                {draft && <Chip label={`versão atual: ${draft.version}`} />}
+-              </Stack>
+-            </Grid>
+-          </Grid>
+-        </MainCard>
+-      </Grid>
++        <Divider sx={{ my: 2 }} />
+ 
+-      {/* 4) Chat & Sugestões */}
+-      <Grid item xs={12}>
+-        <MainCard title="4) Chat do Caso (Sugestões em JSON-Patch)">
+-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
+-            <TextField label="Mensagem" value={chatText} onChange={(e) => setChatText(e.target.value)} fullWidth />
+-            <Button variant="contained" onClick={handleChat} disabled={!caseId || !draft || chatLoading}>
+-              {chatLoading ? <CircularProgress size={18} /> : 'Enviar'}
++        {/* Editor simples do JSON */}
++        <Stack spacing={2}>
++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
++            <TextField label="Endereçamento" value={draftJson.enderecamento} onChange={(e) => setDraftJson({ ...draftJson, enderecamento: e.target.value })} fullWidth multiline minRows={2} />
++            <TextField label="Qualificação" value={draftJson.qualificacao} onChange={(e) => setDraftJson({ ...draftJson, qualificacao: e.target.value })} fullWidth multiline minRows={2} />
++          </Stack>
++          <TextField label="Fatos" value={draftJson.fatos} onChange={(e) => setDraftJson({ ...draftJson, fatos: e.target.value })} fullWidth multiline minRows={3} />
++          <TextField label="Fundamentos" value={draftJson.fundamentos} onChange={(e) => setDraftJson({ ...draftJson, fundamentos: e.target.value })} fullWidth multiline minRows={3} />
++          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
++            <TextField label="Pedidos (um por linha)" value={(draftJson.pedidos || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, pedidos: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
++            <TextField label="Jurisprudência (uma por linha)" value={(draftJson.jurisprudencia || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, jurisprudencia: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
++          </Stack>
++          <TextField label="Observações" value={draftJson.observacoes} onChange={(e) => setDraftJson({ ...draftJson, observacoes: e.target.value })} fullWidth multiline minRows={2} />
++          <Stack direction="row" spacing={1}>
++            <Button onClick={handleSaveDraft} variant="contained" disabled={!draft || saveLoading}>
++              {saveLoading ? <CircularProgress size={18} /> : 'Salvar rascunho'}
+             </Button>
++            {draft && <Chip label={`versão atual: ${draft.version}`} />}
+           </Stack>
++        </Stack>
++      </MainCard>
++
++      {/* 4) Chat & Sugestões */}
++      <MainCard title="4) Chat do Caso (Sugestões em JSON-Patch)">
++        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
++          <TextField label="Mensagem" value={chatText} onChange={(e) => setChatText(e.target.value)} fullWidth />
++          <Button variant="contained" onClick={handleChat} disabled={!caseId || !draft || chatLoading}>
++            {chatLoading ? <CircularProgress size={18} /> : 'Enviar'}
++          </Button>
++        </Stack>
+ 
+-          <Divider sx={{ my: 2 }} />
++        <Divider sx={{ my: 2 }} />
+ 
+-          <Stack spacing={1.5}>
+-            {suggestions.map((s) => (
+-              <Paper key={s.id} variant="outlined" sx={{ p: 1.5 }}>
+-                <Stack spacing={0.75}>
+-                  <Stack direction="row" spacing={1} alignItems="center">
+-                    <Chip size="small" label={s.status} color={s.status === 'PENDING' ? 'warning' : s.status === 'ACCEPTED' ? 'success' : 'default'} />
+-                    {typeof s.confidence === 'number' && (
+-                      <Chip size="small" label={`conf: ${(s.confidence * 100).toFixed(0)}%`} variant="outlined" />
+-                    )}
+-                    {!!s.targets?.length && <Chip size="small" variant="outlined" label={`alvo: ${s.targets.join(', ')}`}/>}                    
+-                  </Stack>
+-                  {s.rationale && <Typography variant="body2" color="text.secondary">{s.rationale}</Typography>}
+-                  <Box sx={{ p: 1, bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
+-                    <Typography variant="caption" color="text.secondary">ops (RFC-6902):</Typography>
+-                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
+-                  </Box>
+-                  <Stack direction="row" spacing={1}>
+-                    <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || s.status !== 'PENDING'}>Aceitar</Button>
+-                    <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || s.status !== 'PENDING'}>Rejeitar</Button>
+-                  </Stack>
++        <Stack spacing={1.5}>
++          {suggestions.map((s) => (
++            <Paper key={s.id} variant="outlined" sx={{ p: 1.5 }}>
++              <Stack spacing={0.75}>
++                <Stack direction="row" spacing={1} alignItems="center">
++                  <Chip size="small" label={s.status} color={s.status === 'PENDING' ? 'warning' : s.status === 'ACCEPTED' ? 'success' : 'default'} />
++                  {typeof s.confidence === 'number' && (
++                    <Chip size="small" label={`conf: ${(s.confidence * 100).toFixed(0)}%`} variant="outlined" />
++                  )}
++                  {!!s.targets?.length && <Chip size="small" variant="outlined" label={`alvo: ${s.targets.join(', ')}`}/>}                    
+                 </Stack>
+-              </Paper>
+-            ))}
+-            {!suggestions.length && (
+-              <Typography variant="body2" color="text.secondary">Sem sugestões no momento.</Typography>
+-            )}
+-          </Stack>
+-        </MainCard>
+-      </Grid>
++                {s.rationale && <Typography variant="body2" color="text.secondary">{s.rationale}</Typography>}
++                <Box sx={{ p: 1, bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
++                  <Typography variant="caption" color="text.secondary">ops (RFC-6902):</Typography>
++                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
++                </Box>
++                <Stack direction="row" spacing={1}>
++                  <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || s.status !== 'PENDING'}>Aceitar</Button>
++                  <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || s.status !== 'PENDING'}>Rejeitar</Button>
++                </Stack>
++              </Stack>
++            </Paper>
++          ))}
++          {!suggestions.length && (
++            <Typography variant="body2" color="text.secondary">Sem sugestões no momento.</Typography>
++          )}
++        </Stack>
++      </MainCard>
+ 
+       {/* 5) Export */}
+-      <Grid item xs={12}>
+-        <MainCard title="5) Exportar">
+-          <Stack spacing={2}>
++      <MainCard title="5) Exportar">
++        <Stack spacing={2}>
++          <Stack direction="row" spacing={1} alignItems="center">
++            <Button variant="outlined" onClick={() => handleExport('DOCX')} disabled={!draft || expLoading}>DOCX</Button>
++            <Button variant="outlined" onClick={() => handleExport('PDF')} disabled={!draft || expLoading}>PDF</Button>
++            {expLoading && <CircularProgress size={18} />}
++          </Stack>
++          {lastExportFileId && (
+             <Stack direction="row" spacing={1} alignItems="center">
+-              <Button variant="outlined" onClick={() => handleExport('DOCX')} disabled={!draft || expLoading}>DOCX</Button>
+-              <Button variant="outlined" onClick={() => handleExport('PDF')} disabled={!draft || expLoading}>PDF</Button>
+-              {expLoading && <CircularProgress size={18} />}
++              <Typography variant="body2" color="text.secondary">Documento exportado:</Typography>
++              <Button onClick={openLastExport} variant="outlined" size="small" disabled={expLoading}>
++                Abrir
++              </Button>
++              <Button onClick={downloadLastExport} variant="outlined" size="small" disabled={expLoading}>
++                Baixar
++              </Button>
+             </Stack>
+-            {lastExportFileId && (
+-              <Stack direction="row" spacing={1} alignItems="center">
+-                <Typography variant="body2" color="text.secondary">Documento exportado:</Typography>
+-                <Button onClick={openLastExport} variant="outlined" size="small" disabled={expLoading}>
+-                  Abrir
+-                </Button>
+-                <Button onClick={downloadLastExport} variant="outlined" size="small" disabled={expLoading}>
+-                  Baixar
+-                </Button>
+-              </Stack>
+-            )}
+-          </Stack>
+-        </MainCard>
+-      </Grid>
+-    </Grid>
++          )}
++        </Stack>
++      </MainCard>
++    </Stack>
+   );
+ }
+diff --git a/src/pages/ai-docs/CreateCaseStep1.tsx b/src/pages/ai-docs/CreateCaseStep1.tsx
+new file mode 100644
+index 0000000..4bb9984
+--- /dev/null
++++ b/src/pages/ai-docs/CreateCaseStep1.tsx
+@@ -0,0 +1,276 @@
++// src/pages/ai-docs/CreateCaseStep1.tsx
++import { useEffect, useMemo, useState } from 'react';
++import { Box, Stack, Typography, TextField, CircularProgress, Button, Chip, Paper, IconButton } from '@mui/material';
++import Autocomplete from '@mui/material/Autocomplete';
++import { useNavigate } from 'react-router-dom';
 +import MainCard from 'components/MainCard';
++import { openSnackbar } from 'api/snackbar';
++import { listCategories, type AiCategory } from 'api/aiCategories';
++import {
++  listTemplatesByCategory,
++  getTemplatePdfBlob,
++  createCase,
++  uploadCaseDocs,
++  type TemplatesByCategoryItem
++} from 'api/aiDocs';
++import { EyeOutlined, ArrowRightOutlined, PaperClipOutlined, DeleteOutlined } from '@ant-design/icons';
++
++type FlatOption = {
++  id: string;
++  name: string;
++  kind: string;
++  description?: string | null;
++  fileId?: string | null;
++  updatedAt?: string;
++  categoryId: string | null;
++  categoryName: string;
++};
++
++const UNCATEGORIZED = 'Sem categoria';
++
++export default function CreateCaseStep1() {
++  const navigate = useNavigate();
++
++  const [loading, setLoading] = useState(false);
++  const [search, setSearch] = useState('');
++  const [rawGroups, setRawGroups] = useState<TemplatesByCategoryItem[]>([]);
++  const [categories, setCategories] = useState<AiCategory[]>([]);
++
++  const [selected, setSelected] = useState<FlatOption | null>(null);
++  const [previewLoading, setPreviewLoading] = useState(false);
++  // --- novo: detalhes e anexos
++  const [pedidoText, setPedidoText] = useState('');
++  const [files, setFiles] = useState<File[]>([]);
++  const [creating, setCreating] = useState(false);
++
++  // carrega categorias para mapear os nomes
++  useEffect(() => {
++    (async () => {
++      try {
++        const r = await listCategories({ page: 1, limit: 300 });
++        setCategories(r.data);
++      } catch (e: any) {
++        openSnackbar({
++          open: true, message: e?.response?.data?.message || 'Erro ao carregar categorias',
++          variant: 'alert', alert: { color: 'error' }
++        } as any);
++      }
++    })();
++  }, []);
++
++  // carrega templates agrupados
++  const fetchByCategory = async () => {
++    try {
++      setLoading(true);
++      const r = await listTemplatesByCategory({
++        search: search || undefined,
++        limitPerCategory: 100,
++        onlyWithTemplates: true
++      });
++      setRawGroups(r.data || []);
++    } catch (e: any) {
++      openSnackbar({
++        open: true, message: e?.response?.data?.message || 'Erro ao carregar templates',
++        variant: 'alert', alert: { color: 'error' }
++      } as any);
++    } finally {
++      setLoading(false);
++    }
++  };
++
++  useEffect(() => { fetchByCategory(); /* eslint-disable-next-line */ }, [search]);
++
++  const catNameById = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
++
++  // "achata" as opções para usar no Autocomplete com groupBy
++  const options: FlatOption[] = useMemo(() => {
++    const out: FlatOption[] = [];
++    for (const group of rawGroups) {
++      const label = group.categoryId ? (catNameById.get(group.categoryId) || UNCATEGORIZED) : UNCATEGORIZED;
++      for (const t of group.templates) {
++        out.push({
++          id: t.id,
++          name: t.name,
++          kind: t.kind,
++          description: t.description ?? null,
++          fileId: t.fileId ?? null,
++          updatedAt: t.updatedAt,
++          categoryId: group.categoryId,
++          categoryName: label
++        });
++      }
++    }
++    // ordena: primeiro com categoria, depois nome
++    return out.sort((a, b) => a.categoryName.localeCompare(b.categoryName) || a.name.localeCompare(b.name));
++  }, [rawGroups, catNameById]);
++
++  async function handlePreview() {
++    if (!selected?.fileId) return;
++    try {
++      setPreviewLoading(true);
++      const { blob } = await getTemplatePdfBlob(selected.id, selected.fileId);
++      const url = URL.createObjectURL(blob);
++      window.open(url, '_blank', 'noopener,noreferrer');
++      setTimeout(() => URL.revokeObjectURL(url), 60_000);
++    } catch (e: any) {
++      openSnackbar({
++        open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' }
++      } as any);
++    } finally {
++      setPreviewLoading(false);
++    }
++  }
++
++  // cria o caso + faz upload dos anexos + navega para /ai-docs com caseId/templateId
++  async function createAndGo() {
++    if (!selected) {
++      openSnackbar({ open: true, message: 'Escolha um template para continuar.', variant: 'alert', alert: { color: 'warning' } } as any);
++      return;
++    }
++    if (!pedidoText.trim()) {
++      openSnackbar({ open: true, message: 'Descreva o pedido do caso.', variant: 'alert', alert: { color: 'warning' } } as any);
++      return;
++    }
++    try {
++      setCreating(true);
++      const c = await createCase({ type: selected.kind, requestText: pedidoText.trim() });
++      // sobe todos os anexos usando o helper
++      if (files.length > 0) {
++        await uploadCaseDocs(c.id, files);
++      }
++      const qs = new URLSearchParams();
++      qs.set('caseId', c.id);
++      qs.set('templateId', selected.id);
++      qs.set('kind', selected.kind);
++      qs.set('pedido', encodeURIComponent(pedidoText.trim()));
++      navigate(`/ai-docs/editor?${qs.toString()}`);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    } finally {
++      setCreating(false);
++    }
++  }
++
++  return (
++    <Box sx={{ p: { xs: 1, md: 3 } }}>
++      <MainCard title="1) Criar Caso (Advogado)">
++        <Stack spacing={3} alignItems="center">
++          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ maxWidth: 680 }}>
++            Selecione abaixo a <strong>peça/modelo</strong> para iniciar o caso. Você pode buscar por título ou descrição e visualizar o Modelo antes de prosseguir.
++          </Typography>
++
++
++          {/* seletor centralizado, agrupado por categoria */}
++          <Paper variant="outlined" sx={{ p: 2, width: '100%', maxWidth: 860 }}>
++            <Autocomplete
++              options={options}
++              loading={loading}
++              value={selected}
++              onChange={(_, v) => setSelected(v)}
++              onInputChange={(_, value) => setSearch(value)}
++              groupBy={(o) => o.categoryName}
++              getOptionLabel={(o) => o.name}
++              noOptionsText={loading ? 'Carregando…' : 'Nenhum template encontrado'}
++              renderInput={(params) => (
++                <TextField 
++                  {...params} 
++                  label="Buscar e escolher modelo (agrupado por categoria)"
++                  placeholder="Digite para buscar por título ou descrição..."
++                />
++              )}
++              renderOption={(props, option) => (
++                <li {...props} key={option.id}>
++                  <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%', py: .5 }}>
++                    <Typography variant="body2" sx={{ flex: 1 }} title={option.name} noWrap>{option.name}</Typography>
++                    <Chip size="small" label={option.kind} variant="outlined" />
++                  </Stack>
++                </li>
++              )}
++            />
++
++            {/* linha ações selecionado */}
++            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'center' }} sx={{ mt: 1 }}>
++              <Typography 
++                variant="caption" 
++                color="text.secondary"
++                title={selected?.description || '—'}
++                sx={{
++                  maxWidth: { xs: '100%', md: '60%' },
++                  overflow: 'hidden',
++                  textOverflow: 'ellipsis',
++                  whiteSpace: 'nowrap'
++                }}
++              >
++                {selected?.description ? selected.description : '—'}
++              </Typography>
++              <Stack direction="row" spacing={1}>
++                <Button
++                  variant="outlined"
++                  startIcon={<EyeOutlined />}
++                  onClick={handlePreview}
++                  disabled={!selected?.fileId || previewLoading}
++                >
++                  {previewLoading ? <CircularProgress size={16} /> : 'Pré-visualizar'}
++                </Button>
++              </Stack>
++            </Stack>
++          </Paper>
++
++          {/* 2) Detalhes do caso (aparece assim que um template é escolhido) */}
++          {selected && (
++            <Paper variant="outlined" sx={{ p: 2, width: '100%', maxWidth: 860 }}>
++              <Typography variant="subtitle1" sx={{ mb: 1 }}>Adicione detalhes do caso</Typography>
++              <TextField
++                placeholder="Descreva o pedido (chat) para a IA. Ex.: Foi proferida sentença com trânsito em julgado..."
++                multiline minRows={5} fullWidth
++                value={pedidoText}
++                onChange={(e) => setPedidoText(e.target.value)}
++              />
++              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
++                <Button component="label" variant="outlined" startIcon={<PaperClipOutlined /> as any}>
++                  Anexos
++                  <input
++                    type="file"
++                    accept="application/pdf"
++                    multiple
++                    hidden
++                    onChange={(e) => {
++                      const list = Array.from(e.target.files || []);
++                      if (list.length) setFiles((prev) => [...prev, ...list]);
++                    }}
++                  />
++                </Button>
++                <Typography variant="caption" color="text.secondary">PDFs opcionais que a IA pode usar no rascunho</Typography>
++              </Stack>
++              {/* lista dos anexos selecionados */}
++              {!!files.length && (
++                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1 }}>
++                  {files.map((f, i) => (
++                    <Chip
++                      key={i}
++                      label={f.name}
++                      onDelete={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
++                      deleteIcon={<DeleteOutlined /> as any}
++                      variant="outlined"
++                      sx={{ maxWidth: '100%' }}
++                    />
++                  ))}
++                </Stack>
++              )}
++              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} sx={{ mt: 2 }} justifyContent="flex-end">
++                <Button
++                  variant="contained"
++                  endIcon={<ArrowRightOutlined />}
++                  onClick={createAndGo}
++                  disabled={creating}
++                >
++                  {creating ? <CircularProgress size={18} /> : 'Criar caso e continuar'}
++                </Button>
++              </Stack>
++            </Paper>
++          )}
++        </Stack>
++      </MainCard>
++    </Box>
++  );
++}
+diff --git a/src/pages/ai-docs/EditorChatPage.tsx b/src/pages/ai-docs/EditorChatPage.tsx
+new file mode 100644
+index 0000000..e3004c7
+--- /dev/null
++++ b/src/pages/ai-docs/EditorChatPage.tsx
+@@ -0,0 +1,343 @@
++// src/pages/ai-docs/EditorChatPage.tsx
++import { useEffect, useMemo, useRef, useState } from 'react';
++import { useSearchParams } from 'react-router-dom';
++import {
++  Box, Stack, Typography, Paper, Divider, TextField, Button, Chip, CircularProgress, IconButton
++} from '@mui/material';
++import { SaveOutlined, FilePdfOutlined, FileWordOutlined, ReloadOutlined } from '@ant-design/icons';
++import MainCard from 'components/MainCard';
++import LoadingTicker from 'components/LoadingTicker';
 +import { openSnackbar } from 'api/snackbar';
 +
 +import {
-+  createTemplate,
-+  createCase,
-+  uploadCaseDoc,
 +  generateDraft,
-+  postChatMessage,
-+  acceptSuggestion,
-+  rejectSuggestion,
 +  updateDraft,
 +  exportDraft,
 +  getExportFileBlob,
++  postChatMessage,
++  acceptSuggestion,
++  rejectSuggestion,
 +  type AiDraft,
 +  type DraftJson,
 +  type AiSuggestion
 +} from 'api/aiDocs';
 +
-+const emptyDraft: DraftJson = {
++const EMPTY: DraftJson = {
 +  enderecamento: '',
 +  qualificacao: '',
 +  fatos: '',
@@ -365,1073 +1308,751 @@ index 0000000..f6269a8
 +  observacoes: ''
 +};
 +
-+export default function AiDocsMVP() {
-+  // ===== Case =====
-+  const [caseType, setCaseType] = useState('acao-rescisoria');
-+  const [requestText, setRequestText] = useState('Preciso de uma petição de ação rescisória baseada no fato X ...');
-+  const [caseId, setCaseId] = useState<string | null>(null);
-+  const [caseStatus, setCaseStatus] = useState<string | null>(null);
++const SECTIONS: Array<{ key: keyof DraftJson; label: string; multiline?: boolean }> = [
++  { key: 'enderecamento', label: 'Endereçamento', multiline: true },
++  { key: 'qualificacao', label: 'Qualificação', multiline: true },
++  { key: 'fatos', label: 'Fatos', multiline: true },
++  { key: 'fundamentos', label: 'Fundamentos', multiline: true },
++  { key: 'pedidos', label: 'Pedidos', multiline: true },
++  { key: 'jurisprudencia', label: 'Jurisprudência', multiline: true },
++  { key: 'observacoes', label: 'Observações', multiline: true }
++];
 +
-+  // ===== Case Docs =====
-+  const [docFile, setDocFile] = useState<File | null>(null);
-+  const [docLoading, setDocLoading] = useState(false);
++export default function EditorChatPage() {
++  const [params] = useSearchParams();
++  const caseId = params.get('caseId');
++  const templateId = params.get('templateId') || undefined;
++  const pedido = params.get('pedido') ? decodeURIComponent(params.get('pedido') as string) : '';
 +
-+  // ===== Draft =====
++  const [genLoading, setGenLoading] = useState(true);
++  const [ticker, setTicker] = useState(true);
 +  const [draft, setDraft] = useState<AiDraft | null>(null);
-+  const [draftJson, setDraftJson] = useState<DraftJson>(emptyDraft);
-+  const [genLoading, setGenLoading] = useState(false);
++  const [json, setJson] = useState<DraftJson>(EMPTY);
 +  const [saveLoading, setSaveLoading] = useState(false);
 +
-+  // ===== Chat =====
-+  const [chatText, setChatText] = useState('reforce os fundamentos com X e inclua jurisprudência Y');
++  // Chat
++  const [chatText, setChatText] = useState(
++    pedido ? `Considere o pedido inicial: ${pedido}` : 'Refine o texto com base na tese X.'
++  );
 +  const [chatLoading, setChatLoading] = useState(false);
 +  const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
 +
-+  // ===== Export =====
++  // Export
 +  const [expLoading, setExpLoading] = useState(false);
-+  const [lastExportFileId, setLastExportFileId] = useState<string | null>(null);
++  const [lastFileId, setLastFileId] = useState<string | null>(null);
 +
-+  // Handlers
-+  async function handleCreateCase() {
-+    try {
-+      const c = await createCase({ type: caseType, requestText });
-+      setCaseId(c.id);
-+      setCaseStatus(c.status);
-+      openSnackbar({ open: true, message: 'Caso criado!', variant: 'alert', alert: { color: 'success' } } as any);
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-+    }
-+  }
++  // refs para "sumário" rolar até a seção
++  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 +
-+  async function handleUploadDoc() {
-+    if (!caseId || !docFile) return;
-+    try {
-+      setDocLoading(true);
-+      await uploadCaseDoc(caseId, docFile);
-+      openSnackbar({ open: true, message: 'Documento anexado!', variant: 'alert', alert: { color: 'success' } } as any);
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally { setDocLoading(false); }
-+  }
++  // ======================= INIT (gera rascunho) =======================
++  useEffect(() => {
++    (async () => {
++      if (!caseId) return;
++      try {
++        setGenLoading(true);
++        setTicker(true);
++        const d = await generateDraft(caseId, templateId);
++        setDraft(d);
++        setJson(d.json);
++        openSnackbar({ open: true, message: 'Documento gerado pela IA.', variant: 'alert', alert: { color: 'success' } } as any);
++      } catch (e: any) {
++        openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++      } finally {
++        setGenLoading(false);
++        setTicker(false);
++      }
++    })();
++  // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [caseId, templateId]);
 +
-+  async function handleGenerate() {
-+    if (!caseId) return;
-+    try {
-+      setGenLoading(true);
-+      const d = await generateDraft(caseId);
-+      setDraft(d);
-+      setDraftJson(d.json);
-+      openSnackbar({ open: true, message: 'Draft gerado!', variant: 'alert', alert: { color: 'success' } } as any);
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally { setGenLoading(false); }
-+  }
-+
-+  async function handleSaveDraft() {
++  // ======================= SAVE =======================
++  async function handleSave() {
 +    if (!draft) return;
 +    try {
 +      setSaveLoading(true);
-+      const updated = await updateDraft(draft.id, { json: draftJson });
++      const updated = await updateDraft(draft.id, { json });
 +      setDraft(updated);
-+      setDraftJson(updated.json);
++      setJson(updated.json);
 +      openSnackbar({ open: true, message: 'Rascunho salvo!', variant: 'alert', alert: { color: 'success' } } as any);
 +    } catch (e: any) {
 +      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally { setSaveLoading(false); }
++    } finally {
++      setSaveLoading(false);
++    }
 +  }
 +
-+  async function handleChat() {
-+    if (!caseId) return;
++  // ======================= CHAT =======================
++  async function handleChatSend() {
++    if (!caseId || !chatText.trim()) return;
 +    try {
 +      setChatLoading(true);
 +      const out = await postChatMessage(caseId, chatText.trim());
-+      if (out.draftId && draft && out.draftId !== draft.id) {
-+        // Se o backend abriu sessão para outro draft (ex.: mais novo), considere buscar…
-+      }
 +      setSuggestions(out.suggestions || []);
-+      openSnackbar({ open: true, message: `Geradas ${out.suggestions?.length || 0} sugestão(ões).`, variant: 'alert', alert: { color: 'success' } } as any);
++      openSnackbar({ open: true, message: `Geradas ${out.suggestions?.length || 0} sugestão(ões)`, variant: 'alert', alert: { color: 'success' } } as any);
 +    } catch (e: any) {
 +      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
 +    } finally { setChatLoading(false); }
 +  }
 +
-+  async function onAccept(sug: AiSuggestion) {
++  async function accept(s: AiSuggestion) {
 +    if (!draft) return;
 +    try {
-+      const res = await acceptSuggestion(draft.id, sug.id);
++      const res = await acceptSuggestion(draft.id, s.id);
 +      setDraft(res.draft);
-+      setDraftJson(res.draft.json);
-+      setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'ACCEPTED' } : s)));
-+      openSnackbar({ open: true, message: 'Sugestão aplicada!', variant: 'alert', alert: { color: 'success' } } as any);
++      setJson(res.draft.json);
++      setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: 'ACCEPTED' } : x));
++      openSnackbar({ open: true, message: 'Sugestão aplicada.', variant: 'alert', alert: { color: 'success' } } as any);
 +    } catch (e: any) {
 +      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
 +    }
 +  }
-+
-+  async function onReject(sug: AiSuggestion) {
++  async function reject(s: AiSuggestion) {
 +    if (!draft) return;
 +    try {
-+      await rejectSuggestion(draft.id, sug.id);
-+      setSuggestions((prev) => prev.map((s) => (s.id === sug.id ? { ...s, status: 'REJECTED' } : s)));
-+      openSnackbar({ open: true, message: 'Sugestão rejeitada.', variant: 'alert', alert: { color: 'info' } } as any);
++      await rejectSuggestion(draft.id, s.id);
++      setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: 'REJECTED' } : x));
 +    } catch (e: any) {
 +      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
 +    }
 +  }
 +
-+  async function handleExport(kind: 'DOCX'|'PDF') {
++  // ======================= EXPORT =======================
++  async function handleExport(kind: 'DOCX' | 'PDF') {
 +    if (!draft) return;
 +    try {
 +      setExpLoading(true);
 +      const ex = await exportDraft(draft.id, kind);
-+      setLastExportFileId(ex.fileId || null);
-+      openSnackbar({ open: true, message: `Export ${kind} gerado (fileId: ${ex.fileId || '—'})`, variant: 'alert', alert: { color: 'success' } } as any);
++      setLastFileId(ex.fileId || null);
++      openSnackbar({ open: true, message: `Export ${kind} gerado.`, variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++    } finally {
++      setExpLoading(false);
++    }
++  }
++
++  async function openExported() {
++    if (!lastFileId) return;
++    try {
++      setExpLoading(true);
++      const { blob } = await getExportFileBlob(lastFileId);
++      const url = URL.createObjectURL(blob);
++      window.open(url, '_blank', 'noopener,noreferrer');
++      setTimeout(() => URL.revokeObjectURL(url), 60_000);
 +    } catch (e: any) {
 +      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
 +    } finally { setExpLoading(false); }
 +  }
 +
-+  // === Abrir/baixar o export via BLOB autenticado (sem expor URL da API) ===
-+  async function openLastExport() {
-+    if (!lastExportFileId) return;
-+    try {
-+      setExpLoading(true);
-+      const { blob } = await getExportFileBlob(lastExportFileId);
-+      const url = URL.createObjectURL(blob);
-+      window.open(url, '_blank', 'noopener,noreferrer');
-+      // revoga depois de um tempo pra liberar memória
-+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally {
-+      setExpLoading(false);
-+    }
-+  }
-+
-+  async function downloadLastExport() {
-+    if (!lastExportFileId) return;
-+    try {
-+      setExpLoading(true);
-+      const { blob, filename } = await getExportFileBlob(lastExportFileId);
-+      const url = URL.createObjectURL(blob);
-+      const a = document.createElement('a');
-+      a.href = url;
-+      a.download = filename || 'documento.pdf';
-+      document.body.appendChild(a);
-+      a.click();
-+      a.remove();
-+      URL.revokeObjectURL(url);
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally {
-+      setExpLoading(false);
-+    }
-+  }
-+
-+  return (
-+    <Grid container spacing={3}>
-+      {/* 1) Case */}
-+      <Grid item xs={12}>
-+        <MainCard title="1) Criar Caso (Advogado)">
-+          <Stack spacing={2}>
-+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-+              <TextField label="Tipo" value={caseType} onChange={(e) => setCaseType(e.target.value)} sx={{ minWidth: 220 }} />
-+              <Button variant="contained" onClick={handleCreateCase}>Criar Caso</Button>
-+              {caseId && <Chip label={`caseId: ${caseId}`} />}
-+              {caseStatus && <Chip label={`status: ${caseStatus}`} color="info" />}
-+            </Stack>
-+            <TextField label="Pedido (linguagem natural)" multiline minRows={3} value={requestText} onChange={(e) => setRequestText(e.target.value)} />
-+          </Stack>
-+        </MainCard>
-+      </Grid>
-+
-+      {/* 2) Upload de Documentos do Caso */}
-+      <Grid item xs={12}>
-+        <MainCard title="2) (Opcional) Anexar PDFs ao Caso">
-+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }}>
-+            <Button component="label" variant="outlined" disabled={!caseId}>
-+              {docFile ? docFile.name : 'Selecionar PDF do Caso'}
-+              <input type="file" accept="application/pdf" hidden onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
-+            </Button>
-+            <Button onClick={handleUploadDoc} variant="contained" disabled={!caseId || !docFile || docLoading}>
-+              {docLoading ? <CircularProgress size={18} /> : 'Anexar'}
-+            </Button>
-+            {!caseId && <Typography variant="caption" color="text.secondary">Crie o caso primeiro</Typography>}
-+          </Stack>
-+        </MainCard>
-+      </Grid>
-+
-+      {/* 3) Gerar Rascunho */}
-+      <Grid item xs={12}>
-+        <MainCard title="3) Gerar Rascunho (RAG com Templates + Docs do Caso)">
-+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
-+            <Button variant="contained" onClick={handleGenerate} disabled={!caseId || genLoading}>
-+              {genLoading ? <CircularProgress size={18} /> : 'Gerar rascunho'}
-+            </Button>
-+            <Typography variant="body2" color="text.secondary">(usa templates cadastrados automaticamente)</Typography>
-+            {draft && (
-+              <Stack direction="row" spacing={1}>
-+                <Chip label={`draftId: ${draft.id}`} color="success" variant="outlined" />
-+                <Chip label={`versão: ${draft.version}`} variant="outlined" />
-+              </Stack>
-+            )}
-+          </Stack>
-+
-+          <Divider sx={{ my: 2 }} />
-+
-+          {/* Editor simples do JSON */}
-+          <Grid container spacing={2}>
-+            <Grid item xs={12} md={6}>
-+              <TextField label="Endereçamento" value={draftJson.enderecamento} onChange={(e) => setDraftJson({ ...draftJson, enderecamento: e.target.value })} fullWidth multiline minRows={2} />
-+            </Grid>
-+            <Grid item xs={12} md={6}>
-+              <TextField label="Qualificação" value={draftJson.qualificacao} onChange={(e) => setDraftJson({ ...draftJson, qualificacao: e.target.value })} fullWidth multiline minRows={2} />
-+            </Grid>
-+            <Grid item xs={12}>
-+              <TextField label="Fatos" value={draftJson.fatos} onChange={(e) => setDraftJson({ ...draftJson, fatos: e.target.value })} fullWidth multiline minRows={3} />
-+            </Grid>
-+            <Grid item xs={12}>
-+              <TextField label="Fundamentos" value={draftJson.fundamentos} onChange={(e) => setDraftJson({ ...draftJson, fundamentos: e.target.value })} fullWidth multiline minRows={3} />
-+            </Grid>
-+            <Grid item xs={12} md={6}>
-+              <TextField label="Pedidos (um por linha)" value={(draftJson.pedidos || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, pedidos: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
-+            </Grid>
-+            <Grid item xs={12} md={6}>
-+              <TextField label="Jurisprudência (uma por linha)" value={(draftJson.jurisprudencia || []).join('\n')} onChange={(e) => setDraftJson({ ...draftJson, jurisprudencia: e.target.value.split('\n').filter(Boolean) })} fullWidth multiline minRows={3} />
-+            </Grid>
-+            <Grid item xs={12}>
-+              <TextField label="Observações" value={draftJson.observacoes} onChange={(e) => setDraftJson({ ...draftJson, observacoes: e.target.value })} fullWidth multiline minRows={2} />
-+            </Grid>
-+            <Grid item xs={12}>
-+              <Stack direction="row" spacing={1}>
-+                <Button onClick={handleSaveDraft} variant="contained" disabled={!draft || saveLoading}>
-+                  {saveLoading ? <CircularProgress size={18} /> : 'Salvar rascunho'}
-+                </Button>
-+                {draft && <Chip label={`versão atual: ${draft.version}`} />}
-+              </Stack>
-+            </Grid>
-+          </Grid>
-+        </MainCard>
-+      </Grid>
-+
-+      {/* 4) Chat & Sugestões */}
-+      <Grid item xs={12}>
-+        <MainCard title="4) Chat do Caso (Sugestões em JSON-Patch)">
-+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
-+            <TextField label="Mensagem" value={chatText} onChange={(e) => setChatText(e.target.value)} fullWidth />
-+            <Button variant="contained" onClick={handleChat} disabled={!caseId || !draft || chatLoading}>
-+              {chatLoading ? <CircularProgress size={18} /> : 'Enviar'}
-+            </Button>
-+          </Stack>
-+
-+          <Divider sx={{ my: 2 }} />
-+
-+          <Stack spacing={1.5}>
-+            {suggestions.map((s) => (
-+              <Paper key={s.id} variant="outlined" sx={{ p: 1.5 }}>
-+                <Stack spacing={0.75}>
-+                  <Stack direction="row" spacing={1} alignItems="center">
-+                    <Chip size="small" label={s.status} color={s.status === 'PENDING' ? 'warning' : s.status === 'ACCEPTED' ? 'success' : 'default'} />
-+                    {typeof s.confidence === 'number' && (
-+                      <Chip size="small" label={`conf: ${(s.confidence * 100).toFixed(0)}%`} variant="outlined" />
-+                    )}
-+                    {!!s.targets?.length && <Chip size="small" variant="outlined" label={`alvo: ${s.targets.join(', ')}`}/>}                    
-+                  </Stack>
-+                  {s.rationale && <Typography variant="body2" color="text.secondary">{s.rationale}</Typography>}
-+                  <Box sx={{ p: 1, bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
-+                    <Typography variant="caption" color="text.secondary">ops (RFC-6902):</Typography>
-+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
-+                  </Box>
-+                  <Stack direction="row" spacing={1}>
-+                    <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || s.status !== 'PENDING'}>Aceitar</Button>
-+                    <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || s.status !== 'PENDING'}>Rejeitar</Button>
-+                  </Stack>
-+                </Stack>
-+              </Paper>
-+            ))}
-+            {!suggestions.length && (
-+              <Typography variant="body2" color="text.secondary">Sem sugestões no momento.</Typography>
-+            )}
-+          </Stack>
-+        </MainCard>
-+      </Grid>
-+
-+      {/* 5) Export */}
-+      <Grid item xs={12}>
-+        <MainCard title="5) Exportar">
-+          <Stack spacing={2}>
-+            <Stack direction="row" spacing={1} alignItems="center">
-+              <Button variant="outlined" onClick={() => handleExport('DOCX')} disabled={!draft || expLoading}>DOCX</Button>
-+              <Button variant="outlined" onClick={() => handleExport('PDF')} disabled={!draft || expLoading}>PDF</Button>
-+              {expLoading && <CircularProgress size={18} />}
-+            </Stack>
-+            {lastExportFileId && (
-+              <Stack direction="row" spacing={1} alignItems="center">
-+                <Typography variant="body2" color="text.secondary">Documento exportado:</Typography>
-+                <Button onClick={openLastExport} variant="outlined" size="small" disabled={expLoading}>
-+                  Abrir
-+                </Button>
-+                <Button onClick={downloadLastExport} variant="outlined" size="small" disabled={expLoading}>
-+                  Baixar
-+                </Button>
-+              </Stack>
-+            )}
-+          </Stack>
-+        </MainCard>
-+      </Grid>
-+    </Grid>
++  // ======================= UI helpers =======================
++  const outline = useMemo(
++    () => [
++      { k: 'enderecamento', t: 'Endereçamento' },
++      { k: 'qualificacao', t: 'Qualificação' },
++      { k: 'fatos', t: 'Fatos' },
++      { k: 'fundamentos', t: 'Fundamentos' },
++      { k: 'pedidos', t: 'Pedidos' },
++      { k: 'jurisprudencia', t: 'Jurisprudência' },
++      { k: 'observacoes', t: 'Observações' }
++    ],
++    []
 +  );
-+}
-diff --git a/src/pages/ai-docs/CategoriesPage.tsx b/src/pages/ai-docs/CategoriesPage.tsx
-new file mode 100644
-index 0000000..205af67
---- /dev/null
-+++ b/src/pages/ai-docs/CategoriesPage.tsx
-@@ -0,0 +1,342 @@
-+// src/pages/ai-docs/CategoriesPage.tsx
-+import { useState, useEffect } from 'react';
-+import {
-+  Grid,
-+  Stack,
-+  TextField,
-+  Button,
-+  Typography,
-+  Chip,
-+  CircularProgress,
-+  Table,
-+  TableBody,
-+  TableCell,
-+  TableContainer,
-+  TableHead,
-+  TableRow,
-+  Paper,
-+  IconButton,
-+  Dialog,
-+  DialogTitle,
-+  DialogContent,
-+  DialogActions,
-+  FormControlLabel,
-+  Switch,
-+  Box
-+} from '@mui/material';
-+import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-+import MainCard from 'components/MainCard';
-+import { openSnackbar } from 'api/snackbar';
-+import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
-+
-+import {
-+  listCategories,
-+  createCategory,
-+  updateCategory,
-+  deleteCategory,
-+  type AiCategory
-+} from 'api/aiCategories';
-+
-+export default function CategoriesPage() {
-+  const [categories, setCategories] = useState<AiCategory[]>([]);
-+  const [loading, setLoading] = useState(false);
-+  const [search, setSearch] = useState('');
-+  const [dialogOpen, setDialogOpen] = useState(false);
-+  const [editingCategory, setEditingCategory] = useState<AiCategory | null>(null);
-+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-+  const [categoryToDelete, setCategoryToDelete] = useState<AiCategory | null>(null);
-+  const [formData, setFormData] = useState({
-+    name: '',
-+    companyScope: 'company' as 'global' | 'company'
-+  });
-+  const [submitting, setSubmitting] = useState(false);
-+
-+  // Carregar categorias
-+  const loadCategories = async () => {
-+    try {
-+      setLoading(true);
-+      const response = await listCategories({ search, page: 1, limit: 100 });
-+      setCategories(response.data);
-+    } catch (error: any) {
-+      openSnackbar({ 
-+        open: true, 
-+        message: error?.response?.data?.message || 'Erro ao carregar categorias', 
-+        variant: 'alert', 
-+        alert: { color: 'error' } 
-+      } as any);
-+    } finally {
-+      setLoading(false);
-+    }
-+  };
-+
-+  useEffect(() => {
-+    loadCategories();
-+  }, [search]);
-+
-+  // Handlers
-+  const handleOpenDialog = (category?: AiCategory) => {
-+    if (category) {
-+      setEditingCategory(category);
-+      setFormData({
-+        name: category.name,
-+        companyScope: category.companyScope || 'company'
-+      });
-+    } else {
-+      setEditingCategory(null);
-+      setFormData({
-+        name: '',
-+        companyScope: 'company'
-+      });
-+    }
-+    setDialogOpen(true);
-+  };
-+
-+  const handleCloseDialog = () => {
-+    setDialogOpen(false);
-+    setEditingCategory(null);
-+    setFormData({
-+      name: '',
-+      companyScope: 'company'
-+    });
-+  };
-+
-+  const handleSubmit = async () => {
-+    if (!formData.name.trim()) {
-+      openSnackbar({ 
-+        open: true, 
-+        message: 'Nome é obrigatório', 
-+        variant: 'alert', 
-+        alert: { color: 'warning' } 
-+      } as any);
-+      return;
-+    }
-+
-+    try {
-+      setSubmitting(true);
-+      
-+      if (editingCategory) {
-+        const updated = await updateCategory(editingCategory.id, { name: formData.name });
-+        setCategories(prev => prev.map(c => c.id === updated.id ? updated : c));
-+        openSnackbar({ 
-+          open: true, 
-+          message: 'Categoria atualizada com sucesso!', 
-+          variant: 'alert', 
-+          alert: { color: 'success' } 
-+        } as any);
-+      } else {
-+        const created = await createCategory({ 
-+          name: formData.name, 
-+          companyScope: formData.companyScope 
-+        });
-+        setCategories(prev => [...prev, created]);
-+        openSnackbar({ 
-+          open: true, 
-+          message: 'Categoria criada com sucesso!', 
-+          variant: 'alert', 
-+          alert: { color: 'success' } 
-+        } as any);
-+      }
-+      
-+      handleCloseDialog();
-+    } catch (error: any) {
-+      openSnackbar({ 
-+        open: true, 
-+        message: error?.response?.data?.message || 'Erro ao salvar categoria', 
-+        variant: 'alert', 
-+        alert: { color: 'error' } 
-+      } as any);
-+    } finally {
-+      setSubmitting(false);
-+    }
-+  };
-+
-+  const handleDeleteClick = (category: AiCategory) => {
-+    setCategoryToDelete(category);
-+    setDeleteDialogOpen(true);
-+  };
-+
-+  const handleDeleteConfirm = async () => {
-+    if (!categoryToDelete) return;
-+
-+    try {
-+      await deleteCategory(categoryToDelete.id);
-+      setCategories(prev => prev.filter(c => c.id !== categoryToDelete.id));
-+      openSnackbar({ 
-+        open: true, 
-+        message: 'Categoria excluída com sucesso!', 
-+        variant: 'alert', 
-+        alert: { color: 'success' } 
-+      } as any);
-+    } catch (error: any) {
-+      openSnackbar({ 
-+        open: true, 
-+        message: error?.response?.data?.message || 'Erro ao excluir categoria', 
-+        variant: 'alert', 
-+        alert: { color: 'error' } 
-+      } as any);
-+    } finally {
-+      setDeleteDialogOpen(false);
-+      setCategoryToDelete(null);
-+    }
++  const scrollTo = (key: string) => {
++    const el = sectionRefs.current[key];
++    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 +  };
 +
 +  return (
-+    <Box sx={{ p: 3 }}>
-+      <MainCard title="Categorias de Templates AI">
-+          <Stack spacing={3}>
-+            {/* Header com busca e botão adicionar */}
-+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
-+              <TextField
-+                label="Buscar categorias"
-+                value={search}
-+                onChange={(e) => setSearch(e.target.value)}
-+                sx={{ minWidth: 300 }}
-+                placeholder="Digite o nome da categoria..."
-+              />
-+              <Button
-+                variant="contained"
-+                startIcon={<PlusOutlined />}
-+                onClick={() => handleOpenDialog()}
-+                sx={{ minWidth: 150 }}
-+              >
-+                Nova Categoria
++    <Box sx={{ p: { xs: 1, md: 3 } }}>
++      <MainCard
++        title="Editor do Documento"
++        secondary={
++          <Stack direction="row" spacing={1} alignItems="center">
++            {draft && <Chip size="small" label={`draftId: ${draft.id}`} />}
++            {draft && <Chip size="small" label={`v${draft.version}`} variant="outlined" />}
++            <IconButton onClick={handleSave} disabled={!draft || saveLoading} color="primary">
++              {saveLoading ? <CircularProgress size={18} /> : <SaveOutlined />}
++            </IconButton>
++            <Divider flexItem orientation="vertical" />
++            <IconButton onClick={() => handleExport('DOCX')} disabled={!draft || expLoading}><FileWordOutlined /></IconButton>
++            <IconButton onClick={() => handleExport('PDF')} disabled={!draft || expLoading}><FilePdfOutlined /></IconButton>
++            {lastFileId && (
++              <Button size="small" variant="outlined" onClick={openExported} disabled={expLoading}>
++                Abrir export
 +              </Button>
-+            </Stack>
-+
-+            {/* Tabela de categorias */}
-+            <TableContainer component={Paper} variant="outlined">
-+              <Table>
-+                <TableHead>
-+                  <TableRow>
-+                    <TableCell>Nome</TableCell>
-+                    <TableCell>Slug</TableCell>
-+                    <TableCell>Escopo</TableCell>
-+                    <TableCell align="center">Ações</TableCell>
-+                  </TableRow>
-+                </TableHead>
-+                <TableBody>
-+                  {loading ? (
-+                    <TableRow>
-+                      <TableCell colSpan={4} align="center">
-+                        <CircularProgress size={24} />
-+                      </TableCell>
-+                    </TableRow>
-+                  ) : categories.length === 0 ? (
-+                    <TableRow>
-+                      <TableCell colSpan={4} align="center">
-+                        <Typography variant="body2" color="text.secondary">
-+                          Nenhuma categoria encontrada
-+                        </Typography>
-+                      </TableCell>
-+                    </TableRow>
-+                  ) : (
-+                    categories.map((category) => (
-+                      <TableRow key={category.id}>
-+                        <TableCell>
-+                          <Typography variant="body2" fontWeight="medium">
-+                            {category.name}
-+                          </Typography>
-+                        </TableCell>
-+                        <TableCell>
-+                          <Typography variant="body2" color="text.secondary">
-+                            {category.slug}
-+                          </Typography>
-+                        </TableCell>
-+                        <TableCell>
-+                          <Chip
-+                            label={category.companyScope === 'global' ? 'Global' : 'Empresa'}
-+                            color={category.companyScope === 'global' ? 'primary' : 'default'}
-+                            size="small"
-+                            variant="outlined"
-+                          />
-+                        </TableCell>
-+                        <TableCell align="center">
-+                          <Stack direction="row" spacing={1} justifyContent="center">
-+                            <IconButton
-+                              size="small"
-+                              onClick={() => handleOpenDialog(category)}
-+                              color="primary"
-+                            >
-+                              <EditOutlined />
-+                            </IconButton>
-+                            <IconButton
-+                              size="small"
-+                              onClick={() => handleDeleteClick(category)}
-+                              color="error"
-+                            >
-+                              <DeleteOutlined />
-+                            </IconButton>
-+                          </Stack>
-+                        </TableCell>
-+                      </TableRow>
-+                    ))
-+                  )}
-+                </TableBody>
-+              </Table>
-+            </TableContainer>
++            )}
 +          </Stack>
-+        </MainCard>
-+
-+      {/* Dialog de criação/edição */}
-+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-+        <DialogTitle>
-+          {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
-+        </DialogTitle>
-+        <DialogContent>
-+          <Stack spacing={3} sx={{ mt: 1 }}>
-+            <TextField
-+              label="Nome da Categoria"
-+              value={formData.name}
-+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-+              fullWidth
-+              required
-+              placeholder="Ex: Ações Trabalhistas, Contratos, etc."
++        }
++      >
++        {/* Loader ao gerar o rascunho */}
++        {(genLoading || ticker) && (
++          <Box sx={{ mb: 2 }}>
++            <LoadingTicker
++              running={genLoading || ticker}
++              size="medium"
++              showSpinner
++              spinnerSize={18}
++              minDuration={12000}
 +            />
-+            
-+            {!editingCategory && (
-+              <FormControlLabel
-+                control={
-+                  <Switch
-+                    checked={formData.companyScope === 'global'}
-+                    onChange={(e) => setFormData({ 
-+                      ...formData, 
-+                      companyScope: e.target.checked ? 'global' : 'company' 
-+                    })}
-+                  />
-+                }
-+                label="Disponível para toda a empresa"
-+              />
-+            )}
-+            
-+            {editingCategory && (
-+              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-+                <Typography variant="body2" color="text.secondary">
-+                  <strong>Nota:</strong> O escopo da categoria não pode ser alterado após a criação.
-+                </Typography>
-+              </Box>
-+            )}
-+          </Stack>
-+        </DialogContent>
-+        <DialogActions>
-+          <Button onClick={handleCloseDialog}>Cancelar</Button>
-+          <Button
-+            onClick={handleSubmit}
-+            variant="contained"
-+            disabled={submitting || !formData.name.trim()}
-+          >
-+            {submitting ? <CircularProgress size={18} /> : (editingCategory ? 'Atualizar' : 'Criar')}
-+          </Button>
-+        </DialogActions>
-+      </Dialog>
++          </Box>
++        )}
 +
-+      {/* Dialog de confirmação de exclusão */}
-+      <ConfirmDeleteDialog
-+        open={deleteDialogOpen}
-+        onCancel={() => setDeleteDialogOpen(false)}
-+        onConfirm={handleDeleteConfirm}
-+        title="Excluir Categoria"
-+        description={`Tem certeza que deseja excluir a categoria "${categoryToDelete?.name}"? Esta ação não pode ser desfeita.`}
-+      />
++        {/* Layout 3 colunas: sumário | editor | chat */}
++        <Stack direction="row" spacing={2} alignItems="stretch">
++          {/* SUMÁRIO */}
++          <Paper variant="outlined" sx={{ p: 1.25, width: 260, position: 'sticky', top: 88, height: 'calc(100vh - 140px)', overflow: 'auto' }}>
++            <Typography variant="subtitle2" sx={{ mb: 1 }}>Estrutura do documento</Typography>
++            <Stack spacing={0.5}>
++              {outline.map((o) => (
++                <Button key={o.k} onClick={() => scrollTo(o.k)} sx={{ justifyContent: 'flex-start' }} size="small" variant="text">
++                  {o.t}
++                </Button>
++              ))}
++            </Stack>
++          </Paper>
++
++          {/* EDITOR */}
++          <Paper variant="outlined" sx={{ p: 2, flex: 1, minHeight: '70vh' }}>
++            {!draft ? (
++              <Stack alignItems="center" justifyContent="center" sx={{ height: '40vh' }}>
++                <CircularProgress />
++              </Stack>
++            ) : (
++              <Stack spacing={2}>
++                <Typography variant="h5" fontWeight={700}>Minuta gerada pela IA</Typography>
++                <Divider />
++                {SECTIONS.map((s) => {
++                  const value =
++                    s.key === 'pedidos'
++                      ? (json.pedidos || []).join('\n')
++                      : s.key === 'jurisprudencia'
++                      ? (json.jurisprudencia || []).join('\n')
++                      : (json[s.key] as string);
++                  return (
++                    <Box key={s.key as string} ref={(el) => (sectionRefs.current[s.key as string] = el)}>
++                      <Typography variant="subtitle1" sx={{ mb: 0.5 }}>{s.label}</Typography>
++                      <TextField
++                        value={value}
++                        onChange={(e) => {
++                          const v = e.target.value;
++                          if (s.key === 'pedidos') {
++                            setJson((prev) => ({ ...prev, pedidos: v.split('\n').filter(Boolean) }));
++                          } else if (s.key === 'jurisprudencia') {
++                            setJson((prev) => ({ ...prev, jurisprudencia: v.split('\n').filter(Boolean) }));
++                          } else {
++                            setJson((prev) => ({ ...prev, [s.key]: v }));
++                          }
++                        }}
++                        fullWidth
++                        multiline
++                        minRows={s.multiline ? 3 : 1}
++                        placeholder={`Escreva a seção "${s.label}"...`}
++                      />
++                    </Box>
++                  );
++                })}
++                <Stack direction="row" spacing={1}>
++                  <Button onClick={handleSave} variant="contained" startIcon={<SaveOutlined /> as any} disabled={saveLoading}>
++                    {saveLoading ? <CircularProgress size={18} /> : 'Salvar alterações'}
++                  </Button>
++                  <Button onClick={() => handleExport('PDF')} startIcon={<FilePdfOutlined /> as any} disabled={!draft || expLoading}>
++                    Exportar PDF
++                  </Button>
++                  <Button onClick={() => handleExport('DOCX')} startIcon={<FileWordOutlined /> as any} disabled={!draft || expLoading}>
++                    Exportar DOCX
++                  </Button>
++                </Stack>
++              </Stack>
++            )}
++          </Paper>
++
++          {/* CHAT */}
++          <Paper variant="outlined" sx={{ p: 1.5, width: 360 }}>
++            <Stack spacing={1.5}>
++              <Typography variant="subtitle2">Chat</Typography>
++              <TextField
++                value={chatText}
++                onChange={(e) => setChatText(e.target.value)}
++                placeholder="Diga o que precisa ajustar…"
++                multiline minRows={3}
++              />
++              <Button onClick={handleChatSend} variant="contained" disabled={!caseId || !draft || chatLoading}>
++                {chatLoading ? <CircularProgress size={18} /> : 'Enviar'}
++              </Button>
++              <Divider />
++              <Typography variant="subtitle2">Sugestões</Typography>
++              <Stack spacing={1}>
++                {suggestions.length === 0 && (
++                  <Typography variant="body2" color="text.secondary">Sem sugestões ainda.</Typography>
++                )}
++                {suggestions.map((s) => (
++                  <Paper key={s.id} variant="outlined" sx={{ p: 1 }}>
++                    <Stack spacing={0.75}>
++                      <Stack direction="row" spacing={1} alignItems="center">
++                        <Chip size="small" label={s.status} color={s.status === 'PENDING' ? 'warning' : s.status === 'ACCEPTED' ? 'success' : 'default'} />
++                        {!!s.targets?.length && <Chip size="small" variant="outlined" label={s.targets.join(', ')} />}
++                        {typeof s.confidence === 'number' && <Chip size="small" variant="outlined" label={`conf. ${(s.confidence * 100).toFixed(0)}%`} />}
++                      </Stack>
++                      {s.rationale && <Typography variant="caption" color="text.secondary">{s.rationale}</Typography>}
++                      <Box sx={{ bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider', borderRadius: 1, p: 1 }}>
++                        <Typography variant="caption" color="text.secondary">ops (RFC-6902):</Typography>
++                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
++                      </Box>
++                      <Stack direction="row" spacing={1}>
++                        <Button size="small" variant="contained" onClick={() => accept(s)} disabled={!draft || s.status !== 'PENDING'}>
++                          Aceitar
++                        </Button>
++                        <Button size="small" color="secondary" onClick={() => reject(s)} disabled={!draft || s.status !== 'PENDING'}>
++                          Rejeitar
++                        </Button>
++                      </Stack>
++                    </Stack>
++                  </Paper>
++                ))}
++              </Stack>
++            </Stack>
++          </Paper>
++        </Stack>
++      </MainCard>
 +    </Box>
 +  );
 +}
 diff --git a/src/pages/ai-docs/TemplatesPage.tsx b/src/pages/ai-docs/TemplatesPage.tsx
-new file mode 100644
-index 0000000..caea984
---- /dev/null
+index caea984..17ad70d 100644
+--- a/src/pages/ai-docs/TemplatesPage.tsx
 +++ b/src/pages/ai-docs/TemplatesPage.tsx
-@@ -0,0 +1,326 @@
-+// src/pages/ai-docs/TemplatesPage.tsx
-+import { useEffect, useMemo, useState } from 'react';
-+import {
-+  Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-+  IconButton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-+  TextField, Typography, Paper
-+} from '@mui/material';
-+import Autocomplete from '@mui/material/Autocomplete';
-+import { EditOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
-+import MainCard from 'components/MainCard';
-+import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
-+import { openSnackbar } from 'api/snackbar';
-+
-+import {
-+  listTemplates, createTemplate, updateTemplate, deleteTemplate, getTemplateFileBlob,
-+  type AiTemplate, type AiTemplateListResponse
-+} from 'api/aiDocs';
-+import { listCategories, type AiCategory } from 'api/aiCategories';
-+
-+export default function TemplatesPage() {
-+  // listagem
-+  const [rows, setRows] = useState<AiTemplate[]>([]);
-+  const [loading, setLoading] = useState(false);
-+  const [search, setSearch] = useState('');
-+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-+  const [page, setPage] = useState(1);
-+  const [limit] = useState(20);
-+  const [total, setTotal] = useState(0);
-+
-+  // categorias
-+  const [categories, setCategories] = useState<AiCategory[]>([]);
-+  const [catLoading, setCatLoading] = useState(false);
-+  const catById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
-+
-+  // dialog criar/editar
-+  const [dialogOpen, setDialogOpen] = useState(false);
-+  const [editing, setEditing] = useState<AiTemplate | null>(null);
-+  const [formTitle, setFormTitle] = useState('');
-+  const [formDescription, setFormDescription] = useState('');
-+  const [formCategoryId, setFormCategoryId] = useState<string | null>(null);
-+  const [formFile, setFormFile] = useState<File | null>(null); // só no criar
-+  const [submitting, setSubmitting] = useState(false);
-+
-+  // delete
-+  const [delOpen, setDelOpen] = useState(false);
-+  const [toDelete, setToDelete] = useState<AiTemplate | null>(null);
-+
-+  async function loadCategories() {
-+    try {
-+      setCatLoading(true);
-+      const r = await listCategories({ page: 1, limit: 200 });
-+      setCategories(r.data);
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar categorias', variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally {
-+      setCatLoading(false);
-+    }
-+  }
-+
-+  async function loadRows() {
-+    try {
-+      setLoading(true);
-+      const r: AiTemplateListResponse = await listTemplates({
-+        search: search || undefined,
-+        categoryId: categoryFilter || undefined,
-+        page, limit
-+      });
-+      setRows(r.data);
-+      setTotal(r.pagination.total);
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar templates', variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally {
-+      setLoading(false);
-+    }
-+  }
-+
-+  useEffect(() => { loadCategories(); }, []);
-+  useEffect(() => { loadRows(); /* eslint-disable-next-line */ }, [search, categoryFilter, page, limit]);
-+
-+  // abrir/fechar dialog
-+  function openCreate() {
-+    setEditing(null);
-+    setFormTitle('');
-+    setFormDescription('');
-+    setFormCategoryId(null);
-+    setFormFile(null);
-+    setDialogOpen(true);
-+  }
-+  function openEdit(t: AiTemplate) {
-+    setEditing(t);
-+    setFormTitle(t.title);
-+    setFormDescription(t.description || '');
-+    setFormCategoryId((t as any).categoryId ?? null);
-+    setFormFile(null);
-+    setDialogOpen(true);
-+  }
-+  function closeDialog() { setDialogOpen(false); }
-+
-+  // submit criar/editar
-+  async function handleSubmit() {
-+    try {
-+      setSubmitting(true);
-+      if (editing) {
-+        const updated = await updateTemplate(editing.id, {
-+          title: formTitle,
-+          description: formDescription || null,
-+          categoryId: formCategoryId
-+        });
-+        setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
-+        openSnackbar({ open: true, message: 'Template atualizado.', variant: 'alert', alert: { color: 'success' } } as any);
-+      } else {
-+        if (!formFile) {
-+          openSnackbar({ open: true, message: 'Selecione um PDF', variant: 'alert', alert: { color: 'warning' } } as any);
-+          return;
-+        }
-+        if (!formTitle.trim()) {
-+          openSnackbar({ open: true, message: 'Título é obrigatório', variant: 'alert', alert: { color: 'warning' } } as any);
-+          return;
-+        }
-+        await createTemplate({
-+          file: formFile,
-+          title: formTitle.trim(),
-+          description: formDescription || undefined,
-+          categoryId: formCategoryId
-+        });
-+        openSnackbar({ open: true, message: 'Template criado e processado!', variant: 'alert', alert: { color: 'success' } } as any);
-+        // recarrega a lista do início
-+        setPage(1);
-+        await loadRows();
-+      }
-+      closeDialog();
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally {
-+      setSubmitting(false);
-+    }
-+  }
-+
-+  // delete
-+  function askDelete(t: AiTemplate) {
-+    setToDelete(t);
-+    setDelOpen(true);
-+  }
-+  async function confirmDelete() {
-+    if (!toDelete) return;
-+    try {
-+      await deleteTemplate(toDelete.id);
-+      setRows(prev => prev.filter(r => r.id !== toDelete.id));
-+      openSnackbar({ open: true, message: 'Template removido.', variant: 'alert', alert: { color: 'success' } } as any);
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally {
-+      setDelOpen(false);
-+      setToDelete(null);
-+    }
-+  }
-+
-+  // === Visualizar template via BLOB autenticado ===
-+  async function viewTemplate(template: AiTemplate) {
-+    const fileId = (template as any).fileId;
-+    if (!fileId) return;
-+    
-+    try {
-+      setLoading(true);
-+      const { blob } = await getTemplateFileBlob(template.id, fileId);
-+      const url = URL.createObjectURL(blob);
-+      window.open(url, '_blank', 'noopener,noreferrer');
-+      // revoga depois de um tempo pra liberar memória
-+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-+    } catch (e: any) {
-+      openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-+    } finally {
-+      setLoading(false);
-+    }
-+  }
-+
-+  return (
-+    <Stack spacing={3}>
-+        <MainCard title="Templates">
-+          <Stack spacing={2}>
-+            {/* filtros */}
-+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
-+              <TextField
-+                value={search}
-+                onChange={(e) => { setPage(1); setSearch(e.target.value); }}
-+                placeholder="Buscar por título ou descrição"
-+                InputProps={{ startAdornment: <SearchOutlined style={{ marginRight: 8, opacity: .6 }} /> as any }}
-+                sx={{ minWidth: 320 }}
-+              />
-+              <Autocomplete
-+                options={categories}
-+                loading={catLoading}
-+                getOptionLabel={(o) => o.name}
-+                value={categories.find(c => c.id === categoryFilter) || null}
-+                onChange={(_, v) => { setPage(1); setCategoryFilter(v?.id ?? null); }}
-+                sx={{ minWidth: 280 }}
-+                renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Todas" />}
-+              />
-+              <Box sx={{ flex: 1 }} />
-+              <Button startIcon={<PlusOutlined />} variant="contained" onClick={openCreate}>
-+                Novo Template
-+              </Button>
-+              <Button startIcon={<ReloadOutlined />} onClick={loadRows}>
-+                Atualizar
-+              </Button>
-+            </Stack>
-+
-+            {/* tabela */}
-+            <TableContainer component={Paper} variant="outlined">
-+              <Table>
-+                <TableHead>
-+                  <TableRow>
-+                    <TableCell>Título</TableCell>
-+                    <TableCell>Categoria</TableCell>
-+                    <TableCell>Criado</TableCell>
-+                    <TableCell align="center">Ações</TableCell>
-+                  </TableRow>
-+                </TableHead>
-+                <TableBody>
-+                  {loading ? (
-+                    <TableRow><TableCell colSpan={4} align="center"><CircularProgress size={22} /></TableCell></TableRow>
-+                  ) : rows.length === 0 ? (
-+                    <TableRow><TableCell colSpan={4} align="center"><Typography variant="body2" color="text.secondary">Nenhum template encontrado</Typography></TableCell></TableRow>
-+                  ) : rows.map((t) => {
-+                    const catName = (t as any).categoryId ? catById.get((t as any).categoryId)?.name : undefined;
-+                    return (
-+                      <TableRow key={t.id} hover>
-+                        <TableCell>
-+                          <Stack spacing={0.25}>
-+                            <Typography variant="body2" fontWeight={600} noWrap title={t.title}>{t.title}</Typography>
-+                            {t.description && (
-+                              <Typography 
-+                                variant="caption" 
-+                                color="text.secondary" 
-+                                noWrap 
-+                                title={t.description}
-+                                sx={{ 
-+                                  maxWidth: 200,
-+                                  overflow: 'hidden',
-+                                  textOverflow: 'ellipsis',
-+                                  whiteSpace: 'nowrap'
-+                                }}
-+                              >
-+                                {t.description}
-+                              </Typography>
-+                            )}
-+                          </Stack>
-+                        </TableCell>
-+                        <TableCell>{catName ? <Chip size="small" label={catName} /> : <Typography variant="caption" color="text.secondary">—</Typography>}</TableCell>
-+                        <TableCell><Typography variant="caption" color="text.secondary">{new Date(t.createdAt || '').toLocaleString()}</Typography></TableCell>
-+                        <TableCell align="center">
-+                          <Stack direction="row" spacing={1} justifyContent="center">
-+                            {(t as any).fileId && (
-+                              <IconButton 
-+                                size="small" 
-+                                color="info" 
-+                                onClick={() => viewTemplate(t)}
-+                                title="Visualizar PDF"
-+                              >
-+                                <EyeOutlined />
-+                              </IconButton>
-+                            )}
-+                            <IconButton size="small" color="primary" onClick={() => openEdit(t)}><EditOutlined /></IconButton>
-+                            <IconButton size="small" color="error" onClick={() => askDelete(t)}><DeleteOutlined /></IconButton>
-+                          </Stack>
-+                        </TableCell>
-+                      </TableRow>
-+                    );
-+                  })}
-+                </TableBody>
-+              </Table>
-+            </TableContainer>
-+
-+            {/* paginação simples (opcional: trocar por seu componente de paginação) */}
-+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
-+              <Typography variant="caption" color="text.secondary">
-+                {total} itens • pág. {page}
-+              </Typography>
-+              <Button size="small" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
-+              <Button size="small" disabled={rows.length < limit} onClick={() => setPage(p => p + 1)}>Próxima</Button>
-+            </Stack>
-+          </Stack>
-+        </MainCard>
-+
-+      {/* Dialog criar/editar */}
-+      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-+        <DialogTitle>{editing ? 'Editar Template' : 'Novo Template'}</DialogTitle>
-+        <DialogContent>
-+          <Stack spacing={2} sx={{ mt: 1 }}>
-+            <TextField label="Título *" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} required fullWidth />
-+            <TextField label="Descrição" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} fullWidth multiline minRows={2} />
-+            <Autocomplete
-+              options={categories}
-+              loading={catLoading}
-+              getOptionLabel={(o) => o.name}
-+              value={categories.find(c => c.id === formCategoryId) || null}
-+              onChange={(_, v) => setFormCategoryId(v?.id ?? null)}
-+              renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Opcional" />}
+@@ -9,10 +9,11 @@ import Autocomplete from '@mui/material/Autocomplete';
+ import { EditOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
+ import MainCard from 'components/MainCard';
+ import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
++import LoadingTicker from 'components/LoadingTicker';
+ import { openSnackbar } from 'api/snackbar';
+ 
+ import {
+-  listTemplates, createTemplate, updateTemplate, deleteTemplate, getTemplateFileBlob,
++  listTemplates, createTemplate, updateTemplate, deleteTemplate, getTemplatePdfBlob,
+   type AiTemplate, type AiTemplateListResponse
+ } from 'api/aiDocs';
+ import { listCategories, type AiCategory } from 'api/aiCategories';
+@@ -40,6 +41,7 @@ export default function TemplatesPage() {
+   const [formCategoryId, setFormCategoryId] = useState<string | null>(null);
+   const [formFile, setFormFile] = useState<File | null>(null); // só no criar
+   const [submitting, setSubmitting] = useState(false);
++  const [showTicker, setShowTicker] = useState(false);
+ 
+   // delete
+   const [delOpen, setDelOpen] = useState(false);
+@@ -117,6 +119,7 @@ export default function TemplatesPage() {
+           openSnackbar({ open: true, message: 'Título é obrigatório', variant: 'alert', alert: { color: 'warning' } } as any);
+           return;
+         }
++        setShowTicker(true);
+         await createTemplate({
+           file: formFile,
+           title: formTitle.trim(),
+@@ -133,6 +136,8 @@ export default function TemplatesPage() {
+       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
+     } finally {
+       setSubmitting(false);
++      // O LoadingTicker vai controlar o tempo mínimo internamente
++      setShowTicker(false);
+     }
+   }
+ 
+@@ -162,7 +167,7 @@ export default function TemplatesPage() {
+     
+     try {
+       setLoading(true);
+-      const { blob } = await getTemplateFileBlob(template.id, fileId);
++      const { blob } = await getTemplatePdfBlob(template.id, fileId);
+       const url = URL.createObjectURL(blob);
+       window.open(url, '_blank', 'noopener,noreferrer');
+       // revoga depois de um tempo pra liberar memória
+@@ -311,6 +316,28 @@ export default function TemplatesPage() {
+             {submitting ? <CircularProgress size={18} /> : (editing ? 'Salvar' : 'Criar')}
+           </Button>
+         </DialogActions>
++        
++        {/* LoadingTicker para criação de templates */}
++        {(submitting || showTicker) && !editing && (
++          <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
++            <LoadingTicker
++              running={submitting || showTicker}
++              size="small"
++              showSpinner={true}
++              spinnerSize={16}
++              minDuration={13000} // 13 segundos mínimo para templates
++              script={[
++                'Preparando upload...',
++                'Validando arquivo PDF...',
++                'Processando template...',
++                'Extraindo conteúdo...',
++                'Gerando metadados...',
++                'Salvando no sistema...',
++                'Quase pronto...'
++              ]}
 +            />
-+            {!editing && (
-+              <Button component="label" variant="outlined">
-+                {formFile ? formFile.name : 'Selecionar PDF'}
-+                <input type="file" accept="application/pdf" hidden onChange={(e) => setFormFile(e.target.files?.[0] || null)} />
-+              </Button>
-+            )}
-+          </Stack>
-+        </DialogContent>
-+        <DialogActions>
-+          <Button onClick={closeDialog}>Cancelar</Button>
-+          <Button variant="contained" onClick={handleSubmit} disabled={submitting || (!editing && (!formTitle.trim() || !formFile))}>
-+            {submitting ? <CircularProgress size={18} /> : (editing ? 'Salvar' : 'Criar')}
-+          </Button>
-+        </DialogActions>
-+      </Dialog>
-+
-+      {/* Confirmar exclusão */}
-+      <ConfirmDeleteDialog
-+        open={delOpen}
-+        onCancel={() => setDelOpen(false)}
-+        onConfirm={confirmDelete}
-+        title="Excluir Template"
-+        description={`Tem certeza que deseja excluir o template "${toDelete?.title}"? Esta ação não pode ser desfeita.`}
-+      />
-+    </Stack>
-+  );
-+}
-\ No newline at end of file
++          </Box>
++        )}
+       </Dialog>
+ 
+       {/* Confirmar exclusão */}
 diff --git a/src/routes/MainRoutes.tsx b/src/routes/MainRoutes.tsx
-index e40a4e9..eb57be8 100644
+index eb57be8..d0c3095 100644
 --- a/src/routes/MainRoutes.tsx
 +++ b/src/routes/MainRoutes.tsx
-@@ -36,6 +36,11 @@ const CompanyPage = Loadable(lazy(() => import('pages/company')));
- // NOVO: Bloqueios de Conta
- const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
+@@ -40,6 +40,8 @@ const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blo
+ const AiDocsMVP = Loadable(lazy(() => import('pages/ai-docs/AiDocsMVP')));
+ const AiDocsTemplates = Loadable(lazy(() => import('pages/ai-docs/TemplatesPage')));
+ const AiDocsCategories = Loadable(lazy(() => import('pages/ai-docs/CategoriesPage')));
++const CreateCaseStep1 = Loadable(lazy(() => import('pages/ai-docs/CreateCaseStep1')));
++const WDocEditorPage = Loadable(lazy(() => import('pages/ai-docs/WDocEditorPage')));
  
-+// NOVO: AI Docs MVP
-+const AiDocsMVP = Loadable(lazy(() => import('pages/ai-docs/AiDocsMVP')));
-+const AiDocsTemplates = Loadable(lazy(() => import('pages/ai-docs/TemplatesPage')));
-+const AiDocsCategories = Loadable(lazy(() => import('pages/ai-docs/CategoriesPage')));
-+
  // ==============================|| MAIN ROUTING ||============================== //
  
- const MainRoutes = {
-@@ -77,6 +82,18 @@ const MainRoutes = {
+@@ -94,6 +96,14 @@ const MainRoutes = {
          {
-           path: 'sensitive-fields',
-           element: <SensitiveFieldsPage />
+           path: 'ai-docs/categories',
+           element: <AiDocsCategories />
 +        },
 +        {
-+          path: 'ai-docs',
-+          element: <AiDocsMVP />
++          path: 'ai-docs/create',
++          element: <CreateCaseStep1 />
 +        },
 +        {
-+          path: 'ai-docs/templates',
-+          element: <AiDocsTemplates />
-+        },
-+        {
-+          path: 'ai-docs/categories',
-+          element: <AiDocsCategories />
++          path: 'ai-docs/editor',
++          element: <WDocEditorPage />
          }
        ]
      },
-diff --git a/src/types/ai-docs.ts b/src/types/ai-docs.ts
+diff --git a/src/pages/ai-docs/WDocEditorPage.tsx b/src/pages/ai-docs/WDocEditorPage.tsx
 new file mode 100644
-index 0000000..04ad90a
+index 0000000..325bbca
 --- /dev/null
-+++ b/src/types/ai-docs.ts
-@@ -0,0 +1,63 @@
-+// src/types/ai-docs.ts
-+export type AiTemplate = {
-+  id: string;
-+  kind: string;
-+  title: string;
-+  description?: string | null;
-+  createdAt?: string;
++++ b/src/pages/ai-docs/WDocEditorPage.tsx
+@@ -0,0 +1,283 @@
++import { useEffect, useMemo, useState } from 'react';
++import { useSearchParams } from 'react-router-dom';
++import { Box, Stack, Typography, Paper, Divider, TextField, Button, Chip, IconButton, MenuItem, Select } from '@mui/material';
++import { SaveOutlined, FilePdfOutlined, FileWordOutlined } from '@ant-design/icons';
++import MainCard from 'components/MainCard';
++import LoadingTicker from 'components/LoadingTicker';
++import { openSnackbar } from 'api/snackbar';
++
++import type { WDoc, WBlock, WRun, AiDraft, AiSuggestion } from 'types/wdoc';
++import {
++  generateDraft,
++  updateDraft,
++  exportDraft,
++  getExportFileBlob,
++  postChatMessage,
++  acceptSuggestion,
++  rejectSuggestion
++} from 'api/aiDocs';
++
++export default function WDocEditorPage() {
++  const [params] = useSearchParams();
++  const caseId = params.get('caseId')!;
++  const templateId = params.get('templateId') || undefined;
++
++  const [draft, setDraft] = useState<AiDraft | null>(null);
++  const [json, setJson] = useState<WDoc | null>(null);
++  const [saving, setSaving] = useState(false);
++  const [expLoading, setExpLoading] = useState(false);
++  const [lastFileId, setLastFileId] = useState<string | null>(null);
++  const [genLoading, setGenLoading] = useState(true);
++  const [showTicker, setShowTicker] = useState(true);
++
++  const [chat, setChat] = useState('');
++  const [chatLoading, setChatLoading] = useState(false);
++  const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
++
++  useEffect(() => {
++    (async () => {
++      try {
++        setGenLoading(true);
++        setShowTicker(true);
++        const d = await generateDraft(caseId, templateId);
++        setDraft(d);
++        setJson(d.json as WDoc);
++        openSnackbar({ open: true, message: 'Documento gerado (WDoc).', variant: 'alert', alert: { color: 'success' } } as any);
++      } catch (e: any) {
++        openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
++      } finally {
++        setGenLoading(false);
++        setShowTicker(false);
++      }
++    })();
++  }, [caseId, templateId]);
++
++  async function save() {
++    if (!draft || !json) return;
++    setSaving(true);
++    try {
++      const updated = await updateDraft(draft.id, { json });
++      setDraft(updated);
++      setJson(updated.json as WDoc);
++      openSnackbar({ open: true, message: 'Rascunho salvo', variant: 'alert', alert: { color: 'success' } } as any);
++    } finally {
++      setSaving(false);
++    }
++  }
++
++  async function handleExport(kind: 'DOCX'|'PDF') {
++    if (!draft) return;
++    setExpLoading(true);
++    try {
++      const ex = await exportDraft(draft.id, kind);
++      setLastFileId(ex.fileId || null);
++      openSnackbar({ open: true, message: kind === 'DOCX' ? 'DOCX gerado' : 'Export solicitado', variant: 'alert', alert: { color: 'success' } } as any);
++    } catch (e: any) {
++      openSnackbar({ open: true, message: e?.message || 'Falha ao exportar', variant: 'alert', alert: { color: 'error' } } as any);
++    } finally {
++      setExpLoading(false);
++    }
++  }
++
++  async function openExported() {
++    if (!lastFileId) return;
++    const { blob } = await getExportFileBlob(lastFileId);
++    const url = URL.createObjectURL(blob);
++    window.open(url, '_blank', 'noopener,noreferrer');
++    setTimeout(() => URL.revokeObjectURL(url), 60000);
++  }
++
++  async function sendChat() {
++    if (!caseId || !chat.trim()) return;
++    setChatLoading(true);
++    try {
++      const out = await postChatMessage(caseId, chat.trim());
++      setSuggestions(out.suggestions || []);
++    } finally {
++      setChatLoading(false);
++    }
++  }
++
++  const styleKeys = useMemo(() => Object.keys(json?.styles || {}), [json]);
++
++  function updateBlock(i: number, patch: Partial<WBlock>) {
++    setJson((prev) => {
++      if (!prev) return prev;
++      const next = { ...prev, content: prev.content.map((b, idx) => (idx === i ? { ...b, ...patch } : b)) };
++      return next;
++    });
++  }
++
++  function addBlock(kind: WBlock['type']) {
++    setJson((prev) => {
++      if (!prev) return prev;
++      const firstStyle = Object.keys(prev.styles || {})[0] || 'paragraph';
++      const b: WBlock =
++        kind === 'paragraph'
++          ? ({ type: 'paragraph', style: firstStyle, runs: [{ text: '' }] } as WBlock)
++          : ({ type: 'heading', style: firstStyle, text: '' } as WBlock);
++      return { ...prev, content: [...prev.content, b] };
++    });
++  }
++
++  if (!json) return (
++    <Box p={3}>
++      <MainCard>
++        <LoadingTicker
++          running={genLoading || showTicker}
++          size="medium"
++          showSpinner
++          spinnerSize={18}
++          minDuration={12000}
++          script={[
++            'Preparando documento...',
++            'Analisando template...',
++            'Processando conteúdo...',
++            'Gerando estrutura...',
++            'Aplicando formatação...',
++            'Finalizando documento...',
++            'Quase pronto...'
++          ]}
++        />
++      </MainCard>
++    </Box>
++  );
++
++  return (
++    <Box sx={{ p: { xs: 1, md: 3 } }}>
++      <MainCard
++        title="Editor (WDoc)"
++        secondary={
++          <Stack direction="row" spacing={1} alignItems="center">
++            {draft && <Chip size="small" label={`draftId: ${draft.id}`} />}
++            <IconButton onClick={save} disabled={saving || !draft} color="primary" title="Salvar">
++              <SaveOutlined />
++            </IconButton>
++            <IconButton onClick={() => handleExport('DOCX')} disabled={!draft || expLoading} title="Exportar DOCX">
++              <FileWordOutlined />
++            </IconButton>
++            <IconButton onClick={() => handleExport('PDF')} disabled={!draft || expLoading} title="Exportar PDF">
++              <FilePdfOutlined />
++            </IconButton>
++            {lastFileId && <Button size="small" onClick={openExported}>Abrir export</Button>}
++          </Stack>
++        }
++      >
++        <Stack direction="row" spacing={2} alignItems="flex-start">
++          {/* Outline */}
++          <Paper variant="outlined" sx={{ p: 1.25, width: 260 }}>
++            <Typography variant="subtitle2">Estrutura</Typography>
++            <Stack spacing={1} sx={{ mt: 1 }}>
++              <Button size="small" onClick={() => addBlock('heading')}>+ Heading</Button>
++              <Button size="small" onClick={() => addBlock('paragraph')}>+ Parágrafo</Button>
++              <Button size="small" onClick={() => addBlock('bulletList')}>+ Lista com marcadores</Button>
++            </Stack>
++          </Paper>
++
++          {/* Editor */}
++          <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
++            <Stack spacing={2}>
++              {json.content.map((b, i) => (
++                <Paper key={i} variant="outlined" sx={{ p: 1.25 }}>
++                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
++                    <Chip size="small" label={b.type} />
++                    <Select
++                      size="small"
++                      value={(b as any).style || ''}
++                      onChange={(e) => updateBlock(i, { ...(b as any), style: String(e.target.value) })}
++                    >
++                      {styleKeys.map((k) => (
++                        <MenuItem key={k} value={k}>{k}</MenuItem>
++                      ))}
++                    </Select>
++                  </Stack>
++
++                  {b.type === 'heading' && (
++                    <TextField
++                      fullWidth
++                      value={(b as any).text || ''}
++                      onChange={(e) => updateBlock(i, { ...(b as any), text: e.target.value })}
++                    />
++                  )}
++
++                  {b.type === 'paragraph' && (
++                    <TextField
++                      fullWidth multiline minRows={2}
++                      value={((b as any).runs?.map((r: WRun) => r.text).join('')) || (b as any).text || ''}
++                      onChange={(e) => updateBlock(i, { ...(b as any), runs: [{ text: e.target.value }] })}
++                    />
++                  )}
++
++                  {(b.type === 'bulletList' || b.type === 'numberedList') && (
++                    <Stack spacing={1}>
++                      {(((b as any).items as { runs: WRun[] }[]) || [{ runs: [{ text: '' }] }]).map((it, idx) => (
++                        <TextField
++                          key={idx}
++                          value={it.runs?.map((r) => r.text).join('') || ''}
++                          onChange={(e) => {
++                            const next = [ ...(((b as any).items as { runs: WRun[] }[]) || []) ];
++                            next[idx] = { runs: [{ text: e.target.value }] };
++                            updateBlock(i, { ...(b as any), items: next });
++                          }}
++                        />
++                      ))}
++                      <Button
++                        size="small"
++                        onClick={() => {
++                          const current = ((b as any).items as { runs: WRun[] }[]) || [];
++                          updateBlock(i, { ...(b as any), items: [ ...current, { runs: [{ text: '' }] } ] });
++                        }}
++                      >
++                        + Item
++                      </Button>
++                    </Stack>
++                  )}
++                </Paper>
++              ))}
++            </Stack>
++          </Paper>
++
++          {/* Chat */}
++          <Paper variant="outlined" sx={{ p: 1.5, width: 360 }}>
++            <Typography variant="subtitle2">Chat</Typography>
++            <TextField value={chat} onChange={(e) => setChat(e.target.value)} multiline minRows={3} sx={{ mt: 1 }} />
++            <Button sx={{ mt: 1 }} onClick={sendChat} disabled={chatLoading}>Enviar</Button>
++            <Divider sx={{ my: 1 }} />
++            <Typography variant="subtitle2">Sugestões</Typography>
++            <Stack spacing={1} sx={{ mt: 1 }}>
++              {suggestions.map((s) => (
++                <Paper key={s.id} variant="outlined" sx={{ p: 1 }}>
++                  <Typography variant="body2">{s.rationale || 'Sugestão'}</Typography>
++                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
++                    <Button
++                      size="small"
++                      variant="contained"
++                      onClick={async () => {
++                        if (!draft) return;
++                        const res = await acceptSuggestion(draft.id, s.id);
++                        setDraft(res.draft);
++                        setJson(res.draft.json as WDoc);
++                      }}
++                    >
++                      Aceitar
++                    </Button>
++                    <Button
++                      size="small"
++                      onClick={async () => {
++                        if (!draft) return;
++                        await rejectSuggestion(draft.id, s.id);
++                        setSuggestions((prev) => prev.map((x) => (x.id === s.id ? { ...x, status: 'REJECTED' } : x)));
++                      }}
++                    >
++                      Rejeitar
++                    </Button>
++                  </Stack>
++                </Paper>
++              ))}
++            </Stack>
++          </Paper>
++        </Stack>
++      </MainCard>
++    </Box>
++  );
++}
+diff --git a/src/types/wdoc.ts b/src/types/wdoc.ts
+new file mode 100644
+index 0000000..8dadbf0
+--- /dev/null
++++ b/src/types/wdoc.ts
+@@ -0,0 +1,59 @@
++export type WRun = {
++  text: string;
++  bold?: boolean;
++  italic?: boolean;
++  underline?: boolean;
++  caps?: boolean;
++  smallCaps?: boolean;
++  size?: number;
++  font?: string;
 +};
 +
-+export type AiCase = {
-+  id: string;
-+  userId: string;
-+  companyId?: string | null;
-+  type: string;
-+  requestText: string;
-+  status: 'DRAFT'|'GENERATING'|'READY'|'APPROVED'|'REJECTED'|string;
-+  createdAt: string;
-+};
++export type WBlock =
++  | {
++      type: 'heading' | 'paragraph' | 'quote' | 'pageBreak' | 'signature';
++      style?: string;
++      text?: string;
++      runs?: WRun[];
++    }
++  | {
++      type: 'bulletList' | 'numberedList';
++      style?: string;
++      items?: { runs: WRun[] }[];
++    }
++  | {
++      type: 'table';
++      style?: string;
++      rows?: { runs: WRun[] }[][];
++    };
 +
-+export type DraftJson = {
-+  enderecamento: string;
-+  qualificacao: string;
-+  fatos: string;
-+  fundamentos: string;
-+  pedidos: string[];
-+  jurisprudencia: string[];
-+  observacoes: string;
-+  [k: string]: any;
++export type WDoc = {
++  meta: any;
++  styles: Record<string, any>;
++  content: WBlock[];
 +};
 +
 +export type AiDraft = {
@@ -1439,8 +2060,8 @@ index 0000000..04ad90a
 +  caseId: string;
 +  templateId?: string | null;
 +  version: number;
-+  status: string; // 'draft' | ...
-+  json: DraftJson;
++  status: string; // draft|approved|rejected
++  json: WDoc;
 +  createdAt: string;
 +  updatedAt: string;
 +};
@@ -1454,16 +2075,67 @@ index 0000000..04ad90a
 +  rationale?: string | null;
 +  confidence?: number | null;
 +  targets: string[];
-+  status: 'PENDING'|'ACCEPTED'|'REJECTED';
++  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
 +  createdAt: string;
++  resolvedAt?: string | null;
 +};
-+
-+export type AiExport = {
-+  id: string;
-+  draftId: string;
-+  kind: 'DOCX'|'PDF';
-+  status: 'PENDING'|'DONE'|'ERROR';
-+  fileId?: string | null;
-+  error?: string | null;
-+  createdAt: string;
-+};
+diff --git a/src/utils/locales/en/aiDocs.json b/src/utils/locales/en/aiDocs.json
+new file mode 100644
+index 0000000..06f511d
+--- /dev/null
++++ b/src/utils/locales/en/aiDocs.json
+@@ -0,0 +1,14 @@
++{
++  "editor.title": "Editor (WDoc)",
++  "editor.generating": "Generating…",
++  "editor.save": "Draft saved",
++  "editor.export.docx": "DOCX generated",
++  "editor.export.pdf": "Export requested",
++  "chat.title": "Chat",
++  "chat.send": "Send",
++  "chat.suggestions": "Suggestions",
++  "structure.title": "Outline",
++  "structure.add.heading": "+ Heading",
++  "structure.add.paragraph": "+ Paragraph",
++  "structure.add.bullet": "+ Bullet list"
++}
+diff --git a/src/utils/locales/es/aiDocs.json b/src/utils/locales/es/aiDocs.json
+new file mode 100644
+index 0000000..ce113d4
+--- /dev/null
++++ b/src/utils/locales/es/aiDocs.json
+@@ -0,0 +1,14 @@
++{
++  "editor.title": "Editor (WDoc)",
++  "editor.generating": "Generando…",
++  "editor.save": "Borrador guardado",
++  "editor.export.docx": "DOCX generado",
++  "editor.export.pdf": "Exportación solicitada",
++  "chat.title": "Chat",
++  "chat.send": "Enviar",
++  "chat.suggestions": "Sugerencias",
++  "structure.title": "Estructura",
++  "structure.add.heading": "+ Encabezado",
++  "structure.add.paragraph": "+ Párrafo",
++  "structure.add.bullet": "+ Lista con viñetas"
++}
+diff --git a/src/utils/locales/pt/aiDocs.json b/src/utils/locales/pt/aiDocs.json
+new file mode 100644
+index 0000000..4e7e2e6
+--- /dev/null
++++ b/src/utils/locales/pt/aiDocs.json
+@@ -0,0 +1,14 @@
++{
++  "editor.title": "Editor (WDoc)",
++  "editor.generating": "Gerando…",
++  "editor.save": "Rascunho salvo",
++  "editor.export.docx": "DOCX gerado",
++  "editor.export.pdf": "Export solicitado",
++  "chat.title": "Chat",
++  "chat.send": "Enviar",
++  "chat.suggestions": "Sugestões",
++  "structure.title": "Estrutura",
++  "structure.add.heading": "+ Heading",
++  "structure.add.paragraph": "+ Parágrafo",
++  "structure.add.bullet": "+ Lista com marcadores"
++}
