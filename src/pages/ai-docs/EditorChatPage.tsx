@@ -19,8 +19,12 @@ import {
   rejectSuggestion,
   type AiDraft,
   type DraftJson,
-  type AiSuggestion
+  type AiSuggestion,
+  type WDoc
 } from 'api/aiDocs';
+
+// Helper para verificar se uma sugestão está pendente, independente do formato do status
+const isPending = (s: AiSuggestion) => (s.status || 'PENDING').toUpperCase() === 'PENDING';
 
 const EMPTY: DraftJson = {
   enderecamento: '',
@@ -31,6 +35,76 @@ const EMPTY: DraftJson = {
   jurisprudencia: [],
   observacoes: ''
 };
+
+// Helper para converter WDoc para DraftJson
+function wdocToDraftJson(wdoc: WDoc): DraftJson {
+  const extractText = (blocks: any[]) => {
+    return blocks?.map(block => {
+      if (block.text) return block.text;
+      if (block.runs) return block.runs.map((r: any) => r.text || '').join('');
+      if (block.items) return block.items.map((item: any) => 
+        item.runs?.map((r: any) => r.text || '').join('') || ''
+      ).join('\n');
+      return '';
+    }).join('\n') || '';
+  };
+
+  return {
+    enderecamento: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Endereçamento')) || []),
+    qualificacao: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Qualificação')) || []),
+    fatos: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Fatos')) || []),
+    fundamentos: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Fundamentos')) || []),
+    pedidos: wdoc.content?.filter((b: any) => b.type === 'bulletList' && b.items).flatMap((b: any) => 
+      b.items?.map((item: any) => item.runs?.map((r: any) => r.text || '').join('') || '') || []
+    ) || [],
+    jurisprudencia: wdoc.content?.filter((b: any) => b.type === 'bulletList' && b.items).flatMap((b: any) => 
+      b.items?.map((item: any) => item.runs?.map((r: any) => r.text || '').join('') || '') || []
+    ) || [],
+    observacoes: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Observações')) || [])
+  };
+}
+
+// Helper para converter DraftJson para WDoc
+function draftJsonToWDoc(draftJson: DraftJson): WDoc {
+  const createTextBlock = (text: string, type: 'paragraph' | 'heading' = 'paragraph') => ({
+    type,
+    text,
+    runs: [{ text }]
+  });
+
+  const createListBlock = (items: string[]) => ({
+    type: 'bulletList' as const,
+    items: items.map(item => ({
+      runs: [{ text: item }]
+    }))
+  });
+
+  const content = [
+    createTextBlock(draftJson.enderecamento, 'heading'),
+    createTextBlock(draftJson.qualificacao, 'heading'),
+    createTextBlock(draftJson.fatos, 'heading'),
+    createTextBlock(draftJson.fundamentos, 'heading'),
+    createListBlock(draftJson.pedidos),
+    createListBlock(draftJson.jurisprudencia),
+    createTextBlock(draftJson.observacoes, 'heading')
+  ].filter(block => {
+    if (block.type === 'bulletList') {
+      return block.items.length > 0;
+    }
+    return block.text && block.text.trim().length > 0;
+  });
+
+  return {
+    meta: {},
+    styles: {
+      Normal: {
+        paragraph: { spacing: { line: 1.15, before: 0, after: 0 } },
+        run: {}
+      }
+    },
+    content
+  };
+}
 
 const SECTIONS: Array<{ key: keyof DraftJson; label: string; multiline?: boolean }> = [
   { key: 'enderecamento', label: 'Endereçamento', multiline: true },
@@ -77,7 +151,7 @@ export default function EditorChatPage() {
         setTicker(true);
         const d = await generateDraft(caseId, templateId);
         setDraft(d);
-        setJson(d.json);
+        setJson(wdocToDraftJson(d.json));
         openSnackbar({ open: true, message: 'Documento gerado pela IA.', variant: 'alert', alert: { color: 'success' } } as any);
       } catch (e: any) {
         openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
@@ -94,9 +168,9 @@ export default function EditorChatPage() {
     if (!draft) return;
     try {
       setSaveLoading(true);
-      const updated = await updateDraft(draft.id, { json });
+      const updated = await updateDraft(draft.id, { json: draftJsonToWDoc(json) });
       setDraft(updated);
-      setJson(updated.json);
+      setJson(wdocToDraftJson(updated.json));
       openSnackbar({ open: true, message: 'Rascunho salvo!', variant: 'alert', alert: { color: 'success' } } as any);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
@@ -112,7 +186,27 @@ export default function EditorChatPage() {
       setChatLoading(true);
       const out = await postChatMessage(caseId, chatText.trim());
       setSuggestions(out.suggestions || []);
-      openSnackbar({ open: true, message: `Geradas ${out.suggestions?.length || 0} sugestão(ões)`, variant: 'alert', alert: { color: 'success' } } as any);
+      
+      // debug rápido: mostra as ops das sugestões
+      console.table((out.suggestions || []).flatMap(s =>
+        s.ops.map(o => ({ 
+          sug: s.id, 
+          op: o.op, 
+          path: o.path, 
+          value: String(o.value).slice(0, 80) 
+        }))
+      ));
+      
+      const hasSuggestions = out.suggestions && out.suggestions.length > 0;
+      const isSuggestMode = hasSuggestions && out.suggestions.some(s => s.ops && s.ops.length > 0);
+      
+      if (isSuggestMode) {
+        openSnackbar({ open: true, message: `Geradas ${out.suggestions?.length || 0} sugestão(ões) com operações`, variant: 'alert', alert: { color: 'success' } } as any);
+      } else if (hasSuggestions) {
+        openSnackbar({ open: true, message: `Resposta de chat (${out.suggestions?.length || 0} item(s))`, variant: 'alert', alert: { color: 'info' } } as any);
+      } else {
+        openSnackbar({ open: true, message: 'Resposta recebida', variant: 'alert', alert: { color: 'info' } } as any);
+      }
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
     } finally { setChatLoading(false); }
@@ -123,7 +217,7 @@ export default function EditorChatPage() {
     try {
       const res = await acceptSuggestion(draft.id, s.id);
       setDraft(res.draft);
-      setJson(res.draft.json);
+      setJson(wdocToDraftJson(res.draft.json));
       setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: 'ACCEPTED' } : x));
       openSnackbar({ open: true, message: 'Sugestão aplicada.', variant: 'alert', alert: { color: 'success' } } as any);
     } catch (e: any) {
@@ -253,7 +347,7 @@ export default function EditorChatPage() {
                       ? (json.jurisprudencia || []).join('\n')
                       : (json[s.key] as string);
                   return (
-                    <Box key={s.key as string} ref={(el) => (sectionRefs.current[s.key as string] = el)}>
+                    <Box key={s.key as string} ref={(el: HTMLDivElement | null) => { sectionRefs.current[s.key as string] = el; }}>
                       <Typography variant="subtitle1" sx={{ mb: 0.5 }}>{s.label}</Typography>
                       <TextField
                         value={value}
@@ -291,9 +385,9 @@ export default function EditorChatPage() {
           </Paper>
 
           {/* CHAT */}
-          <Paper variant="outlined" sx={{ p: 1.5, width: 360 }}>
+          <Paper variant="outlined" sx={{ p: 1.5, width: 360, height: '5svh', position: 'fixed', top: 88, overflow: 'auto' }}>
             <Stack spacing={1.5}>
-              <Typography variant="subtitle2">Chat</Typography>
+              <Typography variant="subtitle2">Chat1</Typography>
               <TextField
                 value={chatText}
                 onChange={(e) => setChatText(e.target.value)}
@@ -323,10 +417,20 @@ export default function EditorChatPage() {
                         <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
                       </Box>
                       <Stack direction="row" spacing={1}>
-                        <Button size="small" variant="contained" onClick={() => accept(s)} disabled={!draft || s.status !== 'PENDING'}>
+                        <Button size="small" variant="contained" onClick={() => accept(s)} disabled={!draft || !isPending(s)}>
                           Aceitar
                         </Button>
-                        <Button size="small" color="secondary" onClick={() => reject(s)} disabled={!draft || s.status !== 'PENDING'}>
+                        <Button 
+                          size="small" 
+                          variant="contained" 
+                          sx={{ 
+                            backgroundColor: '#9e9e9e', 
+                            color: 'white',
+                            '&:hover': { backgroundColor: '#757575' }
+                          }} 
+                          onClick={() => reject(s)} 
+                          disabled={!draft || !isPending(s)}
+                        >
                           Rejeitar
                         </Button>
                       </Stack>

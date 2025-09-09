@@ -2,6 +2,17 @@
 import axios from 'utils/axios';
 import type { AiDraft, AiSuggestion, WDoc } from 'types/wdoc';
 
+// Re-export types for convenience
+export type { AiDraft, AiSuggestion, WDoc };
+
+export type AiChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;           // mensagem do usuário OU rationale agregado
+  createdAt: string;
+};
+import type { DocflowDoc } from 'types/docflow';
+
 // ==============================================================
 // lembre: LANG vem de VITE_APP_ACCEPT_LANGUAGE
 const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
@@ -91,6 +102,34 @@ export type AiExport = {
 //
 // Drafts
 //
+// ===== Drafts - list/get =====
+export type AiDraftListResponse = {
+  message: string;
+  data: AiDraft[];
+  pagination: { page: number; limit: number; total: number };
+};
+
+export async function listDrafts(params?: { caseId?: string; page?: number; limit?: number }) {
+  const { data } = await axios.get<AiDraftListResponse>('/ai/drafts', {
+    params,
+    headers: { 'Accept-Language': LANG }
+  });
+  return data;
+}
+
+export async function getDraft(draftId: string) {
+  const { data } = await axios.get<{ data: AiDraft }>(`/ai/drafts/${encodeURIComponent(draftId)}`, {
+    headers: { 'Accept-Language': LANG }
+  });
+  return data.data;
+}
+
+// Helper: pega o draft mais recente do caso
+export async function getLatestDraftForCase(caseId: string) {
+  const r = await listDrafts({ caseId, page: 1, limit: 1 });
+  return r.data?.[0] || null;
+}
+
 export async function generateDraft(caseId: string, templateId?: string) {
   const { data } = await axios.post<{ data: AiDraft }>(
     `/ai/drafts/${encodeURIComponent(caseId)}/generate`,
@@ -101,7 +140,7 @@ export async function generateDraft(caseId: string, templateId?: string) {
 
 export async function updateDraft(
   draftId: string,
-  payload: { json: WDoc; status?: string }
+  payload: { json: WDoc | DocflowDoc; status?: string }
 ) {
   const { data } = await axios.patch<{ data: AiDraft }>(
     `/ai/drafts/${encodeURIComponent(draftId)}`,
@@ -134,6 +173,14 @@ export async function getExportFileBlob(fileId: string) {
 //
 // Chat & sugestões
 //
+export async function listChatMessages(caseId: string) {
+  const { data } = await axios.get<{ data: AiChatMessage[] }>(
+    `/ai/chats/${encodeURIComponent(caseId)}/messages`,
+    { headers: { 'Accept-Language': LANG } }
+  );
+  return data.data;
+}
+
 export async function postChatMessage(caseId: string, text: string) {
   const { data } = await axios.post<{ data: { sessionId: string; draftId: string; suggestions: AiSuggestion[]; messageId: string } }>(
     `/ai/chats/${encodeURIComponent(caseId)}/messages`,
@@ -159,6 +206,33 @@ export async function rejectSuggestion(draftId: string, suggestionId: string) {
 //
 // Cases
 //
+// ===== Cases - list/get =====
+export type AiCaseListResponse = {
+  message: string;
+  data: AiCase[];
+  pagination: { page: number; limit: number; total: number };
+};
+
+export async function listCases(params?: {
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const { data } = await axios.get<AiCaseListResponse>('/ai/cases', {
+    params,
+    headers: { 'Accept-Language': LANG }
+  });
+  return data;
+}
+
+export async function getCase(caseId: string) {
+  const { data } = await axios.get<{ data: AiCase }>(`/ai/cases/${encodeURIComponent(caseId)}`, {
+    headers: { 'Accept-Language': LANG }
+  });
+  return data.data;
+}
+
 export async function createCase(payload: { type: string; requestText: string }) {
   const { data } = await axios.post<{ data: { id: string } }>(`/ai/cases`, payload);
   return data.data;

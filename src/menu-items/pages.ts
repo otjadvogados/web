@@ -84,6 +84,12 @@ const pages: NavItemType = {
           title: 'Categorias',
           type: 'item',
           url: '/ai-docs/categories'
+        },
+        {
+          id: 'ai-docs-cases',
+          title: 'Meus Casos',
+          type: 'item',
+          url: '/ai-docs/cases'
         }
       ]
     },

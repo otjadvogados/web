@@ -28,6 +28,9 @@ import {
 } from 'api/aiDocs';
 import type { AiDraft, AiSuggestion } from 'types/wdoc';
 
+// Helper para verificar se uma sugestão está pendente, independente do formato do status
+const isPending = (s: AiSuggestion) => (s.status || 'PENDING').toUpperCase() === 'PENDING';
+
 const emptyDraft: DraftJson = {
   enderecamento: '',
   qualificacao: '',
@@ -145,7 +148,27 @@ export default function AiDocsMVP() {
         // Se o backend abriu sessão para outro draft (ex.: mais novo), considere buscar…
       }
       setSuggestions(out.suggestions || []);
-      openSnackbar({ open: true, message: `Geradas ${out.suggestions?.length || 0} sugestão(ões).`, variant: 'alert', alert: { color: 'success' } } as any);
+      
+      // debug rápido: mostra as ops das sugestões
+      console.table((out.suggestions || []).flatMap(s =>
+        s.ops.map(o => ({ 
+          sug: s.id, 
+          op: o.op, 
+          path: o.path, 
+          value: String(o.value).slice(0, 80) 
+        }))
+      ));
+      
+      const hasSuggestions = out.suggestions && out.suggestions.length > 0;
+      const isSuggestMode = hasSuggestions && out.suggestions.some(s => s.ops && s.ops.length > 0);
+      
+      if (isSuggestMode) {
+        openSnackbar({ open: true, message: `Geradas ${out.suggestions?.length || 0} sugestão(ões) com operações.`, variant: 'alert', alert: { color: 'success' } } as any);
+      } else if (hasSuggestions) {
+        openSnackbar({ open: true, message: `Resposta de chat (${out.suggestions?.length || 0} item(s)).`, variant: 'alert', alert: { color: 'info' } } as any);
+      } else {
+        openSnackbar({ open: true, message: 'Resposta recebida.', variant: 'alert', alert: { color: 'info' } } as any);
+      }
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
     } finally { setChatLoading(false); }
@@ -336,8 +359,8 @@ export default function AiDocsMVP() {
                   <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(s.ops, null, 2)}</pre>
                 </Box>
                 <Stack direction="row" spacing={1}>
-                  <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || s.status !== 'PENDING'}>Aceitar</Button>
-                  <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || s.status !== 'PENDING'}>Rejeitar</Button>
+                  <Button size="small" variant="contained" onClick={() => onAccept(s)} disabled={!draft || !isPending(s)}>Aceitar</Button>
+                  <Button size="small" color="secondary" onClick={() => onReject(s)} disabled={!draft || !isPending(s)}>Rejeitar</Button>
                 </Stack>
               </Stack>
             </Paper>

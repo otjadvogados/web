@@ -61,7 +61,7 @@ export default function DashboardLayout() {
               flexDirection: 'column'
             }}
           >
-            {pathname !== '#!' && <Breadcrumbs />}
+            {pathname !== '#!' && !pathname.includes('/ai-docs/editor') && <Breadcrumbs />}
             <Outlet />
             <Footer />
           </Container>
