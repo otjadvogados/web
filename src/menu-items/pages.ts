@@ -3,12 +3,13 @@ import TeamOutlined from '@ant-design/icons/TeamOutlined';
 import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
 import AppstoreOutlined from '@ant-design/icons/AppstoreOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
+import AIIcon from 'components/icons/AIIcon';
 
 // type
 import { NavItemType } from 'types/menu';
 
 // icons
-const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined };
+const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined, AIIcon };
 
 // ==============================|| MENU ITEMS - PAGES ||============================== //
 
@@ -56,28 +57,16 @@ const pages: NavItemType = {
     // 👇 AI Docs
     {
       id: 'ai-docs',
-      title: 'IA Docs',
+      title: 'Inteligência Artificial',
       type: 'collapse',
-      icon: icons.AppstoreOutlined,
+      icon: icons.AIIcon,
       isDropdown: true,
       children: [
         {
-          id: 'ai-docs-mvp',
-          title: 'Gerar Documentos',
+          id: 'ai-docs-cases',
+          title: 'Meus Casos',
           type: 'item',
-          url: '/ai-docs'
-        },
-        {
-          id: 'ai-docs-create',
-          title: 'Criar Caso',
-          type: 'item',
-          url: '/ai-docs/create'
-        },
-        {
-          id: 'ai-docs-templates',
-          title: 'Templates',
-          type: 'item',
-          url: '/ai-docs/templates'
+          url: '/ai-docs/cases'
         },
         {
           id: 'ai-docs-categories',
@@ -86,10 +75,10 @@ const pages: NavItemType = {
           url: '/ai-docs/categories'
         },
         {
-          id: 'ai-docs-cases',
-          title: 'Meus Casos',
+          id: 'ai-docs-templates',
+          title: 'Templates',
           type: 'item',
-          url: '/ai-docs/cases'
+          url: '/ai-docs/templates'
         }
       ]
     },

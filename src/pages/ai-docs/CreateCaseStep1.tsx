@@ -13,7 +13,7 @@ import {
   uploadCaseDocs,
   type TemplatesByCategoryItem
 } from 'api/aiDocs';
-import { EyeOutlined, ArrowRightOutlined, PaperClipOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EyeOutlined, ArrowRightOutlined, PaperClipOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 
 type FlatOption = {
   id: string;
@@ -153,8 +153,19 @@ export default function CreateCaseStep1() {
 
   return (
     <Box sx={{ p: { xs: 1, md: 3 } }}>
-      <MainCard title="1) Criar Caso (Advogado)">
+      <MainCard title="Criar Caso">
         <Stack spacing={3} alignItems="center">
+          {/* Botão Voltar */}
+          <Stack direction="row" justifyContent="flex-start" sx={{ width: '100%', maxWidth: 860 }}>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowLeftOutlined />}
+              onClick={() => navigate('/ai-docs/cases')}
+              sx={{ mb: 1 }}
+            >
+              Meus Casos
+            </Button>
+          </Stack>
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ maxWidth: 680 }}>
             Selecione abaixo a <strong>peça/modelo</strong> para iniciar o caso. Você pode buscar por título ou descrição e visualizar o Modelo antes de prosseguir.
           </Typography>

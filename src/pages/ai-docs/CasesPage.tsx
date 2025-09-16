@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Stack, TextField, Button, CircularProgress, Paper, Typography } from '@mui/material';
+import { PlusOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
 import { listCases, getLatestDraftForCase, type AiCase } from 'api/aiDocs';
@@ -28,9 +29,26 @@ export default function CasesPage() {
   return (
     <Box sx={{ p: { xs: 1, md: 3 } }}>
       <MainCard title="Meus Casos">
-        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-          <TextField placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} size="small" />
-          <Button onClick={fetch} variant="contained" disabled={loading}>{loading ? <CircularProgress size={18} /> : 'Buscar'}</Button>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }} alignItems={{ md: 'center' }}>
+          <TextField 
+            placeholder="Buscar casos..." 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+            size="small" 
+            sx={{ minWidth: 300 }}
+          />
+          <Stack direction="row" spacing={1}>
+            <Button onClick={fetch} variant="outlined" disabled={loading}>
+              {loading ? <CircularProgress size={18} /> : 'Buscar'}
+            </Button>
+            <Button 
+              variant="contained" 
+              startIcon={<PlusOutlined />}
+              onClick={() => nav('/ai-docs/create')}
+            >
+              Criar Caso
+            </Button>
+          </Stack>
         </Stack>
 
         <Stack spacing={1.25}>

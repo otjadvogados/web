@@ -328,7 +328,7 @@ export default function WDocEditorPage() {
   return (
     <Box sx={{ p: { xs: 1, md: 3 } }}>
       <MainCard
-        title="Editor (WDoc)"
+        title="Editor de peça"
         secondary={
           <Stack direction="row" spacing={1} alignItems="center">
             {draft && <Chip size="small" label={`draftId: ${draft.id}`} />}

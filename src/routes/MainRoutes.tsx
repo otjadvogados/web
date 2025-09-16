@@ -36,8 +36,6 @@ const CompanyPage = Loadable(lazy(() => import('pages/company')));
 // NOVO: Bloqueios de Conta
 const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
 
-// NOVO: AI Docs MVP
-const AiDocsMVP = Loadable(lazy(() => import('pages/ai-docs/AiDocsMVP')));
 const AiDocsTemplates = Loadable(lazy(() => import('pages/ai-docs/TemplatesPage')));
 const AiDocsCategories = Loadable(lazy(() => import('pages/ai-docs/CategoriesPage')));
 const CreateCaseStep1 = Loadable(lazy(() => import('pages/ai-docs/CreateCaseStep1')));
@@ -85,10 +83,6 @@ const MainRoutes = {
         {
           path: 'sensitive-fields',
           element: <SensitiveFieldsPage />
-        },
-        {
-          path: 'ai-docs',
-          element: <AiDocsMVP />
         },
         {
           path: 'ai-docs/templates',

@@ -20,8 +20,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControlLabel,
-  Switch,
   Box
 } from '@mui/material';
 import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
@@ -46,8 +44,7 @@ export default function CategoriesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<AiCategory | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    companyScope: 'company' as 'global' | 'company'
+    name: ''
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -78,14 +75,12 @@ export default function CategoriesPage() {
     if (category) {
       setEditingCategory(category);
       setFormData({
-        name: category.name,
-        companyScope: category.companyScope || 'company'
+        name: category.name
       });
     } else {
       setEditingCategory(null);
       setFormData({
-        name: '',
-        companyScope: 'company'
+        name: ''
       });
     }
     setDialogOpen(true);
@@ -95,8 +90,7 @@ export default function CategoriesPage() {
     setDialogOpen(false);
     setEditingCategory(null);
     setFormData({
-      name: '',
-      companyScope: 'company'
+      name: ''
     });
   };
 
@@ -126,7 +120,7 @@ export default function CategoriesPage() {
       } else {
         const created = await createCategory({ 
           name: formData.name, 
-          companyScope: formData.companyScope 
+          companyScope: 'global' 
         });
         setCategories(prev => [...prev, created]);
         openSnackbar({ 
@@ -210,20 +204,19 @@ export default function CategoriesPage() {
                   <TableRow>
                     <TableCell>Nome</TableCell>
                     <TableCell>Slug</TableCell>
-                    <TableCell>Escopo</TableCell>
                     <TableCell align="center">Ações</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={4} align="center">
+                      <TableCell colSpan={3} align="center">
                         <CircularProgress size={24} />
                       </TableCell>
                     </TableRow>
                   ) : categories.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} align="center">
+                      <TableCell colSpan={3} align="center">
                         <Typography variant="body2" color="text.secondary">
                           Nenhuma categoria encontrada
                         </Typography>
@@ -241,14 +234,6 @@ export default function CategoriesPage() {
                           <Typography variant="body2" color="text.secondary">
                             {category.slug}
                           </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={category.companyScope === 'global' ? 'Global' : 'Empresa'}
-                            color={category.companyScope === 'global' ? 'primary' : 'default'}
-                            size="small"
-                            variant="outlined"
-                          />
                         </TableCell>
                         <TableCell align="center">
                           <Stack direction="row" spacing={1} justifyContent="center">
@@ -292,29 +277,6 @@ export default function CategoriesPage() {
               required
               placeholder="Ex: Ações Trabalhistas, Contratos, etc."
             />
-            
-            {!editingCategory && (
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.companyScope === 'global'}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      companyScope: e.target.checked ? 'global' : 'company' 
-                    })}
-                  />
-                }
-                label="Disponível para toda a empresa"
-              />
-            )}
-            
-            {editingCategory && (
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Nota:</strong> O escopo da categoria não pode ser alterado após a criação.
-                </Typography>
-              </Box>
-            )}
           </Stack>
         </DialogContent>
         <DialogActions>
