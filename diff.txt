@@ -2371,7 +2371,7 @@ index 0000000..16b5e75
 +  async function loadCategories() {
 +    try {
 +      setCatLoading(true);
-+      const r = await listCategories({ page: 1, limit: 200 });
++      const r = await listCategories({ page: 1, limit: 100 });
 +      setCategories(r.data);
 +    } catch (e: any) {
 +      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar categorias', variant: 'alert', alert: { color: 'error' } } as any);

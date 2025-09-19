@@ -75,6 +75,12 @@ const pages: NavItemType = {
           url: '/ai-docs/categories'
         },
         {
+          id: 'ai-docs-subcategories',
+          title: 'Subcategorias',
+          type: 'item',
+          url: '/ai-docs/subcategories'
+        },
+        {
           id: 'ai-docs-templates',
           title: 'Templates',
           type: 'item',

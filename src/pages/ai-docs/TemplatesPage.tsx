@@ -19,6 +19,8 @@ import {
   type AiTemplate, type AiTemplateListResponse
 } from 'api/aiDocs';
 import { listCategories, type AiCategory } from 'api/aiCategories';
+import { listSubCategories, type AiSubCategory } from 'api/aiSubCategories';
+import { listDepartments, type Department } from 'api/departments';
 
 export default function TemplatesPage() {
   // listagem
@@ -26,21 +28,36 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [subCategoryFilter, setSubCategoryFilter] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [total, setTotal] = useState(0);
 
+  // departamentos
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [deptLoading, setDeptLoading] = useState(false);
+  
   // categorias
   const [categories, setCategories] = useState<AiCategory[]>([]);
   const [catLoading, setCatLoading] = useState(false);
   const catById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
+
+  // subcategorias
+  const [subCategories, setSubCategories] = useState<AiSubCategory[]>([]);
+  const [scLoading, setScLoading] = useState(false);
 
   // dialog criar/editar
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AiTemplate | null>(null);
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
+  const [formDepartmentId, setFormDepartmentId] = useState<string | null>(null);
   const [formCategoryId, setFormCategoryId] = useState<string | null>(null);
+  const [formSubCategoryId, setFormSubCategoryId] = useState<string | null>(null);
+  const [formCategories, setFormCategories] = useState<AiCategory[]>([]);
+  const [formSubCategories, setFormSubCategories] = useState<AiSubCategory[]>([]);
+  const [formCatLoading, setFormCatLoading] = useState(false);
+  const [formScLoading, setFormScLoading] = useState(false);
   const [formFile, setFormFile] = useState<File | null>(null); // só no criar
   const [submitting, setSubmitting] = useState(false);
   const [showTicker, setShowTicker] = useState(false);
@@ -53,10 +70,22 @@ export default function TemplatesPage() {
   const [delOpen, setDelOpen] = useState(false);
   const [toDelete, setToDelete] = useState<AiTemplate | null>(null);
 
+  async function loadDepartments() {
+    try {
+      setDeptLoading(true);
+      const r = await listDepartments({ page: 1, limit: 100 });
+      setDepartments(r.data);
+    } catch (e: any) {
+      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar departamentos', variant: 'alert', alert: { color: 'error' } } as any);
+    } finally {
+      setDeptLoading(false);
+    }
+  }
+
   async function loadCategories() {
     try {
       setCatLoading(true);
-      const r = await listCategories({ page: 1, limit: 200 });
+      const r = await listCategories({ page: 1, limit: 100 });
       setCategories(r.data);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar categorias', variant: 'alert', alert: { color: 'error' } } as any);
@@ -70,7 +99,8 @@ export default function TemplatesPage() {
       setLoading(true);
       const r: AiTemplateListResponse = await listTemplates({
         search: search || undefined,
-        categoryId: categoryFilter || undefined,
+        categoryId: !subCategoryFilter ? (categoryFilter || undefined) : undefined, // só usa categoryId se não há subcat
+        subCategoryId: subCategoryFilter || undefined,
         page, limit
       });
       setRows(r.data);
@@ -82,15 +112,70 @@ export default function TemplatesPage() {
     }
   }
 
-  useEffect(() => { loadCategories(); }, []);
-  useEffect(() => { loadRows(); /* eslint-disable-next-line */ }, [search, categoryFilter, page, limit]);
+  // carregar subcats quando a categoria do filtro mudar
+  useEffect(() => {
+    (async () => {
+      setSubCategoryFilter(null);
+      try {
+        setScLoading(true);
+        const r = await listSubCategories({
+          ...(categoryFilter ? { categoryId: categoryFilter } : {}),
+          page: 1,
+          limit: 500
+        });
+        setSubCategories(r.data);
+      } finally {
+        setScLoading(false);
+      }
+    })();
+  }, [categoryFilter]);
+
+  useEffect(() => { loadDepartments(); loadCategories(); }, []);
+  useEffect(() => { loadRows(); /* eslint-disable-next-line */ }, [search, categoryFilter, subCategoryFilter, page, limit]);
+
+  // carregar categorias do form quando departamento mudar
+  useEffect(() => {
+    (async () => {
+      setFormCategoryId(null);
+      setFormSubCategoryId(null);
+      if (!formDepartmentId) { setFormCategories([]); setFormSubCategories([]); return; }
+      try {
+        setFormCatLoading(true);
+        const r = await listCategories({ page: 1, limit: 100 });
+        // filtrar categorias pelo departamento
+        const filteredCategories = r.data.filter(cat => cat.departmentId === formDepartmentId);
+        setFormCategories(filteredCategories);
+      } finally {
+        setFormCatLoading(false);
+      }
+    })();
+  }, [formDepartmentId]);
+
+  // carregar subcats do form quando categoria mudar
+  useEffect(() => {
+    (async () => {
+      setFormSubCategoryId(null);
+      if (!formCategoryId) { setFormSubCategories([]); return; }
+      try {
+        setFormScLoading(true);
+        const r = await listSubCategories({ categoryId: formCategoryId, page: 1, limit: 500 });
+        setFormSubCategories(r.data);
+      } finally {
+        setFormScLoading(false);
+      }
+    })();
+  }, [formCategoryId]);
 
   // abrir/fechar dialog
   function openCreate() {
     setEditing(null);
     setFormTitle('');
     setFormDescription('');
+    setFormDepartmentId(null);
     setFormCategoryId(null);
+    setFormSubCategoryId(null);
+    setFormCategories([]);
+    setFormSubCategories([]);
     setFormFile(null);
     setDialogOpen(true);
   }
@@ -98,7 +183,49 @@ export default function TemplatesPage() {
     setEditing(t);
     setFormTitle(t.title);
     setFormDescription(t.description || '');
-    setFormCategoryId((t as any).categoryId ?? null);
+    const scId = (t as any).subCategoryId ?? null;
+    setFormSubCategoryId(scId);
+    
+    // carregar hierarquia completa a partir da subcategoria
+    if (scId) {
+      (async () => {
+        const found = subCategories.find(s => s.id === scId);
+        if (found) {
+          const catId = found.categoryId;
+          setFormCategoryId(catId);
+          
+          // encontrar categoria para obter departmentId
+          const category = categories.find(c => c.id === catId);
+          if (category?.departmentId) {
+            setFormDepartmentId(category.departmentId);
+            
+            // carregar categorias do departamento
+            try {
+              setFormCatLoading(true);
+              const r = await listCategories({ page: 1, limit: 100 });
+              const filteredCategories = r.data.filter(cat => cat.departmentId === category.departmentId);
+              setFormCategories(filteredCategories);
+            } finally {
+              setFormCatLoading(false);
+            }
+          }
+          
+          // carregar subcategorias da categoria
+          try {
+            setFormScLoading(true);
+            const r = await listSubCategories({ categoryId: catId, page: 1, limit: 500 });
+            setFormSubCategories(r.data);
+          } finally {
+            setFormScLoading(false);
+          }
+        }
+      })();
+    } else {
+      setFormDepartmentId(null);
+      setFormCategoryId(null);
+      setFormCategories([]);
+      setFormSubCategories([]);
+    }
     setFormFile(null);
     setDialogOpen(true);
   }
@@ -106,40 +233,48 @@ export default function TemplatesPage() {
 
   // submit criar/editar
   async function handleSubmit() {
+    // validações
+    if (!editing && !formFile) {
+      openSnackbar({ open: true, message: 'Selecione um arquivo .docx', variant: 'alert', alert: { color: 'warning' } } as any);
+      return;
+    }
+    if (!formTitle.trim()) {
+      openSnackbar({ open: true, message: 'Título é obrigatório', variant: 'alert', alert: { color: 'warning' } } as any);
+      return;
+    }
+    if (!formDepartmentId) {
+      openSnackbar({ open: true, message: 'Selecione um departamento', variant: 'alert', alert: { color: 'warning' } } as any);
+      return;
+    }
+    if (!editing && !isDocx(formFile)) {
+      openSnackbar({
+        open: true,
+        message: 'Selecione um arquivo .docx para criar o template.',
+        variant: 'alert', alert: { color: 'warning' }
+      } as any);
+      return;
+    }
+
     try {
       setSubmitting(true);
       if (editing) {
         const updated = await updateTemplate(editing.id, {
           title: formTitle,
           description: formDescription || null,
-          categoryId: formCategoryId
+          subCategoryId: formSubCategoryId ?? null,
+          // se não vier subcat mas vier categoria, o backend joga em "Geral"
+          categoryId: !formSubCategoryId ? (formCategoryId ?? null) : undefined
         });
         setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
         openSnackbar({ open: true, message: 'Template atualizado.', variant: 'alert', alert: { color: 'success' } } as any);
       } else {
-        if (!formFile) {
-          openSnackbar({ open: true, message: 'Selecione um arquivo .docx', variant: 'alert', alert: { color: 'warning' } } as any);
-          return;
-        }
-        if (!formTitle.trim()) {
-          openSnackbar({ open: true, message: 'Título é obrigatório', variant: 'alert', alert: { color: 'warning' } } as any);
-          return;
-        }
-        // NOVO: exige DOCX
-        if (!isDocx(formFile)) {
-          openSnackbar({
-            open: true,
-            message: 'Selecione um arquivo .docx para criar o template.',
-            variant: 'alert', alert: { color: 'warning' }
-          } as any);
-          return;
-        }
         setShowTicker(true);
         await createTemplate({
-          file: formFile,
+          file: formFile!,
           title: formTitle.trim(),
           description: formDescription || undefined,
-          categoryId: formCategoryId
+          subCategoryId: formSubCategoryId ?? null,
+          categoryId: !formSubCategoryId ? (formCategoryId ?? null) : undefined
         });
         openSnackbar({ open: true, message: 'Template criado e processado!', variant: 'alert', alert: { color: 'success' } } as any);
         // recarrega a lista do início
@@ -213,8 +348,18 @@ export default function TemplatesPage() {
                 getOptionLabel={(o) => o.name}
                 value={categories.find(c => c.id === categoryFilter) || null}
                 onChange={(_, v) => { setPage(1); setCategoryFilter(v?.id ?? null); }}
-                sx={{ minWidth: 280 }}
+                sx={{ minWidth: 220 }}
                 renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Todas" />}
+              />
+
+              <Autocomplete
+                options={subCategories}
+                loading={scLoading}
+                getOptionLabel={(o) => o.name}
+                value={subCategories.find(sc => sc.id === subCategoryFilter) || null}
+                onChange={(_, v) => { setPage(1); setSubCategoryFilter(v?.id ?? null); }}
+                sx={{ minWidth: 220 }}
+                renderInput={(params) => <TextField {...params} label="Subcategoria" placeholder={categoryFilter ? 'Todas' : 'Selecione uma categoria'} />}
               />
               <Box sx={{ flex: 1 }} />
               <Button startIcon={<PlusOutlined />} variant="contained" onClick={openCreate}>
@@ -242,7 +387,11 @@ export default function TemplatesPage() {
                   ) : rows.length === 0 ? (
                     <TableRow><TableCell colSpan={4} align="center"><Typography variant="body2" color="text.secondary">Nenhum template encontrado</Typography></TableCell></TableRow>
                   ) : rows.map((t) => {
-                    const catName = (t as any).categoryId ? catById.get((t as any).categoryId)?.name : undefined;
+                    const subCatId = (t as any).subCategoryId as string | undefined;
+                    const sc = subCategories.find(s => s.id === subCatId);
+                    const catName = sc?.categoryId ? catById.get(sc.categoryId)?.name : undefined;
+
+                    const subCatName = sc?.name;
                     return (
                       <TableRow key={t.id} hover>
                         <TableCell>
@@ -266,7 +415,10 @@ export default function TemplatesPage() {
                             )}
                           </Stack>
                         </TableCell>
-                        <TableCell>{catName ? <Chip size="small" label={catName} /> : <Typography variant="caption" color="text.secondary">—</Typography>}</TableCell>
+                        <TableCell>
+                          {catName ? <Chip size="small" label={catName} /> : <Typography variant="caption" color="text.secondary">—</Typography>}
+                          {subCatName && <Chip size="small" label={subCatName} sx={{ ml: .5 }} />}
+                        </TableCell>
                         <TableCell><Typography variant="caption" color="text.secondary">{new Date(t.createdAt || '').toLocaleString()}</Typography></TableCell>
                         <TableCell align="center">
                           <Stack direction="row" spacing={1} justifyContent="center">
@@ -310,12 +462,30 @@ export default function TemplatesPage() {
             <TextField label="Título *" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} required fullWidth />
             <TextField label="Descrição" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} fullWidth multiline minRows={2} />
             <Autocomplete
-              options={categories}
-              loading={catLoading}
+              options={departments}
+              loading={deptLoading}
               getOptionLabel={(o) => o.name}
-              value={categories.find(c => c.id === formCategoryId) || null}
+              value={departments.find(d => d.id === formDepartmentId) || null}
+              onChange={(_, v) => setFormDepartmentId(v?.id ?? null)}
+              renderInput={(params) => <TextField {...params} label="Departamento *" placeholder="Selecione um departamento" required />}
+            />
+            <Autocomplete
+              options={formCategories}
+              loading={formCatLoading}
+              getOptionLabel={(o) => o.name}
+              value={formCategories.find(c => c.id === formCategoryId) || null}
               onChange={(_, v) => setFormCategoryId(v?.id ?? null)}
-              renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Opcional" />}
+              disabled={!formDepartmentId}
+              renderInput={(params) => <TextField {...params} label="Categoria" placeholder={formDepartmentId ? 'Opcional' : 'Selecione um departamento'} />}
+            />
+            <Autocomplete
+              options={formSubCategories}
+              loading={formScLoading}
+              getOptionLabel={(o) => o.name}
+              value={formSubCategories.find(sc => sc.id === formSubCategoryId) || null}
+              onChange={(_, v) => setFormSubCategoryId(v?.id ?? null)}
+              disabled={!formCategoryId}
+              renderInput={(params) => <TextField {...params} label="Subcategoria" placeholder={formCategoryId ? 'Opcional' : 'Selecione uma categoria'} />}
             />
             {!editing && (
               <Button component="label" variant="outlined">
@@ -346,7 +516,7 @@ export default function TemplatesPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDialog}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSubmit} disabled={submitting || (!editing && (!formTitle.trim() || !formFile))}>
+          <Button variant="contained" onClick={handleSubmit} disabled={submitting || !formTitle.trim() || !formDepartmentId || (!editing && !formFile)}>
             {submitting ? <CircularProgress size={18} /> : (editing ? 'Salvar' : 'Criar')}
           </Button>
         </DialogActions>

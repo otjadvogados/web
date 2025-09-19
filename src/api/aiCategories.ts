@@ -8,7 +8,9 @@ export type AiCategory = {
   name: string; 
   slug: string; 
   companyId?: string | null;
-  companyScope?: 'global' | 'company';
+  departmentId?: string | null; // novo
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type AiCategoryListResponse = {
@@ -25,14 +27,14 @@ export async function listCategories(params?: { search?: string; page?: number; 
   return res.data;
 }
 
-export async function createCategory(payload: { name: string; companyScope?: 'global' | 'company' }) {
+export async function createCategory(payload: { name: string; departmentId?: string | null }) {
   const res = await api.post<{ message: string; data: AiCategory }>('/ai/categories', payload, {
     headers: { 'Accept-Language': LANG }
   });
   return res.data.data;
 }
 
-export async function updateCategory(id: string, payload: { name: string }) {
+export async function updateCategory(id: string, payload: { name?: string; departmentId?: string | null }) {
   const res = await api.patch<{ message: string; data: AiCategory }>(`/ai/categories/${id}`, payload, {
     headers: { 'Accept-Language': LANG }
   });

@@ -1,60 +1,41 @@
-import api from '../utils/axios';
-import { DepartmentsListResponse, DepartmentRow } from '../types/departments';
+// src/api/departments.ts
+import axios from 'utils/axios';
 
-export type ListDepartmentsQuery = {
-  page?: number;
-  limit?: number;
-  search?: string;
-  sortBy?: 'name' | 'createdAt';
-  sortOrder?: 'asc' | 'desc';
+export type Department = {
+  id: string;
+  name: string;
+  companyId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
-const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
+export type DepartmentListResponse = {
+  message: string;
+  data: Department[];
+  pagination: { page: number; limit: number; total: number };
+};
 
-export async function listDepartments(q: ListDepartmentsQuery = {}) {
-  const params = {
-    page: q.page ?? 1,
-    limit: q.limit ?? 10,
-    search: q.search || undefined,
-    sortBy: q.sortBy || 'createdAt',
-    sortOrder: q.sortOrder || 'desc'
-  };
-  const res = await api.get<DepartmentsListResponse>('/departments', {
-    params,
-    headers: { 'Accept-Language': LANG }
-  });
-  return res.data;
+export async function listDepartments(params?: { search?: string; page?: number; limit?: number }) {
+  const { data } = await axios.get<DepartmentListResponse>('/departments', { params });
+  return data;
+}
+
+export async function createDepartment(payload: { name: string }) {
+  const { data } = await axios.post<{ message: string; data: Department }>('/departments', payload);
+  return data.data;
+}
+
+export async function updateDepartment(id: string, payload: { name: string }) {
+  const { data } = await axios.patch<{ message: string; data: Department }>(`/departments/${id}`, payload);
+  return data.data;
 }
 
 export async function getDepartment(id: string) {
-  const res = await api.get<{ message: string; data: DepartmentRow }>(`/departments/${id}`, {
-    headers: { 'Accept-Language': LANG }
-  });
-  return res.data.data;
-}
-
-type UpsertDepartmentDTO = {
-  name: string;
-  description?: string | null;
-};
-
-export async function createDepartment(payload: UpsertDepartmentDTO) {
-  const res = await api.post(`/departments`, payload, {
-    headers: { 'Accept-Language': LANG }
-  });
-  return res.data;
-}
-
-export async function updateDepartment(id: string, payload: Partial<UpsertDepartmentDTO>) {
-  const res = await api.patch(`/departments/${id}`, payload, {
-    headers: { 'Accept-Language': LANG }
-  });
-  return res.data;
+  const { data } = await axios.get<{ message: string; data: Department }>(`/departments/${id}`);
+  return data.data;
 }
 
 export async function deleteDepartment(id: string) {
-  const res = await api.delete(`/departments/${id}`, {
-    headers: { 'Accept-Language': LANG }
-  });
-  return res.data;
+  const { data } = await axios.delete<{ message: string }>(`/departments/${id}`);
+  return data;
 }

@@ -38,6 +38,7 @@ const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blo
 
 const AiDocsTemplates = Loadable(lazy(() => import('pages/ai-docs/TemplatesPage')));
 const AiDocsCategories = Loadable(lazy(() => import('pages/ai-docs/CategoriesPage')));
+const AiDocsSubCategories = Loadable(lazy(() => import('pages/ai-docs/SubCategoriesPage')));
 const CreateCaseStep1 = Loadable(lazy(() => import('pages/ai-docs/CreateCaseStep1')));
 const WDocEditorPage = Loadable(lazy(() => import('pages/ai-docs/WDocEditorPage')));
 const AiCasesPage = Loadable(lazy(() => import('pages/ai-docs/CasesPage')));
@@ -91,6 +92,10 @@ const MainRoutes = {
         {
           path: 'ai-docs/categories',
           element: <AiDocsCategories />
+        },
+        {
+          path: 'ai-docs/subcategories',
+          element: <AiDocsSubCategories />
         },
         {
           path: 'ai-docs/create',

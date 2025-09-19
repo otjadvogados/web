@@ -34,6 +34,9 @@ import {
   deleteCategory,
   type AiCategory
 } from 'api/aiCategories';
+import { listDepartments, type Department } from 'api/departments';
+import Autocomplete from '@mui/material/Autocomplete';
+// (MenuItem removido)
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<AiCategory[]>([]);
@@ -44,9 +47,12 @@ export default function CategoriesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<AiCategory | null>(null);
   const [formData, setFormData] = useState({
-    name: ''
+    name: '',
+    departmentId: (null as string | null)
   });
   const [submitting, setSubmitting] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
 
   // Carregar categorias
   const loadCategories = async () => {
@@ -55,19 +61,38 @@ export default function CategoriesPage() {
       const response = await listCategories({ search, page: 1, limit: 100 });
       setCategories(response.data);
     } catch (error: any) {
-      openSnackbar({ 
-        open: true, 
-        message: error?.response?.data?.message || 'Erro ao carregar categorias', 
-        variant: 'alert', 
-        alert: { color: 'error' } 
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Erro ao carregar categorias',
+        variant: 'alert',
+        alert: { color: 'error' }
       } as any);
     } finally {
       setLoading(false);
     }
   };
 
+  // Carregar departamentos
+  const loadDepartments = async () => {
+    try {
+      setDepartmentsLoading(true);
+      const response = await listDepartments({ page: 1, limit: 100 });
+      setDepartments(response.data);
+    } catch (error: any) {
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Erro ao carregar departamentos',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadCategories();
+    loadDepartments();
   }, [search]);
 
   // Handlers
@@ -75,12 +100,14 @@ export default function CategoriesPage() {
     if (category) {
       setEditingCategory(category);
       setFormData({
-        name: category.name
+        name: category.name,
+        departmentId: category.departmentId ?? null
       });
     } else {
       setEditingCategory(null);
       setFormData({
-        name: ''
+        name: '',
+        departmentId: null
       });
     }
     setDialogOpen(true);
@@ -90,54 +117,58 @@ export default function CategoriesPage() {
     setDialogOpen(false);
     setEditingCategory(null);
     setFormData({
-      name: ''
+      name: '',
+      departmentId: null
     });
   };
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
-      openSnackbar({ 
-        open: true, 
-        message: 'Nome é obrigatório', 
-        variant: 'alert', 
-        alert: { color: 'warning' } 
+      openSnackbar({
+        open: true,
+        message: 'Nome é obrigatório',
+        variant: 'alert',
+        alert: { color: 'warning' }
       } as any);
       return;
     }
 
     try {
       setSubmitting(true);
-      
+
       if (editingCategory) {
-        const updated = await updateCategory(editingCategory.id, { name: formData.name });
+        const updated = await updateCategory(editingCategory.id, {
+          name: formData.name,
+          departmentId: formData.departmentId ?? null
+        });
         setCategories(prev => prev.map(c => c.id === updated.id ? updated : c));
-        openSnackbar({ 
-          open: true, 
-          message: 'Categoria atualizada com sucesso!', 
-          variant: 'alert', 
-          alert: { color: 'success' } 
+        openSnackbar({
+          open: true,
+          message: 'Categoria atualizada com sucesso!',
+          variant: 'alert',
+          alert: { color: 'success' }
         } as any);
       } else {
-        const created = await createCategory({ 
-          name: formData.name, 
-          companyScope: 'global' 
+        const created = await createCategory({
+          name: formData.name,
+          departmentId: formData.departmentId ?? null
         });
         setCategories(prev => [...prev, created]);
-        openSnackbar({ 
-          open: true, 
-          message: 'Categoria criada com sucesso!', 
-          variant: 'alert', 
-          alert: { color: 'success' } 
+        openSnackbar({
+          open: true,
+          message: 'Categoria criada com sucesso!',
+          variant: 'alert',
+          alert: { color: 'success' }
         } as any);
       }
-      
+
       handleCloseDialog();
     } catch (error: any) {
-      openSnackbar({ 
-        open: true, 
-        message: error?.response?.data?.message || 'Erro ao salvar categoria', 
-        variant: 'alert', 
-        alert: { color: 'error' } 
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Erro ao salvar categoria',
+        variant: 'alert',
+        alert: { color: 'error' }
       } as any);
     } finally {
       setSubmitting(false);
@@ -155,18 +186,18 @@ export default function CategoriesPage() {
     try {
       await deleteCategory(categoryToDelete.id);
       setCategories(prev => prev.filter(c => c.id !== categoryToDelete.id));
-      openSnackbar({ 
-        open: true, 
-        message: 'Categoria excluída com sucesso!', 
-        variant: 'alert', 
-        alert: { color: 'success' } 
+      openSnackbar({
+        open: true,
+        message: 'Categoria excluída com sucesso!',
+        variant: 'alert',
+        alert: { color: 'success' }
       } as any);
     } catch (error: any) {
-      openSnackbar({ 
-        open: true, 
-        message: error?.response?.data?.message || 'Erro ao excluir categoria', 
-        variant: 'alert', 
-        alert: { color: 'error' } 
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Erro ao excluir categoria',
+        variant: 'alert',
+        alert: { color: 'error' }
       } as any);
     } finally {
       setDeleteDialogOpen(false);
@@ -177,53 +208,56 @@ export default function CategoriesPage() {
   return (
     <Box sx={{ p: 3 }}>
       <MainCard title="Categorias de Templates AI">
-          <Stack spacing={3}>
-            {/* Header com busca e botão adicionar */}
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
-              <TextField
-                label="Buscar categorias"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                sx={{ minWidth: 300 }}
-                placeholder="Digite o nome da categoria..."
-              />
-              <Button
-                variant="contained"
-                startIcon={<PlusOutlined />}
-                onClick={() => handleOpenDialog()}
-                sx={{ minWidth: 150 }}
-              >
-                Nova Categoria
-              </Button>
-            </Stack>
+        <Stack spacing={3}>
+          {/* Header com busca e botão adicionar */}
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+            <TextField
+              label="Buscar categorias"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              sx={{ minWidth: 300 }}
+              placeholder="Digite o nome da categoria..."
+            />
+            <Button
+              variant="contained"
+              startIcon={<PlusOutlined />}
+              onClick={() => handleOpenDialog()}
+              sx={{ minWidth: 150 }}
+            >
+              Nova Categoria
+            </Button>
+          </Stack>
 
-            {/* Tabela de categorias */}
-            <TableContainer component={Paper} variant="outlined">
-              <Table>
-                <TableHead>
+          {/* Tabela de categorias */}
+          <TableContainer component={Paper} variant="outlined">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Nome</TableCell>
+                  <TableCell>Slug</TableCell>
+                  <TableCell>Departamento</TableCell>
+                  <TableCell align="center">Ações</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading ? (
                   <TableRow>
-                    <TableCell>Nome</TableCell>
-                    <TableCell>Slug</TableCell>
-                    <TableCell align="center">Ações</TableCell>
+                    <TableCell colSpan={4} align="center">
+                      <CircularProgress size={24} />
+                    </TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={3} align="center">
-                        <CircularProgress size={24} />
-                      </TableCell>
-                    </TableRow>
-                  ) : categories.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} align="center">
-                        <Typography variant="body2" color="text.secondary">
-                          Nenhuma categoria encontrada
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    categories.map((category) => (
+                ) : categories.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Nenhuma categoria encontrada
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  categories.map((category) => {
+                    const department = departments.find(d => d.id === category.departmentId);
+                    return (
                       <TableRow key={category.id}>
                         <TableCell>
                           <Typography variant="body2" fontWeight="medium">
@@ -234,6 +268,13 @@ export default function CategoriesPage() {
                           <Typography variant="body2" color="text.secondary">
                             {category.slug}
                           </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {department ? (
+                            <Chip size="small" label={department.name} />
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">—</Typography>
+                          )}
                         </TableCell>
                         <TableCell align="center">
                           <Stack direction="row" spacing={1} justifyContent="center">
@@ -254,13 +295,14 @@ export default function CategoriesPage() {
                           </Stack>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Stack>
-        </MainCard>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Stack>
+      </MainCard>
 
       {/* Dialog de criação/edição */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
@@ -276,6 +318,15 @@ export default function CategoriesPage() {
               fullWidth
               required
               placeholder="Ex: Ações Trabalhistas, Contratos, etc."
+            />
+            <Autocomplete
+              options={departments}
+              loading={departmentsLoading}
+              getOptionLabel={(o) => o.name}
+              value={departments.find(d => d.id === formData.departmentId) || null}
+              onChange={(_, v) => setFormData({ ...formData, departmentId: v?.id ?? null })}
+              renderInput={(params) => <TextField {...params} label="Departamento" placeholder="Opcional" />}
+              sx={{ minWidth: 280 }}
             />
           </Stack>
         </DialogContent>

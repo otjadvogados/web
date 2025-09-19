@@ -24,6 +24,8 @@ export type AiTemplate = {
   title: string;
   description?: string | null;
   createdAt?: string;
+  // novo:
+  subCategoryId?: string | null;
 };
 
 export type AiTemplateListResponse = {
@@ -34,13 +36,17 @@ export type AiTemplateListResponse = {
 // ====== BY CATEGORY ======
 export type TemplatesByCategoryItem = {
   categoryId: string | null;
-  templates: Array<{
-    id: string;
-    name: string;
-    kind: string;
-    description?: string | null;
-    fileId?: string | null;
-    updatedAt?: string;
+  subCategories: Array<{
+    subCategoryId: string | null;
+    subCategoryName: string; // "Geral" ou nome da sub
+    templates: Array<{
+      id: string;
+      name: string;
+      kind: string;
+      description?: string | null;
+      fileId?: string | null;
+      updatedAt?: string;
+    }>;
   }>;
 };
 export type TemplatesByCategoryResponse = {
@@ -62,7 +68,7 @@ export async function listTemplatesByCategory(params?: {
 }
 
 // ===== Templates - list/update/delete =====
-export async function listTemplates(params?: { search?: string; categoryId?: string; page?: number; limit?: number }) {
+export async function listTemplates(params?: { search?: string; categoryId?: string; subCategoryId?: string; page?: number; limit?: number }) {
   const { data } = await axios.get<AiTemplateListResponse>('/ai/templates', { params, headers: { 'Accept-Language': LANG } }); 
   return data;
 }
@@ -259,12 +265,14 @@ export async function uploadCaseDocs(caseId: string, files: File[]) {
 //
 // Templates
 //
-export async function createTemplate(params: { file: File; title: string; description?: string; categoryId?: string | null }) {
+export async function createTemplate(params: { file: File; title: string; description?: string; categoryId?: string | null; subCategoryId?: string | null }) {
   const fd = new FormData();
   fd.append('file', params.file);
   fd.append('title', params.title);
   if (params.description) fd.append('description', params.description);
-  if (params.categoryId) fd.append('categoryId', params.categoryId);
+  // preferir subCategoryId; manter categoryId como fallback → "Geral"
+  if (params.subCategoryId) fd.append('subCategoryId', params.subCategoryId);
+  if (!params.subCategoryId && params.categoryId) fd.append('categoryId', params.categoryId);
 
   const { data } = await axios.post<{ data: AiTemplate }>(`/ai/templates`, fd, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -272,7 +280,11 @@ export async function createTemplate(params: { file: File; title: string; descri
   return data.data;
 }
 
-export async function updateTemplate(id: string, payload: { title?: string; description?: string | null; categoryId?: string | null; kind?: string }) {
+export async function updateTemplate(
+  id: string,
+  payload: { title?: string; description?: string | null; subCategoryId?: string | null; categoryId?: string | null; kind?: string }
+) {
+  // servidor vai ignorar categoryId se subCategoryId vier (e zera categoryId)
   const { data } = await axios.patch<{ data: AiTemplate }>(`/ai/templates/${id}`, payload);
   return data.data;
 }
