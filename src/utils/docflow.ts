@@ -64,6 +64,8 @@ export function docflowToWDoc(
     const styleName = b.styleName || 'Normal';
     const asHeading =
       /heading|t[ií]tulo|titulo|heading\s*[\d]/i.test(styleName || '') ||
+      // também detecta por formatação (bold + centralizado)
+      (b.style?.textAlign === 'center' && b.inlines?.[0]?.style?.bold) ||
       false;
 
     // cria/garante style no mapa
@@ -74,9 +76,16 @@ export function docflowToWDoc(
             line: b.style?.spacing?.line ?? 1.15,
             before: b.style?.spacing?.before ?? 0,
             after: b.style?.spacing?.after ?? 0
-          }
+          },
+          textAlign: b.style?.textAlign || 'left'
         },
-        run: {}
+        run: {
+          bold: b.inlines?.[0]?.style?.bold || false,
+          italic: b.inlines?.[0]?.style?.italic || false,
+          underline: b.inlines?.[0]?.style?.underline || false,
+          font: b.inlines?.[0]?.style?.fontFamily || undefined,
+          size: b.inlines?.[0]?.style?.fontSize || undefined
+        }
       };
     }
 
@@ -95,8 +104,30 @@ export function docflowToWDoc(
     } as WBlock;
   });
 
+  // 🔧 PRESERVA seções e margens do documento original
+  // Procura seções em vários lugares possíveis
+  const sections = docflow?.sections || 
+                  docflow?.meta?.sections || 
+                  docflow?.pageSection || 
+                  docflow?.pageSections ||
+                  null;
+  
+  const meta: WDoc['meta'] = {
+    source: 'docflow',
+    // preserva seções se existirem no docflow original
+    sections: sections || [
+      {
+        page: { 
+          size: { name: 'A4', widthPt: 595.28, heightPt: 841.89 }, 
+          orientation: 'portrait' 
+        },
+        margins: { top: 85.05, left: 85.05, right: 56.7, bottom: 56.7 }
+      }
+    ]
+  };
+
   const doc: WDoc = {
-    meta: { source: 'docflow' },
+    meta,
     styles,
     content
   };

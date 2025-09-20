@@ -31,6 +31,7 @@ import {
   getTemplateDocxBlob,
   createCase,
   uploadCaseDocs,
+  generateDraft,
   type AiTemplate
 } from 'api/aiDocs';
 
@@ -238,15 +239,21 @@ export default function CreateCaseStep1() {
       const c = await createCase({ type: selected.kind, requestText: pedidoText.trim() });
       if (files.length > 0) await uploadCaseDocs(c.id, files);
 
+      // Gerar draft automaticamente
+      const draft = await generateDraft(c.id, selected.id);
+
       // limpar progresso do sessionStorage ao criar caso
       sessionStorage.removeItem('createCaseProgress');
 
-      const qs = new URLSearchParams();
-      qs.set('caseId', c.id);
-      qs.set('templateId', selected.id);
-      qs.set('kind', selected.kind);
-      qs.set('pedido', encodeURIComponent(pedidoText.trim()));
-      navigate(`/ai-docs/editor?${qs.toString()}`);
+      // Redirecionar para o playground com o draft gerado
+      navigate(`/ai-docs/a4-playground/${draft.id}`);
+      
+      openSnackbar({ 
+        open: true, 
+        message: 'Caso criado e documento gerado com sucesso!', 
+        variant: 'alert', 
+        alert: { color: 'success' } 
+      } as any);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
     } finally {

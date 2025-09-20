@@ -196,10 +196,10 @@ export async function postChatMessage(caseId: string, text: string) {
 }
 
 export async function acceptSuggestion(draftId: string, suggestionId: string) {
-  const { data } = await axios.post<{ data: { draft: AiDraft; suggestion: AiSuggestion } }>(
+  const { data } = await axios.post<{ message: string; data: { draft: AiDraft; suggestion: AiSuggestion } }>(
     `/ai/drafts/${encodeURIComponent(draftId)}/suggestions/${encodeURIComponent(suggestionId)}/accept`
   );
-  return data.data;
+  return data;
 }
 
 export async function rejectSuggestion(draftId: string, suggestionId: string) {

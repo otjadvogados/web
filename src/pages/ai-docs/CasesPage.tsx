@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Stack, TextField, Button, CircularProgress, Paper, Typography } from '@mui/material';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
 import { listCases, getLatestDraftForCase, type AiCase } from 'api/aiDocs';
@@ -78,6 +78,25 @@ export default function CasesPage() {
                     onClick={() => nav(`/ai-docs/editor?caseId=${encodeURIComponent(c.id)}`)}
                   >
                     Novo rascunho
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<PlayCircleOutlined />}
+                    onClick={async () => {
+                      const latest = await getLatestDraftForCase(c.id);
+                      if (latest) {
+                        nav(`/ai-docs/a4-playground/${latest.id}`);
+                      } else {
+                        openSnackbar({ 
+                          open: true, 
+                          message: 'Nenhum rascunho encontrado. Crie um rascunho primeiro.', 
+                          variant: 'alert', 
+                          alert: { color: 'warning' } 
+                        } as any);
+                      }
+                    }}
+                  >
+                    Playground
                   </Button>
                 </Stack>
               </Stack>

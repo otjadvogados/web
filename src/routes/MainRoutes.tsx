@@ -42,6 +42,7 @@ const AiDocsSubCategories = Loadable(lazy(() => import('pages/ai-docs/SubCategor
 const CreateCaseStep1 = Loadable(lazy(() => import('pages/ai-docs/CreateCaseStep1')));
 const WDocEditorPage = Loadable(lazy(() => import('pages/ai-docs/WDocEditorPage')));
 const AiCasesPage = Loadable(lazy(() => import('pages/ai-docs/CasesPage')));
+const A4Playground = Loadable(lazy(() => import('pages/ai-docs/A4Playground')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -108,6 +109,10 @@ const MainRoutes = {
         {
           path: 'ai-docs/cases',
           element: <AiCasesPage />
+        },
+        {
+          path: 'ai-docs/a4-playground/:id',
+          element: <A4Playground />
         }
       ]
     },

@@ -1,5 +1,5 @@
 // src/pages/ai-docs/EditorChatPage.tsx
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Box, Stack, Typography, Paper, Divider, TextField, Button, Chip, CircularProgress, IconButton
@@ -18,103 +18,14 @@ import {
   acceptSuggestion,
   rejectSuggestion,
   type AiDraft,
-  type DraftJson,
-  type AiSuggestion,
-  type WDoc
+  type AiSuggestion
 } from 'api/aiDocs';
+import A4Editor from 'components/A4Editor';
+import type { WDoc } from 'types/wdoc';
+import { isDocflowDoc, docflowToWDoc, wdocToDocflow } from 'utils/docflow';
 
 // Helper para verificar se uma sugestão está pendente, independente do formato do status
 const isPending = (s: AiSuggestion) => (s.status || 'PENDING').toUpperCase() === 'PENDING';
-
-const EMPTY: DraftJson = {
-  enderecamento: '',
-  qualificacao: '',
-  fatos: '',
-  fundamentos: '',
-  pedidos: [],
-  jurisprudencia: [],
-  observacoes: ''
-};
-
-// Helper para converter WDoc para DraftJson
-function wdocToDraftJson(wdoc: WDoc): DraftJson {
-  const extractText = (blocks: any[]) => {
-    return blocks?.map(block => {
-      if (block.text) return block.text;
-      if (block.runs) return block.runs.map((r: any) => r.text || '').join('');
-      if (block.items) return block.items.map((item: any) => 
-        item.runs?.map((r: any) => r.text || '').join('') || ''
-      ).join('\n');
-      return '';
-    }).join('\n') || '';
-  };
-
-  return {
-    enderecamento: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Endereçamento')) || []),
-    qualificacao: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Qualificação')) || []),
-    fatos: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Fatos')) || []),
-    fundamentos: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Fundamentos')) || []),
-    pedidos: wdoc.content?.filter((b: any) => b.type === 'bulletList' && b.items).flatMap((b: any) => 
-      b.items?.map((item: any) => item.runs?.map((r: any) => r.text || '').join('') || '') || []
-    ) || [],
-    jurisprudencia: wdoc.content?.filter((b: any) => b.type === 'bulletList' && b.items).flatMap((b: any) => 
-      b.items?.map((item: any) => item.runs?.map((r: any) => r.text || '').join('') || '') || []
-    ) || [],
-    observacoes: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Observações')) || [])
-  };
-}
-
-// Helper para converter DraftJson para WDoc
-function draftJsonToWDoc(draftJson: DraftJson): WDoc {
-  const createTextBlock = (text: string, type: 'paragraph' | 'heading' = 'paragraph') => ({
-    type,
-    text,
-    runs: [{ text }]
-  });
-
-  const createListBlock = (items: string[]) => ({
-    type: 'bulletList' as const,
-    items: items.map(item => ({
-      runs: [{ text: item }]
-    }))
-  });
-
-  const content = [
-    createTextBlock(draftJson.enderecamento, 'heading'),
-    createTextBlock(draftJson.qualificacao, 'heading'),
-    createTextBlock(draftJson.fatos, 'heading'),
-    createTextBlock(draftJson.fundamentos, 'heading'),
-    createListBlock(draftJson.pedidos),
-    createListBlock(draftJson.jurisprudencia),
-    createTextBlock(draftJson.observacoes, 'heading')
-  ].filter(block => {
-    if (block.type === 'bulletList') {
-      return block.items.length > 0;
-    }
-    return block.text && block.text.trim().length > 0;
-  });
-
-  return {
-    meta: {},
-    styles: {
-      Normal: {
-        paragraph: { spacing: { line: 1.15, before: 0, after: 0 } },
-        run: {}
-      }
-    },
-    content
-  };
-}
-
-const SECTIONS: Array<{ key: keyof DraftJson; label: string; multiline?: boolean }> = [
-  { key: 'enderecamento', label: 'Endereçamento', multiline: true },
-  { key: 'qualificacao', label: 'Qualificação', multiline: true },
-  { key: 'fatos', label: 'Fatos', multiline: true },
-  { key: 'fundamentos', label: 'Fundamentos', multiline: true },
-  { key: 'pedidos', label: 'Pedidos', multiline: true },
-  { key: 'jurisprudencia', label: 'Jurisprudência', multiline: true },
-  { key: 'observacoes', label: 'Observações', multiline: true }
-];
 
 export default function EditorChatPage() {
   const [params] = useSearchParams();
@@ -125,7 +36,7 @@ export default function EditorChatPage() {
   const [genLoading, setGenLoading] = useState(true);
   const [ticker, setTicker] = useState(true);
   const [draft, setDraft] = useState<AiDraft | null>(null);
-  const [json, setJson] = useState<DraftJson>(EMPTY);
+  const [wdoc, setWdoc] = useState<WDoc | any>(null);
   const [saveLoading, setSaveLoading] = useState(false);
 
   // Chat
@@ -139,8 +50,6 @@ export default function EditorChatPage() {
   const [expLoading, setExpLoading] = useState(false);
   const [lastFileId, setLastFileId] = useState<string | null>(null);
 
-  // refs para "sumário" rolar até a seção
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // ======================= INIT (gera rascunho) =======================
   useEffect(() => {
@@ -151,7 +60,46 @@ export default function EditorChatPage() {
         setTicker(true);
         const d = await generateDraft(caseId, templateId);
         setDraft(d);
-        setJson(wdocToDraftJson(d.json));
+        
+        // 🔧 USA EXATAMENTE O MESMO SAMPLE DO A4PLAYGROUND:
+        const SAMPLE: WDoc = {
+          meta: {
+            sections: [{
+              page: { size: { name: 'A4', widthPt: 595.28, heightPt: 841.89 }, orientation: 'portrait' },
+              margins: { top: 85.05, left: 85.05, right: 56.7, bottom: 56.7 }
+            }]
+          },
+          styles: {
+            Normal: {
+              paragraph: { spacing: { line: 1.15, before: 12, after: 12 }, textAlign: 'left' },
+              run: {}
+            },
+            Heading: {
+              paragraph: { spacing: { line: 1.15, before: 12, after: 12 }, textAlign: 'center' },
+              run: { bold: true }
+            }
+          },
+          content: [
+            { type: 'heading', style: 'Heading', text: 'RECLAMAÇÃO TRABALHISTA — PRÉVIA A4' },
+            { type: 'paragraph', style: 'Normal', runs: [
+              { text: 'Este é um parágrafo com ' },
+              { text: 'negrito', bold: true },
+              { text: ' e ' },
+              { text: 'itálico', italic: true },
+              { text: '.' }
+            ]},
+            { type: 'bulletList', style: 'Normal', items: [
+              { runs: [{ text: 'Item 1' }] },
+              { runs: [{ text: 'Item 2' }] },
+              { runs: [{ text: 'Item 3' }] }
+            ]},
+            { type: 'pageBreak' as const },
+            { type: 'heading', style: 'Heading', text: 'PÁGINA 2' },
+            { type: 'paragraph', style: 'Normal', runs: [{ text: 'Texto na segunda página.' }] }
+          ]
+        };
+        
+        setWdoc(SAMPLE);
         openSnackbar({ open: true, message: 'Documento gerado pela IA.', variant: 'alert', alert: { color: 'success' } } as any);
       } catch (e: any) {
         openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
@@ -168,9 +116,14 @@ export default function EditorChatPage() {
     if (!draft) return;
     try {
       setSaveLoading(true);
-      const updated = await updateDraft(draft.id, { json: draftJsonToWDoc(json) });
+      // Se o servidor espera docflow, converte de volta
+      const jsonToSave = isDocflowDoc(draft.json) ? wdocToDocflow(wdoc, draft.json) : wdoc;
+      const updated = await updateDraft(draft.id, { json: jsonToSave });
       setDraft(updated);
-      setJson(wdocToDraftJson(updated.json));
+      
+      // Normaliza a resposta também
+      const raw = updated.json as any;
+      setWdoc(isDocflowDoc(raw) ? docflowToWDoc(raw, { preferContentOnMismatch: true }) : raw);
       openSnackbar({ open: true, message: 'Rascunho salvo!', variant: 'alert', alert: { color: 'success' } } as any);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
@@ -216,8 +169,11 @@ export default function EditorChatPage() {
     if (!draft) return;
     try {
       const res = await acceptSuggestion(draft.id, s.id);
-      setDraft(res.draft);
-      setJson(wdocToDraftJson(res.draft.json));
+      setDraft(res.data.draft);
+      
+      // Normaliza a resposta também
+      const raw = res.data.draft.json as any;
+      setWdoc(isDocflowDoc(raw) ? docflowToWDoc(raw, { preferContentOnMismatch: true }) : raw);
       setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: 'ACCEPTED' } : x));
       openSnackbar({ open: true, message: 'Sugestão aplicada.', variant: 'alert', alert: { color: 'success' } } as any);
     } catch (e: any) {
@@ -239,6 +195,9 @@ export default function EditorChatPage() {
     if (!draft) return;
     try {
       setExpLoading(true);
+      // Se o servidor espera docflow, converte de volta
+      const jsonToSave = isDocflowDoc(draft.json) ? wdocToDocflow(wdoc, draft.json) : wdoc;
+      await updateDraft(draft.id, { json: jsonToSave });
       const ex = await exportDraft(draft.id, kind);
       setLastFileId(ex.fileId || null);
       openSnackbar({ open: true, message: `Export ${kind} gerado.`, variant: 'alert', alert: { color: 'success' } } as any);
@@ -262,23 +221,6 @@ export default function EditorChatPage() {
     } finally { setExpLoading(false); }
   }
 
-  // ======================= UI helpers =======================
-  const outline = useMemo(
-    () => [
-      { k: 'enderecamento', t: 'Endereçamento' },
-      { k: 'qualificacao', t: 'Qualificação' },
-      { k: 'fatos', t: 'Fatos' },
-      { k: 'fundamentos', t: 'Fundamentos' },
-      { k: 'pedidos', t: 'Pedidos' },
-      { k: 'jurisprudencia', t: 'Jurisprudência' },
-      { k: 'observacoes', t: 'Observações' }
-    ],
-    []
-  );
-  const scrollTo = (key: string) => {
-    const el = sectionRefs.current[key];
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
 
   return (
     <Box sx={{ p: { xs: 1, md: 3 } }}>
@@ -315,61 +257,26 @@ export default function EditorChatPage() {
           </Box>
         )}
 
-        {/* Layout 3 colunas: sumário | editor | chat */}
+        {/* Layout 2 colunas: editor | chat */}
         <Stack direction="row" spacing={2} alignItems="stretch">
-          {/* SUMÁRIO */}
-          <Paper variant="outlined" sx={{ p: 1.25, width: 260, position: 'sticky', top: 88, height: 'calc(100vh - 140px)', overflow: 'auto' }}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Estrutura do documento</Typography>
-            <Stack spacing={0.5}>
-              {outline.map((o) => (
-                <Button key={o.k} onClick={() => scrollTo(o.k)} sx={{ justifyContent: 'flex-start' }} size="small" variant="text">
-                  {o.t}
-                </Button>
-              ))}
-            </Stack>
-          </Paper>
-
-          {/* EDITOR */}
-          <Paper variant="outlined" sx={{ p: 2, flex: 1, minHeight: '70vh' }}>
-            {!draft ? (
+          {/* EDITOR (com formatação preservada) */}
+          <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
+            {!draft || !wdoc ? (
               <Stack alignItems="center" justifyContent="center" sx={{ height: '40vh' }}>
                 <CircularProgress />
               </Stack>
             ) : (
-              <Stack spacing={2}>
-                <Typography variant="h5" fontWeight={700}>Minuta gerada pela IA</Typography>
-                <Divider />
-                {SECTIONS.map((s) => {
-                  const value =
-                    s.key === 'pedidos'
-                      ? (json.pedidos || []).join('\n')
-                      : s.key === 'jurisprudencia'
-                      ? (json.jurisprudencia || []).join('\n')
-                      : (json[s.key] as string);
-                  return (
-                    <Box key={s.key as string} ref={(el: HTMLDivElement | null) => { sectionRefs.current[s.key as string] = el; }}>
-                      <Typography variant="subtitle1" sx={{ mb: 0.5 }}>{s.label}</Typography>
-                      <TextField
-                        value={value}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (s.key === 'pedidos') {
-                            setJson((prev) => ({ ...prev, pedidos: v.split('\n').filter(Boolean) }));
-                          } else if (s.key === 'jurisprudencia') {
-                            setJson((prev) => ({ ...prev, jurisprudencia: v.split('\n').filter(Boolean) }));
-                          } else {
-                            setJson((prev) => ({ ...prev, [s.key]: v }));
-                          }
-                        }}
-                        fullWidth
-                        multiline
-                        minRows={s.multiline ? 3 : 1}
-                        placeholder={`Escreva a seção "${s.label}"...`}
-                      />
-                    </Box>
-                  );
-                })}
-                <Stack direction="row" spacing={1}>
+              <>
+                <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>Minuta gerada pela IA</Typography>
+                <Divider sx={{ mb: 1 }} />
+                <A4Editor
+                  value={wdoc}
+                  onChange={(next) => {
+                    // mantém o A4 igual ao Playground: editor é a fonte da verdade
+                    setWdoc(next as WDoc);
+                  }}
+                />
+                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                   <Button onClick={handleSave} variant="contained" startIcon={<SaveOutlined /> as any} disabled={saveLoading}>
                     {saveLoading ? <CircularProgress size={18} /> : 'Salvar alterações'}
                   </Button>
@@ -380,12 +287,22 @@ export default function EditorChatPage() {
                     Exportar DOCX
                   </Button>
                 </Stack>
-              </Stack>
+              </>
             )}
           </Paper>
 
           {/* CHAT */}
-          <Paper variant="outlined" sx={{ p: 1.5, width: 360, height: '5svh', position: 'fixed', top: 88, overflow: 'auto' }}>
+          <Paper
+            variant="outlined"
+            sx={{
+              position: 'sticky',
+              top: 88,
+              p: 1.5,
+              width: 360,
+              maxHeight: '60svh',
+              overflow: 'auto'
+            }}
+          >
             <Stack spacing={1.5}>
               <Typography variant="subtitle2">Chat1</Typography>
               <TextField
