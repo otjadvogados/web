@@ -64,19 +64,11 @@ export default function A4Playground() {
     }
     try {
       const res = await acceptSuggestion(id, suggestion.id);
-      console.log('Resposta do acceptSuggestion:', res);
       
       // Atualiza o documento com o que veio do back
-      // Agora res = { message: "...", data: { draft: { ... }, suggestion: { ... } } }
       const nextDoc = res?.data?.draft?.json ?? null;
-      
-      console.log('nextDoc extraído:', nextDoc);
-      
       if (nextDoc) {
-        console.log('Atualizando documento...');
         setDoc(nextDoc);
-      } else {
-        console.log('nextDoc é null, não atualizando');
       }
       
       // Remove a sugestão aceita da lista local
@@ -109,10 +101,8 @@ export default function A4Playground() {
       return;
     }
     try {
-      const res = await rejectSuggestion(id, suggestion.id);
-      console.log('Resposta do rejectSuggestion:', res);
+      await rejectSuggestion(id, suggestion.id);
       
-      // rejectSuggestion não retorna o draft atualizado, apenas remove a sugestão
       // Remove a sugestão rejeitada da lista local
       setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
       openSnackbar({ 

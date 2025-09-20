@@ -65,19 +65,18 @@ export default function CasesPage() {
                     onClick={async () => {
                       const latest = await getLatestDraftForCase(c.id);
                       if (latest) {
-                        nav(`/ai-docs/editor?caseId=${encodeURIComponent(c.id)}&draftId=${encodeURIComponent(latest.id)}`);
+                        nav(`/ai-docs/a4-playground/${latest.id}`);
                       } else {
-                        nav(`/ai-docs/editor?caseId=${encodeURIComponent(c.id)}`); // gera novo
+                        openSnackbar({ 
+                          open: true, 
+                          message: 'Nenhum rascunho encontrado. Crie um caso primeiro.', 
+                          variant: 'alert', 
+                          alert: { color: 'warning' } 
+                        } as any);
                       }
                     }}
                   >
                     Continuar
-                  </Button>
-                  <Button
-                    variant="text"
-                    onClick={() => nav(`/ai-docs/editor?caseId=${encodeURIComponent(c.id)}`)}
-                  >
-                    Novo rascunho
                   </Button>
                   <Button
                     variant="contained"

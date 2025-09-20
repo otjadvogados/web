@@ -40,7 +40,7 @@ const AiDocsTemplates = Loadable(lazy(() => import('pages/ai-docs/TemplatesPage'
 const AiDocsCategories = Loadable(lazy(() => import('pages/ai-docs/CategoriesPage')));
 const AiDocsSubCategories = Loadable(lazy(() => import('pages/ai-docs/SubCategoriesPage')));
 const CreateCaseStep1 = Loadable(lazy(() => import('pages/ai-docs/CreateCaseStep1')));
-const WDocEditorPage = Loadable(lazy(() => import('pages/ai-docs/WDocEditorPage')));
+// (removido) WDocEditorPage não é mais utilizado
 const AiCasesPage = Loadable(lazy(() => import('pages/ai-docs/CasesPage')));
 const A4Playground = Loadable(lazy(() => import('pages/ai-docs/A4Playground')));
 
@@ -101,10 +101,6 @@ const MainRoutes = {
         {
           path: 'ai-docs/create',
           element: <CreateCaseStep1 />
-        },
-        {
-          path: 'ai-docs/editor',
-          element: <WDocEditorPage />
         },
         {
           path: 'ai-docs/cases',
