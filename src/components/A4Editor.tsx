@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Box } from '@mui/material';
 import type { WDoc, WBlock, WRun } from 'types/wdoc';
-import type { AnchoredSuggestion } from 'hooks/useAnchoredSuggestions';
+import type { AnchoredSuggestion, AnchoredOp } from 'hooks/useAnchoredSuggestions';
 import type { JSX } from 'react';
 
 type Props = {
@@ -10,6 +10,10 @@ type Props = {
   anchors?: Map<number, AnchoredSuggestion[]>;
   onAcceptSuggestion?: (sug: AnchoredSuggestion) => void;
   onRejectSuggestion?: (sug: AnchoredSuggestion) => void;
+  // Novas props para operações individuais
+  opAnchors?: Map<number, AnchoredOp[]>;
+  onAcceptOp?: (aop: AnchoredOp) => void;
+  onRejectOp?: (aop: AnchoredOp) => void;
 };
 
 /* ==================================== util ==================================== */
@@ -132,7 +136,10 @@ export default function A4Editor({
   onChange,
   anchors,
   onAcceptSuggestion,
-  onRejectSuggestion
+  onRejectSuggestion,
+  opAnchors,
+  onAcceptOp,
+  onRejectOp
 }: Props) {
   // Pode vir “embrulhado”: { json: { blocks, sections, ... } }
   const root: any = (value as any)?.json ?? value;
@@ -401,10 +408,13 @@ export default function A4Editor({
           }
 
           // 1) tenta por índice
-          let blockAnchors = anchors?.get(i) || [];
-          // 2) fallback: tenta por id estável do bloco
+          const blockOpAnchors = opAnchors?.get(i) || [];
+          const hasOps = blockOpAnchors.length > 0;
+          let blockAnchors = hasOps ? [] : (anchors?.get(i) || []); // não renderiza sugestões se tiver ops
+          
+          // 2) fallback: tenta por id estável do bloco (apenas se não tiver ops)
           const blkId = (b as any)?.id;
-          if ((!blockAnchors || blockAnchors.length === 0) && blkId && anchors) {
+          if (!hasOps && (!blockAnchors || blockAnchors.length === 0) && blkId && anchors) {
             const byId: AnchoredSuggestion[] = [];
             anchors.forEach((arr) => {
               (arr || []).forEach((s) => {
@@ -415,7 +425,8 @@ export default function A4Editor({
             });
             if (byId.length) blockAnchors = byId;
           }
-          const hasSug = blockAnchors.length > 0;
+          
+          const hasSug = blockAnchors.length > 0 || blockOpAnchors.length > 0;
 
           return (
             <div key={i}>
@@ -453,6 +464,34 @@ export default function A4Editor({
                   </div>
                 );
               })}
+
+              {/* Operações individuais - um cartão por op */}
+              {(opAnchors?.get(i) || []).map((aop) => (
+                <div
+                  key={aop.opId}
+                  style={{ ...greenWrap, position: 'relative', zIndex: 2 }}
+                  contentEditable={false}
+                  suppressContentEditableWarning
+                >
+                  <div style={{ ...paragraphCss(b), whiteSpace: 'pre-wrap' }}>
+                    {aop.previewText}
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 8,
+                      justifyContent: 'flex-end',
+                      marginTop: 4,
+                      position: 'relative',
+                      zIndex: 3,
+                      pointerEvents: 'auto'
+                    }}
+                  >
+                    <button style={btnAccept} onClick={() => onAcceptOp?.(aop)}>Aceitar</button>
+                    <button style={btnReject} onClick={() => onRejectOp?.(aop)}>Recusar</button>
+                  </div>
+                </div>
+              ))}
             </div>
           );
         })}

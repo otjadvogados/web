@@ -44,16 +44,25 @@ export type AiDraft = {
   updatedAt: string;
 };
 
+export type SuggestionOp = {
+  id: string;                 // UUID gerado no back
+  op: 'replace'|'insert'|'remove';
+  path: string;
+  value?: any;
+  meta?: Record<string, any>;
+  status: 'PENDING'|'ACCEPTED'|'REJECTED';
+};
+
 export type AiSuggestion = {
   id: string;
   sessionId: string;
   draftId: string;
   draftVersion: number;
-  ops: Array<{ op: string; path: string; value?: any; from?: string }>;
+  ops: SuggestionOp[];
   rationale?: string | null;
   confidence?: number | null;
   targets: string[];
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  status: 'PENDING'|'PARTIAL'|'ACCEPTED'|'REJECTED'; // derivado das ops
   createdAt: string;
   resolvedAt?: string | null;
 };

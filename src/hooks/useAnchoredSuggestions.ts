@@ -1,10 +1,18 @@
 import { useMemo } from 'react';
-import type { WDoc } from 'types/wdoc';
+import type { WDoc, SuggestionOp } from 'types/wdoc';
 import type { AiSuggestion } from 'types/wdoc';
 
 export type AnchoredSuggestion = AiSuggestion & {
   blockIndex: number;
   previewText?: string; // opcional, se der pra extrair do 'value'
+};
+
+export type AnchoredOp = {
+  suggestionId: string;
+  opId: string;
+  blockIndex: number;
+  previewText: string;  // do tryPreviewTextFromOps([op])
+  op: SuggestionOp;
 };
 
 function parsePath(path: string): (string|number)[] {
@@ -108,7 +116,7 @@ function getBlockIndexFromOpPath(path: string, doc: any): number | null {
   return null;
 }
 
-function tryPreviewTextFromOps(ops: AnchoredSuggestion['ops']): string | undefined {
+function tryPreviewTextFromOps(ops: SuggestionOp[]): string | undefined {
   for (const op of ops) {
     if (op.op !== 'replace') continue;
     const p = op.path || '';
@@ -126,34 +134,63 @@ export function useAnchoredSuggestions(doc: WDoc | null, suggestions: AiSuggesti
   return useMemo(() => {
     const map = new Map<number, AnchoredSuggestion[]>();
     for (const s of suggestions) {
-      let bestIdx: number | null = null;
-      
-      // Primeiro tenta resolver por âncora
-      for (const op of s.ops || []) {
-        const anchorIdx = findBlockIndexByAnchor(op, doc);
-        if (anchorIdx >= 0) { 
-          bestIdx = anchorIdx; 
-          break; 
+      // agrega ops por bloco (apenas PENDING)
+      const perBlock = new Map<number, any[]>();
+
+      for (const op of (s.ops || []).filter(o => o.status === 'PENDING')) {
+        let idx = findBlockIndexByAnchor(op, doc);
+        if (idx < 0) {
+          const byPath = getBlockIndexFromOpPath(op.path || '', doc);
+          idx = typeof byPath === 'number' ? byPath : -1;
         }
+        if (idx < 0) continue;
+        const arr = perBlock.get(idx) || [];
+        arr.push(op);
+        perBlock.set(idx, arr);
       }
-      
-      // Se não achou por âncora, usa o método antigo (índice do path)
-      if (bestIdx === null) {
-        for (const op of s.ops || []) {
-          const pathIdx = getBlockIndexFromOpPath(op.path || '', doc);
-          if (typeof pathIdx === 'number') { 
-            bestIdx = pathIdx; 
-            break; 
-          }
-        }
-      }
-      
-      if (bestIdx === null) continue;
-      
-      const arr = map.get(bestIdx) || [];
-      arr.push({ ...s, blockIndex: bestIdx, previewText: tryPreviewTextFromOps(s.ops) });
-      map.set(bestIdx, arr);
+
+      // cria uma "cópia" da sugestão para cada bloco afetado
+      perBlock.forEach((opsForIdx, bi) => {
+        const arr = map.get(bi) || [];
+        arr.push({
+          ...s,
+          ops: opsForIdx,                  // só as ops daquele bloco
+          blockIndex: bi,
+          previewText: tryPreviewTextFromOps(opsForIdx)
+        });
+        map.set(bi, arr);
+      });
     }
     return map; // Map<blockIndex, AnchoredSuggestion[]>
+  }, [doc, suggestions]);
+}
+
+// Nova função para criar anchors por operação individual
+export function useAnchoredOps(doc: WDoc | null, suggestions: AiSuggestion[]) {
+  return useMemo(() => {
+    const perBlock: Map<number, AnchoredOp[]> = new Map();
+    
+    for (const s of suggestions) {
+      for (const op of (s.ops || []).filter(o => o.status === 'PENDING')) {
+        let bi = findBlockIndexByAnchor(op, doc);
+        if (bi < 0) {
+          const byPath = getBlockIndexFromOpPath(op.path || '', doc);
+          bi = typeof byPath === 'number' ? byPath : -1;
+        }
+        if (bi < 0) continue;
+        
+        const arr = perBlock.get(bi) || [];
+        arr.push({
+          suggestionId: s.id,
+          opId: op.id,
+          blockIndex: bi,
+          previewText: tryPreviewTextFromOps([op]) || 'Sem prévia disponível',
+          op
+        });
+        perBlock.set(bi, arr);
+      }
+    }
+    
+    return perBlock; // Map<blockIndex, AnchoredOp[]>
   }, [doc, suggestions]);
 }

@@ -7,12 +7,14 @@ import {
 } from '@mui/material';
 import MainCard from 'components/MainCard';
 import A4Editor from 'components/A4Editor';
-import { useAnchoredSuggestions, type AnchoredSuggestion } from 'hooks/useAnchoredSuggestions';
+import { useAnchoredSuggestions, useAnchoredOps, type AnchoredSuggestion, type AnchoredOp } from 'hooks/useAnchoredSuggestions';
 import { 
   listChatMessages, 
   postChatMessage, 
   acceptSuggestion, 
   rejectSuggestion,
+  acceptSuggestionOps,
+  rejectSuggestionOps,
   updateDraft,
   type AiChatMessage,
   type AiSuggestion 
@@ -21,16 +23,6 @@ import { openSnackbar } from 'api/snackbar';
 import axios from 'utils/axios';
 
 
-// Helper para normalizar paths do Docflow para WDoc (para ancoragem correta)
-function normalizeOpsToWDoc(ops: Array<{ op: string; path: string; value?: any }>) {
-  return ops.map(({ op, path, value }) => {
-    let p = path || '';
-    p = p.replace(/^\/blocks\//, '/content/');
-    p = p.replace(/\/inlines\/(\d+)\/content$/i, '/runs/$1/text');
-    if (/\/content$/i.test(p)) p = p.replace(/\/content$/i, '/text');
-    return { op, path: p, value };
-  });
-}
 
 export default function A4Playground() {
   const { id } = useParams<{ id: string }>();
@@ -50,6 +42,7 @@ export default function A4Playground() {
     ? { ...doc, content: (doc as any).blocks }
     : doc;
   const anchored = useAnchoredSuggestions(docForAnchors, suggestions || []);
+  const opAnchored = useAnchoredOps(docForAnchors, suggestions || []);
 
   // Função para aceitar sugestão
   async function onAcceptAnchored(suggestion: AnchoredSuggestion) {
@@ -121,6 +114,82 @@ export default function A4Playground() {
     }
   }
 
+  // Função para aceitar operação individual
+  async function onAcceptOp(aop: AnchoredOp) {
+    if (!id) {
+      openSnackbar({ 
+        open: true, 
+        message: 'ID do draft não encontrado', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
+      return;
+    }
+    try {
+      const res = await acceptSuggestionOps(id, aop.suggestionId, [aop.opId]);
+      
+      // Atualiza o documento com o que veio do back
+      const nextDoc = res?.data?.draft?.json ?? null;
+      if (nextDoc) {
+        setDoc(nextDoc);
+      }
+      
+      // Atualiza a sugestão com o novo status das ops
+      setSuggestions(prev => prev.map(s => 
+        s.id === res.data.suggestion.id ? res.data.suggestion : s
+      ));
+      
+      openSnackbar({ 
+        open: true, 
+        message: 'Operação aceita com sucesso!', 
+        variant: 'alert', 
+        alert: { color: 'success' } 
+      } as any);
+    } catch (err: any) {
+      openSnackbar({ 
+        open: true, 
+        message: err?.response?.data?.message || err?.message || 'Erro ao aceitar operação', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
+    }
+  }
+
+  // Função para rejeitar operação individual
+  async function onRejectOp(aop: AnchoredOp) {
+    if (!id) {
+      openSnackbar({ 
+        open: true, 
+        message: 'ID do draft não encontrado', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
+      return;
+    }
+    try {
+      const res = await rejectSuggestionOps(id, aop.suggestionId, [aop.opId]);
+      
+      // Atualiza a sugestão com o novo status das ops
+      setSuggestions(prev => prev.map(s => 
+        s.id === res.data.suggestion.id ? res.data.suggestion : s
+      ));
+      
+      openSnackbar({ 
+        open: true, 
+        message: 'Operação rejeitada.', 
+        variant: 'alert', 
+        alert: { color: 'info' } 
+      } as any);
+    } catch (err: any) {
+      openSnackbar({ 
+        open: true, 
+        message: err?.response?.data?.message || err?.message || 'Erro ao rejeitar operação', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
+    }
+  }
+
   // carregar dados da API
   useEffect(() => {
     if (!id) {
@@ -182,12 +251,8 @@ export default function A4Playground() {
         setMessages(await listChatMessages(caseId));
       } catch { }
 
-      // 2) aplica sugestões vindas desta rodada na UI (sempre converte para WDoc para ancoragem correta)
-      const normalized = (out.suggestions || []).map(s => ({
-        ...s,
-        ops: normalizeOpsToWDoc(s.ops || []),
-      }));
-      setSuggestions(normalized);
+      // 2) aplica sugestões vindas desta rodada na UI (mantenha os paths originais (/blocks/<id>/...) para ancorar por ID)
+      setSuggestions(out.suggestions || []);
 
       // 3) feedback visual
       const hasSuggestions = out.suggestions && out.suggestions.length > 0;
@@ -235,6 +300,9 @@ export default function A4Playground() {
             anchors={anchored}
             onAcceptSuggestion={onAcceptAnchored}
             onRejectSuggestion={onRejectAnchored}
+            opAnchors={opAnchored}
+            onAcceptOp={onAcceptOp}
+            onRejectOp={onRejectOp}
           />
         ) : (
           <Box sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>

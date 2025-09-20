@@ -209,6 +209,24 @@ export async function rejectSuggestion(draftId: string, suggestionId: string) {
   return data.data;
 }
 
+// Aceitar ops específicas de uma sugestão
+export async function acceptSuggestionOps(draftId: string, sugId: string, opIds: string[]) {
+  const { data } = await axios.post<{message:string; data:{draft: AiDraft; suggestion: AiSuggestion}}>(
+    `/ai/drafts/${encodeURIComponent(draftId)}/suggestions/${encodeURIComponent(sugId)}/accept-ops`,
+    { opIds }
+  );
+  return data;
+}
+
+// Rejeitar ops específicas de uma sugestão
+export async function rejectSuggestionOps(draftId: string, sugId: string, opIds: string[]) {
+  const { data } = await axios.post<{message:string; data:{draft: AiDraft; suggestion: AiSuggestion}}>(
+    `/ai/drafts/${encodeURIComponent(draftId)}/suggestions/${encodeURIComponent(sugId)}/reject-ops`,
+    { opIds }
+  );
+  return data;
+}
+
 //
 // Cases
 //
