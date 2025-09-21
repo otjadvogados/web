@@ -1,5 +1,5 @@
 // src/pages/ai-docs/A4Playground.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
   Box, Alert, CircularProgress, Paper, Stack, Typography, 
@@ -40,6 +40,7 @@ export default function A4Playground() {
   const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [findings, setFindings] = useState<AnalysisFinding[]>([]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   
   // Sugestões ancoradas - garante que documento tenha content para alinhamento correto com A4Editor
   const docForAnchors = (doc && (doc as any).blocks && !(doc as any).content)
@@ -142,7 +143,7 @@ export default function A4Playground() {
       // Atualiza a sugestão com o novo status das ops
       setSuggestions(prev => prev.map(s => 
         s.id === res.data.suggestion.id ? res.data.suggestion : s
-      ));
+      ).filter(s => s.status === 'PENDING' || s.status === 'PARTIAL')); // Remove sugestões completamente processadas
       
       openSnackbar({ 
         open: true, 
@@ -177,7 +178,7 @@ export default function A4Playground() {
       // Atualiza a sugestão com o novo status das ops
       setSuggestions(prev => prev.map(s => 
         s.id === res.data.suggestion.id ? res.data.suggestion : s
-      ));
+      ).filter(s => s.status === 'PENDING' || s.status === 'PARTIAL')); // Remove sugestões completamente processadas
       
       openSnackbar({ 
         open: true, 
@@ -243,13 +244,45 @@ export default function A4Playground() {
     loadChatMessages();
   }, [caseId]);
 
+  // Rola chat para baixo sempre que mensagens mudarem
+  useEffect(() => {
+    scrollChatToBottom();
+  }, [messages]);
+
+  // Função para rolar chat para baixo
+  const scrollChatToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  };
+
+  // Função para remover sugestões completamente processadas
+  const cleanupCompletedSuggestions = () => {
+    setSuggestions(prev => prev.filter(s => s.status === 'PENDING' || s.status === 'PARTIAL'));
+  };
+
   // Função para enviar mensagem do chat
   async function sendChat() {
     if (!caseId || !chat.trim()) return;
     
+    const userMessage = chat.trim();
+    
+    // Limpa input imediatamente e adiciona mensagem do usuário em tempo real
+    setChat('');
+    const tempUserMessage: AiChatMessage = {
+      id: `temp-${Date.now()}`,
+      role: 'user',
+      text: userMessage,
+      createdAt: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, tempUserMessage]);
+    
+    // Rola para baixo após adicionar mensagem
+    setTimeout(scrollChatToBottom, 100);
+    
     setChatLoading(true);
     try {
-      const out = await postChatMessage(caseId, chat.trim());
+      const out = await postChatMessage(caseId, userMessage);
 
       // 0) pegue o draft ATUAL antes de ancorar sugestões/findings
       try {
@@ -262,7 +295,10 @@ export default function A4Playground() {
 
       // 1) atualiza histórico
       try {
-        setMessages(await listChatMessages(caseId));
+        const updatedMessages = await listChatMessages(caseId);
+        setMessages(updatedMessages);
+        // Rola para baixo após atualizar mensagens
+        setTimeout(scrollChatToBottom, 100);
       } catch { }
 
       // 2) processa resposta baseada no modo
@@ -299,7 +335,7 @@ export default function A4Playground() {
         }
       }
 
-      setChat(''); // limpa input
+      // Input já foi limpo no início da função
     } catch (err: any) {
       openSnackbar({ 
         open: true, 
@@ -363,7 +399,7 @@ export default function A4Playground() {
             display: 'flex',
             flexDirection: 'column',
             p: 1.5,
-            maxHeight: '70vh',
+            maxHeight: '100%',
           }}
         >
           <Stack spacing={1.25} sx={{ height: '100%', overflow: 'hidden' }}>
@@ -371,6 +407,7 @@ export default function A4Playground() {
 
             {/* histórico */}
             <Stack
+              ref={chatContainerRef}
               spacing={1}
               sx={{
                 flex: 1,
@@ -378,16 +415,28 @@ export default function A4Playground() {
                 minHeight: 0
               }}
             >
-              {messages.map(m => (
-                <Paper key={m.id} variant="outlined" sx={{ p: 1, bgcolor: m.role === 'assistant' ? 'grey.50' : 'background.paper' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {m.role === 'assistant' ? 'Assistente' : 'Você'}
-                  </Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {m.text}
-                  </Typography>
-                </Paper>
-              ))}
+              {messages.map(m => {
+                const isAssistant = m.role?.toLowerCase() === 'assistant';
+                return (
+                  <Paper 
+                    key={m.id} 
+                    variant={isAssistant ? 'elevation' : 'outlined'} 
+                    elevation={isAssistant ? 0 : undefined}
+                    sx={{ 
+                      p: 1, 
+                      bgcolor: !isAssistant ? 'grey.50' : 'background.paper',
+                      border: isAssistant ? 'none' : undefined
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary">
+                      {isAssistant ? 'Assistente' : 'Você'}
+                    </Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                      {m.text}
+                    </Typography>
+                  </Paper>
+                );
+              })}
 
               {/* Sugestões ativas */}
               {suggestions.length > 0 && (
