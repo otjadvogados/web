@@ -1,15 +1,27 @@
 // src/api/aiDocs.ts
 import axios from 'utils/axios';
-import type { AiDraft, AiSuggestion, WDoc } from 'types/wdoc';
+import type { AiDraft, AiSuggestion, WDoc, AnalysisFinding } from 'types/wdoc';
 
 // Re-export types for convenience
-export type { AiDraft, AiSuggestion, WDoc };
+export type { AiDraft, AiSuggestion, WDoc, AnalysisFinding };
 
 export type AiChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   text: string;           // mensagem do usuário OU rationale agregado
   createdAt: string;
+};
+
+export type AiChatResponse = {
+  message: string;        // texto para a bolha do chat
+  data: {
+    sessionId: string;
+    draftId: string;
+    // o backend está mandando "both" também
+    mode: 'chat' | 'suggest' | 'both';
+    findings?: AnalysisFinding[];     // opcional (modo chat)
+    suggestions?: AiSuggestion[];     // <-- as sugestões vêm AQUI, dentro de data
+  };
 };
 import type { DocflowDoc } from 'types/docflow';
 
@@ -188,11 +200,11 @@ export async function listChatMessages(caseId: string) {
 }
 
 export async function postChatMessage(caseId: string, text: string) {
-  const { data } = await axios.post<{ data: { sessionId: string; draftId: string; suggestions: AiSuggestion[]; messageId: string } }>(
+  const { data } = await axios.post<AiChatResponse>(
     `/ai/chats/${encodeURIComponent(caseId)}/messages`,
     { text }
   );
-  return data.data;
+  return data;
 }
 
 export async function acceptSuggestion(draftId: string, suggestionId: string) {
@@ -226,6 +238,7 @@ export async function rejectSuggestionOps(draftId: string, sugId: string, opIds:
   );
   return data;
 }
+
 
 //
 // Cases

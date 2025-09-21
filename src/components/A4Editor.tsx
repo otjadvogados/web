@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Box } from '@mui/material';
 import type { WDoc, WBlock, WRun } from 'types/wdoc';
-import type { AnchoredSuggestion, AnchoredOp } from 'hooks/useAnchoredSuggestions';
+import type { AnchoredSuggestion, AnchoredOp, AnchoredFinding } from 'hooks/useAnchoredSuggestions';
 import type { JSX } from 'react';
 
 type Props = {
@@ -14,6 +14,8 @@ type Props = {
   opAnchors?: Map<number, AnchoredOp[]>;
   onAcceptOp?: (aop: AnchoredOp) => void;
   onRejectOp?: (aop: AnchoredOp) => void;
+  // Props para findings de análise
+  findingAnchors?: Map<number, AnchoredFinding[]>;
 };
 
 /* ==================================== util ==================================== */
@@ -139,7 +141,8 @@ export default function A4Editor({
   onRejectSuggestion,
   opAnchors,
   onAcceptOp,
-  onRejectOp
+  onRejectOp,
+  findingAnchors
 }: Props) {
   // Pode vir “embrulhado”: { json: { blocks, sections, ... } }
   const root: any = (value as any)?.json ?? value;
@@ -308,6 +311,7 @@ export default function A4Editor({
   /* =============================== UI =============================== */
   const redWrap: React.CSSProperties = { background: 'rgba(244, 67, 54, 0.12)' };
   const greenWrap: React.CSSProperties = { background: 'rgba(76, 175, 80, 0.12)', marginTop: 6 };
+  const blueWrap: React.CSSProperties = { background: 'rgba(33, 150, 243, 0.12)', marginTop: 6 };
   const btnAccept: React.CSSProperties = { border: 0, backgroundColor: '#2e7d32', padding: '4px 10px', borderRadius: 0, color: '#fff', cursor: 'pointer' };
   const btnReject: React.CSSProperties = { border: 0, padding: '4px 10px', backgroundColor: '#9e9e9e', borderRadius: 0, color: '#fff', cursor: 'pointer' };
 
@@ -409,6 +413,7 @@ export default function A4Editor({
 
           // 1) tenta por índice
           const blockOpAnchors = opAnchors?.get(i) || [];
+          const blockFindingAnchors = findingAnchors?.get(i) || [];
           const hasOps = blockOpAnchors.length > 0;
           let blockAnchors = hasOps ? [] : (anchors?.get(i) || []); // não renderiza sugestões se tiver ops
           
@@ -426,7 +431,7 @@ export default function A4Editor({
             if (byId.length) blockAnchors = byId;
           }
           
-          const hasSug = blockAnchors.length > 0 || blockOpAnchors.length > 0;
+          const hasSug = blockAnchors.length > 0 || blockOpAnchors.length > 0 || blockFindingAnchors.length > 0;
 
           return (
             <div key={i}>
@@ -489,6 +494,23 @@ export default function A4Editor({
                   >
                     <button style={btnAccept} onClick={() => onAcceptOp?.(aop)}>Aceitar</button>
                     <button style={btnReject} onClick={() => onRejectOp?.(aop)}>Recusar</button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Findings de análise - apenas destaque visual */}
+              {(findingAnchors?.get(i) || []).map((af) => (
+                <div
+                  key={af.findingId}
+                  style={{ ...blueWrap, position: 'relative', zIndex: 1 }}
+                  contentEditable={false}
+                  suppressContentEditableWarning
+                >
+                  <div style={{ ...paragraphCss(b), opacity: 0.8 }}>
+                    <strong>{af.finding.title}</strong>
+                  </div>
+                  <div style={{ fontSize: '0.8em', color: '#666', marginTop: 2 }}>
+                    {af.finding.detail}
                   </div>
                 </div>
               ))}

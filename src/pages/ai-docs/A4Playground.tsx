@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import MainCard from 'components/MainCard';
 import A4Editor from 'components/A4Editor';
-import { useAnchoredSuggestions, useAnchoredOps, type AnchoredSuggestion, type AnchoredOp } from 'hooks/useAnchoredSuggestions';
+import { useAnchoredSuggestions, useAnchoredOps, useAnchoredFindings, type AnchoredSuggestion, type AnchoredOp, type AnchoredFinding } from 'hooks/useAnchoredSuggestions';
 import { 
   listChatMessages, 
   postChatMessage, 
@@ -16,8 +16,11 @@ import {
   acceptSuggestionOps,
   rejectSuggestionOps,
   updateDraft,
+  getDraft,
   type AiChatMessage,
-  type AiSuggestion 
+  type AiSuggestion,
+  type AiChatResponse,
+  type AnalysisFinding
 } from 'api/aiDocs';
 import { openSnackbar } from 'api/snackbar';
 import axios from 'utils/axios';
@@ -36,6 +39,7 @@ export default function A4Playground() {
   const [chatLoading, setChatLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
+  const [findings, setFindings] = useState<AnalysisFinding[]>([]);
   
   // Sugestões ancoradas - garante que documento tenha content para alinhamento correto com A4Editor
   const docForAnchors = (doc && (doc as any).blocks && !(doc as any).content)
@@ -43,6 +47,7 @@ export default function A4Playground() {
     : doc;
   const anchored = useAnchoredSuggestions(docForAnchors, suggestions || []);
   const opAnchored = useAnchoredOps(docForAnchors, suggestions || []);
+  const findingAnchored = useAnchoredFindings(docForAnchors, findings || []);
 
   // Função para aceitar sugestão
   async function onAcceptAnchored(suggestion: AnchoredSuggestion) {
@@ -246,23 +251,52 @@ export default function A4Playground() {
     try {
       const out = await postChatMessage(caseId, chat.trim());
 
+      // 0) pegue o draft ATUAL antes de ancorar sugestões/findings
+      try {
+        const fresh = await getDraft(out.data.draftId); // retorna { data: AiDraft }
+        setDoc(fresh.json || fresh); // ajuste conforme seu shape
+      } catch (e) {
+        // se falhar, segue com o doc atual (anchors por snippet ainda podem salvar)
+        console.warn('Falha ao buscar draft atual:', e);
+      }
+
       // 1) atualiza histórico
       try {
         setMessages(await listChatMessages(caseId));
       } catch { }
 
-      // 2) aplica sugestões vindas desta rodada na UI (mantenha os paths originais (/blocks/<id>/...) para ancorar por ID)
-      setSuggestions(out.suggestions || []);
-
-      // 3) feedback visual
-      const hasSuggestions = out.suggestions && out.suggestions.length > 0;
-      if (hasSuggestions) {
-        openSnackbar({ 
-          open: true, 
-          message: `${out.suggestions.length} sugestão(ões) recebida(s). Use os botões no documento para aceitar/rejeitar.`, 
-          variant: 'alert', 
-          alert: { color: 'info' } 
-        } as any);
+      // 2) processa resposta baseada no modo
+      if (out.data.mode === 'chat') {
+        // Modo análise: atualiza findings e limpa sugestões
+        setFindings(out.data.findings || []);
+        setSuggestions([]);
+        
+        // Feedback para findings
+        const hasFindings = out.data.findings && out.data.findings.length > 0;
+        if (hasFindings) {
+          openSnackbar({ 
+            open: true, 
+            message: `${out.data.findings?.length || 0} item(ns) de análise encontrado(s). Veja os detalhes no chat.`, 
+            variant: 'alert', 
+            alert: { color: 'info' } 
+          } as any);
+        }
+      } else {
+        // Modo sugestão/both: usa data.suggestions
+        const sugs = out.data.suggestions || [];
+        setSuggestions(sugs);
+        setFindings([]);
+        
+        // Feedback visual para sugestões
+        const hasSuggestions = sugs.length > 0;
+        if (hasSuggestions) {
+          openSnackbar({ 
+            open: true, 
+            message: `${sugs.length} sugestão(ões) recebida(s). Use os botões no documento para aceitar/rejeitar.`, 
+            variant: 'alert', 
+            alert: { color: 'info' } 
+          } as any);
+        }
       }
 
       setChat(''); // limpa input
@@ -303,6 +337,7 @@ export default function A4Playground() {
             opAnchors={opAnchored}
             onAcceptOp={onAcceptOp}
             onRejectOp={onRejectOp}
+            findingAnchors={findingAnchored}
           />
         ) : (
           <Box sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>
@@ -369,6 +404,32 @@ export default function A4Playground() {
                         {s.ops && s.ops.length > 0 && (
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                             {s.ops.length} operação(ões) - Use os botões no editor para aceitar/rejeitar
+                          </Typography>
+                        )}
+                      </Box>
+                    ))}
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* Findings de análise */}
+              {findings.length > 0 && (
+                <Paper variant="outlined" sx={{ p: 1, bgcolor: 'info.light', border: '2px solid', borderColor: 'info.main' }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                    Análise do Documento ({findings.length})
+                  </Typography>
+                  <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                    {findings.map(f => (
+                      <Box key={f.id} sx={{ p: 0.5, bgcolor: 'background.paper', borderRadius: 0.5 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: f.severity === 'error' ? 'error.main' : f.severity === 'warn' ? 'warning.main' : 'info.main' }}>
+                          {f.title}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {f.detail}
+                        </Typography>
+                        {f.evidence && f.evidence.length > 0 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontStyle: 'italic', mt: 0.5 }}>
+                            "{f.evidence[0]}"
                           </Typography>
                         )}
                       </Box>

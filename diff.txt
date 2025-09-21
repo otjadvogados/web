@@ -1,973 +1,428 @@
 diff --git a/src/api/aiDocs.ts b/src/api/aiDocs.ts
-index 1a08047..6edc12f 100644
+index 2e68d6c..d261dce 100644
 --- a/src/api/aiDocs.ts
 +++ b/src/api/aiDocs.ts
-@@ -196,10 +196,10 @@ export async function postChatMessage(caseId: string, text: string) {
+@@ -1,9 +1,9 @@
+ // src/api/aiDocs.ts
+ import axios from 'utils/axios';
+-import type { AiDraft, AiSuggestion, WDoc } from 'types/wdoc';
++import type { AiDraft, AiSuggestion, WDoc, AnalysisFinding } from 'types/wdoc';
+ 
+ // Re-export types for convenience
+-export type { AiDraft, AiSuggestion, WDoc };
++export type { AiDraft, AiSuggestion, WDoc, AnalysisFinding };
+ 
+ export type AiChatMessage = {
+   id: string;
+@@ -11,6 +11,17 @@ export type AiChatMessage = {
+   text: string;           // mensagem do usuário OU rationale agregado
+   createdAt: string;
+ };
++
++export type AiChatResponse = {
++  message: string;        // texto para a bolha do chat
++  data: {
++    sessionId: string;
++    draftId: string;
++    mode: 'chat' | 'suggest';
++    findings?: AnalysisFinding[]; // opcional para modo chat
++  };
++  suggestions?: AiSuggestion[]; // opcional para modo suggest
++};
+ import type { DocflowDoc } from 'types/docflow';
+ 
+ // ==============================================================
+@@ -188,11 +199,11 @@ export async function listChatMessages(caseId: string) {
  }
  
- export async function acceptSuggestion(draftId: string, suggestionId: string) {
--  const { data } = await axios.post<{ data: { draft: AiDraft; suggestion: AiSuggestion } }>(
-+  const { data } = await axios.post<{ message: string; data: { draft: AiDraft; suggestion: AiSuggestion } }>(
-     `/ai/drafts/${encodeURIComponent(draftId)}/suggestions/${encodeURIComponent(suggestionId)}/accept`
+ export async function postChatMessage(caseId: string, text: string) {
+-  const { data } = await axios.post<{ data: { sessionId: string; draftId: string; suggestions: AiSuggestion[]; messageId: string } }>(
++  const { data } = await axios.post<AiChatResponse>(
+     `/ai/chats/${encodeURIComponent(caseId)}/messages`,
+     { text }
    );
 -  return data.data;
 +  return data;
  }
  
- export async function rejectSuggestion(draftId: string, suggestionId: string) {
+ export async function acceptSuggestion(draftId: string, suggestionId: string) {
+@@ -227,6 +238,7 @@ export async function rejectSuggestionOps(draftId: string, sugId: string, opIds:
+   return data;
+ }
+ 
++
+ //
+ // Cases
+ //
 diff --git a/src/components/A4Editor.tsx b/src/components/A4Editor.tsx
-index 1b98e63..3632276 100644
+index 00482fc..63a9260 100644
 --- a/src/components/A4Editor.tsx
 +++ b/src/components/A4Editor.tsx
-@@ -5,59 +5,279 @@ import type { AnchoredSuggestion } from 'hooks/useAnchoredSuggestions';
+@@ -1,7 +1,7 @@
+ import { useMemo } from 'react';
+ import { Box } from '@mui/material';
+ import type { WDoc, WBlock, WRun } from 'types/wdoc';
+-import type { AnchoredSuggestion, AnchoredOp } from 'hooks/useAnchoredSuggestions';
++import type { AnchoredSuggestion, AnchoredOp, AnchoredFinding } from 'hooks/useAnchoredSuggestions';
  import type { JSX } from 'react';
  
  type Props = {
--  value: WDoc;
--  onChange: (next: WDoc) => void;
-+  value: WDoc | any; // pode vir no formato WDoc OU backend (docflow-like) OU embrulhado em { json }
-+  onChange: (next: WDoc | any) => void;
-   anchors?: Map<number, AnchoredSuggestion[]>;
-   onAcceptSuggestion?: (sug: AnchoredSuggestion) => void;
-   onRejectSuggestion?: (sug: AnchoredSuggestion) => void;
+@@ -14,6 +14,8 @@ type Props = {
+   opAnchors?: Map<number, AnchoredOp[]>;
+   onAcceptOp?: (aop: AnchoredOp) => void;
+   onRejectOp?: (aop: AnchoredOp) => void;
++  // Props para findings de análise
++  findingAnchors?: Map<number, AnchoredFinding[]>;
  };
  
--export default function A4Editor({ value, onChange, anchors, onAcceptSuggestion, onRejectSuggestion }: Props) {
--  const styleMap = value?.styles || {};
--  const content: WBlock[] = Array.isArray(value?.content) ? value.content : [];
-+/* ==================================== util ==================================== */
-+const PT_TO_PX = 96 / 72;
-+const ptToPx = (pt?: number | null) => (typeof pt === 'number' ? pt * PT_TO_PX : 0);
-+const twipToPx = (twip?: number | null) =>
-+  (typeof twip === 'number' ? (twip / 20) * PT_TO_PX : 0);
-+const ptToMm = (pt?: number | null) =>
-+  (typeof pt === 'number' ? pt * 0.3527777778 : undefined);
-+
-+/* ========================= Normalização backend -> WDoc-like ========================= */
-+type DocflowInline = { content?: string; text?: string; style?: any };
-+type DocflowItem = { runs?: DocflowInline[]; text?: string; content?: string };
-+type DocflowBlock = {
-+  type?: string | null;
-+  styleName?: string | null;
-+  style?: any;
-+  content?: string;
-+  inlines?: DocflowInline[] | string;
-+  items?: DocflowItem[];
-+  list?: any;
-+};
-+
-+function normalizeRunsFromInlines(inl: DocflowInline[] | string | undefined): WRun[] | undefined {
-+  if (!inl) return undefined;
-+  if (typeof inl === 'string') return [{ text: inl }];
-+  return inl.map((r) => ({
-+    text: r?.content ?? r?.text ?? '',
-+    bold: !!r?.style?.bold,
-+    italic: !!r?.style?.italic,
-+    underline: !!r?.style?.underline,
-+    font: r?.style?.fontFamily,
-+    // fontSize vem em pt no backend -> px na tela
-+    size: typeof r?.style?.fontSize === 'number' ? ptToPx(r.style.fontSize) : undefined,
-+    color: r?.style?.color ? `#${r.style.color}` : undefined,
-+    highlight: r?.style?.highlight ? `#${r.style.highlight}` : undefined
-+  }));
-+}
-+
-+function isAlreadyWDocBlock(b: any): boolean {
-+  return ['paragraph', 'heading', 'bulletList', 'numberedList', 'pageBreak', 'table'].includes(b?.type);
-+}
-+
-+/**
-+ * asWBlocks(root)
-+ * Aceita:
-+ *  - root.content (WDoc)
-+ *  - root.blocks (backend)
-+ */
-+function asWBlocks(root: any): WBlock[] {
-+  const raw: any[] =
-+    Array.isArray(root?.content) ? root.content :
-+    Array.isArray(root?.blocks)  ? root.blocks  :
-+    [];
-+
-+  return raw.map((b: DocflowBlock): any => {
-+    // Se já for WDoc, mantém
-+    if (isAlreadyWDocBlock(b)) return b as any;
-+
-+    const text = typeof b?.content === 'string' ? b.content : '';
-+    const runsFromInlines = normalizeRunsFromInlines(b?.inlines);
-+
-+    // Listas estruturadas vindas do backend
-+    if (Array.isArray(b.items) && b.items.length) {
-+      const items = b.items.map((it) => {
-+        const r = normalizeRunsFromInlines((it as any).runs) ?? [{ text: it?.text ?? it?.content ?? '' }];
-+        return { runs: r as WRun[] };
-+      });
-+      return {
-+        id: (b as any).id,                    // << preserva id para ancoragem
-+        type: b?.list?.type === 'numbered' ? 'numberedList' : 'bulletList',
-+        style: b?.styleName || 'Normal',
-+        items,
-+        _pStyle: { ...(b?.style || {}) }, // para paragraphCss
-+      };
-+    }
-+
-+    // Heurística para bullets (texto começa com •/-/•)
-+    const looksLikeBullet = /^\s*(?:•|-|\u2022)\s+/.test(text);
-+    if (looksLikeBullet) {
-+      const items = text.split(/\n+/).map((line) => ({
-+        runs: [{ text: line.replace(/^\s*(?:•|-|\u2022)\s*/, '') }]
-+      }));
-+      return { type: 'bulletList', style: b?.styleName || 'Normal', items, _pStyle: { ...(b?.style || {}) } };
-+    }
-+
-+    // Heurística para heading “curto centralizado e em caps/bold”
-+    const isHeading =
-+      (b?.style?.textAlign === 'center' || b?.styleName === 'Heading') &&
-+      (text?.trim()?.length ?? 0) <= 80 &&
-+      ((Array.isArray(b?.inlines) && b.inlines.some((r: any) => r?.style?.bold)) || /^[A-Z0-9 .–—-]+$/.test(text?.trim() ?? ''));
-+
-+    if (isHeading) {
-+      return {
-+        id: (b as any).id,                    // << preserva id
-+        type: 'heading',
-+        style: 'Heading',
-+        text: text.trim(),
-+        content: text.trim()                  // << ajuda os fallbacks do hook
-+      };
-+    }
-+
-+    // Parágrafo comum
-+    const runs: WRun[] = (runsFromInlines ?? [{ text }]) as WRun[];
-+    return {
-+      id: (b as any).id,                      // << preserva id
-+      type: 'paragraph',
-+      style: b?.styleName || 'Normal',
-+      runs,
-+      text,                                   // << texto cru p/ hash/snippet
-+      content: text,                          // << idem
-+      _pStyle: { ...(b?.style || {}) } // guardamos estilo do backend para CSS
-+    };
-+  });
-+}
-+
-+/* ==================================== componente ==================================== */
-+export default function A4Editor({
-+  value,
-+  onChange,
-+  anchors,
-+  onAcceptSuggestion,
-+  onRejectSuggestion
-+}: Props) {
-+  // Pode vir “embrulhado”: { json: { blocks, sections, ... } }
-+  const root: any = (value as any)?.json ?? value;
-+
-+  // styles globais (WDoc). Se não vier nada, define Normal/Heading básicos.
-+  const styleMap = useMemo(() => {
-+    const base = (root?.styles as any) || {};
-+    return {
-+      Normal: {
-+        paragraph: {
-+          spacing: { line: 1.15, before: 0, after: 0 },
-+          textAlign: 'left',
-+          ...(base.Normal?.paragraph || {})
-+        },
-+        run: { ...(base.Normal?.run || {}) }
-+      },
-+      Heading: {
-+        paragraph: {
-+          spacing: { line: 1.15, before: 12, after: 6 },
-+          textAlign: 'center',
-+          ...(base.Heading?.paragraph || {})
-+        },
-+        run: { bold: true, ...(base.Heading?.run || {}) }
-+      },
-+      ...base
-+    };
-+  }, [root?.styles]);
-+
-+  // Conteúdo normalizado
-+  const content: WBlock[] = asWBlocks(root);
-   if (!Array.isArray(content)) return null;
+ /* ==================================== util ==================================== */
+@@ -139,7 +141,8 @@ export default function A4Editor({
+   onRejectSuggestion,
+   opAnchors,
+   onAcceptOp,
+-  onRejectOp
++  onRejectOp,
++  findingAnchors
+ }: Props) {
+   // Pode vir “embrulhado”: { json: { blocks, sections, ... } }
+   const root: any = (value as any)?.json ?? value;
+@@ -308,6 +311,7 @@ export default function A4Editor({
+   /* =============================== UI =============================== */
+   const redWrap: React.CSSProperties = { background: 'rgba(244, 67, 54, 0.12)' };
+   const greenWrap: React.CSSProperties = { background: 'rgba(76, 175, 80, 0.12)', marginTop: 6 };
++  const blueWrap: React.CSSProperties = { background: 'rgba(33, 150, 243, 0.12)', marginTop: 6 };
+   const btnAccept: React.CSSProperties = { border: 0, backgroundColor: '#2e7d32', padding: '4px 10px', borderRadius: 0, color: '#fff', cursor: 'pointer' };
+   const btnReject: React.CSSProperties = { border: 0, padding: '4px 10px', backgroundColor: '#9e9e9e', borderRadius: 0, color: '#fff', cursor: 'pointer' };
  
-+  // ---- Section/page/margins (aceita root.sections ou root.meta.sections etc.) ----
-+  type SectionLike = {
-+    page?: { size?: { name?: string; widthPt?: number; heightPt?: number } | null; orientation?: 'portrait'|'landscape'|string };
-+    margins?: { top?: number; right?: number; bottom?: number; left?: number } | null;
-+  };
-+  const section: SectionLike | undefined =
-+    (root as any)?.sections?.[0] ??
-+    (root as any)?.meta?.sections?.[0] ??
-+    (root as any)?.meta?.pageSection?.[0];
-+
-+  const sizeName = section?.page?.size?.name;
-+  const wMmFromPt  = ptToMm(section?.page?.size?.widthPt);
-+  const hMmFromPt  = ptToMm(section?.page?.size?.heightPt);
-+  const isA4 = String(sizeName || '').toUpperCase() === 'A4';
-+
-+  let pageWidthMm  = isA4 ? 210 : (wMmFromPt  ?? 210);
-+  let pageHeightMm = isA4 ? 297 : (hMmFromPt ?? 297);
-+  if (String(section?.page?.orientation).toLowerCase() === 'landscape') {
-+    [pageWidthMm, pageHeightMm] = [pageHeightMm, pageWidthMm];
-+  }
-+
-+  const mTopMm    = ptToMm(section?.margins?.top)    ?? 25;
-+  const mRightMm  = ptToMm(section?.margins?.right)  ?? 20;
-+  const mBottomMm = ptToMm(section?.margins?.bottom) ?? 20;
-+  const mLeftMm   = ptToMm(section?.margins?.left)   ?? 25;
-+
-   const pageStyle = useMemo(
-     () => ({
--      width: '210mm',
--      minHeight: '297mm',
-+      width: `${pageWidthMm}mm`,
-+      minHeight: `${pageHeightMm}mm`,
-       background: '#fff',
-       boxShadow: '0 0 6px rgba(0,0,0,.15)',
-       margin: '0 auto',
--      padding: '25mm 20mm',
-+      padding: `${mTopMm}mm ${mRightMm}mm ${mBottomMm}mm ${mLeftMm}mm`,
-       color: '#111',
-       lineHeight: 1.5
-     }),
--    []
-+    [pageWidthMm, pageHeightMm, mTopMm, mRightMm, mBottomMm, mLeftMm]
-   );
+@@ -409,6 +413,7 @@ export default function A4Editor({
  
-+  /* ============================ paragraph CSS (mistura estilo global + do bloco) ============================ */
-   const paragraphCss = (b: WBlock) => {
--    const s = (b.style && styleMap[b.style]) || styleMap['Normal'] || {};
--    const sp = s.paragraph?.spacing || {};
--    const lineHeight = sp.line ?? 1.15;
--    const marginTop = (sp.before ?? 0) / 20;
--    const marginBottom = (sp.after ?? 0) / 20;
-+    const styleGlobal = (b.style && styleMap[b.style]) || styleMap['Normal'] || {};
-+    const pBackend = (b as any)._pStyle || {};     // style do backend por bloco
-+    const spacing = {
-+      line:   pBackend?.spacing?.line   ?? styleGlobal?.paragraph?.spacing?.line ?? 1.15,
-+      before: pBackend?.spacing?.before ?? styleGlobal?.paragraph?.spacing?.before ?? 0,
-+      after:  pBackend?.spacing?.after  ?? styleGlobal?.paragraph?.spacing?.after  ?? 0,
-+    };
-+    const lineHeight   = spacing.line ?? 1.15;
-+    const marginTop    = (spacing.before ?? 0) > 60 ? twipToPx(spacing.before) : ptToPx(spacing.before);
-+    const marginBottom = (spacing.after  ?? 0) > 60 ? twipToPx(spacing.after)  : ptToPx(spacing.after);
-+
-+    const textAlign =
-+      pBackend?.textAlign ??
-+      styleGlobal?.paragraph?.textAlign ??
-+      (styleGlobal?.paragraph as any)?.alignment ??
-+      'start';
-+
-+    // indent (em pt)
-+    const indent = pBackend?.indent || {};
-+    const leftPx = ptToPx(indent.left);
-+    const firstPx = ptToPx(indent.firstLine);
-+    const hangingPx = ptToPx(indent.hanging);
-+
-+    const hangingStyles = hangingPx
-+      ? { textIndent: `-${hangingPx}px`, paddingLeft: `${hangingPx}px` }
-+      : {};
-+
-     return {
-       lineHeight,
-       margin: `${marginTop}px 0 ${marginBottom}px 0`,
-+      textAlign,
-       whiteSpace: 'pre-wrap',
--      outline: '0',
--      caretColor: '#000'
-+      outline: 0,
-+      caretColor: '#000',
-+      ...(leftPx ? { marginLeft: `${leftPx}px` } : {}),
-+      ...(firstPx ? { textIndent: `${firstPx}px` } : {}),
-+      ...hangingStyles
-     } as React.CSSProperties;
-   };
- 
-+  /* =============================== edição =============================== */
-   function setParagraphText(i: number, text: string) {
--    const next = { ...value };
--    const block = next.content[i];
--    if (block.type === 'heading') {
--      (block as any).text = text;
--    } else if (block.type === 'paragraph') {
--      (block as any).runs = [{ text } as WRun];
--    } else if (block.type === 'bulletList' || block.type === 'numberedList') {
--      (block as any).items = text.split('\n').map((t) => ({ runs: [{ text: t }] }));
-+    const next: any = { ...(value as any) };
-+    const nextRoot: any = next?.json ?? next;
-+
-+    if (Array.isArray(nextRoot.content)) {
-+      // WDoc
-+      const block = nextRoot.content[i];
-+      if (block?.type === 'heading') {
-+        block.text = text;
-+      } else if (block?.type === 'paragraph') {
-+        (block as any).runs = [{ text } as WRun];
-+      } else if (block?.type === 'bulletList' || block?.type === 'numberedList') {
-+        (block as any).items = text.split('\n').map((t) => ({ runs: [{ text: t }] }));
-+      } else if (block) {
-+        (block as any).text = text;
-+      }
-+    } else if (Array.isArray(nextRoot.blocks)) {
-+      // Backend
-+      const b = nextRoot.blocks[i];
-+      if (b) {
-+        b.content = text;
-+        b.inlines = [{ content: text, style: b?.inlines?.[0]?.style ?? {} }];
-+      }
-     } else {
--      (block as any).text = text;
-+      // cria WDoc mínimo se não houver estrutura
-+      nextRoot.content = [...content];
-+      if (nextRoot.content[i]?.type === 'heading') nextRoot.content[i].text = text;
-+      else nextRoot.content[i] = { type: 'paragraph', style: 'Normal', runs: [{ text }] } as any;
-     }
-+
-     onChange(next);
-   }
- 
-@@ -78,35 +298,30 @@ export default function A4Editor({ value, onChange, anchors, onAcceptSuggestion,
-     return '';
-   }
- 
--  const redWrap = {
--    background: 'rgba(244, 67, 54, 0.12)', // vermelho claro
--  } as React.CSSProperties;
--
--  const greenWrap = {
--    background: 'rgba(76, 175, 80, 0.12)', // verde claro
--    marginTop: 6
--  } as React.CSSProperties;
--
--  const btnAccept: React.CSSProperties = {
--    border: 0,
--    backgroundColor: '#2e7d32',
--    padding: '4px 10px',
--    borderRadius: 0,
--    color: '#fff',
--    cursor: 'pointer'
--  };
--
--  const btnReject: React.CSSProperties = {
--    border: 0,
--    padding: '4px 10px',
--    backgroundColor: '#9e9e9e',
--    borderRadius: 0,
--    color: '#fff',
--    cursor: 'pointer'
--  };
-+  /* =============================== UI =============================== */
-+  const redWrap: React.CSSProperties = { background: 'rgba(244, 67, 54, 0.12)' };
-+  const greenWrap: React.CSSProperties = { background: 'rgba(76, 175, 80, 0.12)', marginTop: 6 };
-+  const btnAccept: React.CSSProperties = { border: 0, backgroundColor: '#2e7d32', padding: '4px 10px', borderRadius: 0, color: '#fff', cursor: 'pointer' };
-+  const btnReject: React.CSSProperties = { border: 0, padding: '4px 10px', backgroundColor: '#9e9e9e', borderRadius: 0, color: '#fff', cursor: 'pointer' };
- 
-   return (
--    <Box sx={{ background: '#f2f2f6', py: 2 }}>
-+    <Box sx={{
-+      background: 'transparent',
-+      py: 2,
-+      // protege o conteúdo de resets globais / MUI Typography / extensões
-+      '& *': {
-+        fontVariantLigatures: 'none',
-+        WebkitFontSmoothing: 'antialiased',
-+        MozOsxFontSmoothing: 'grayscale'
-+      }
-+    }}>
-+      <style>{`
-+        @page {
-+          size: ${pageWidthMm}mm ${pageHeightMm}mm;
-+          margin: ${mTopMm}mm ${mRightMm}mm ${mBottomMm}mm ${mLeftMm}mm;
-+        }
-+      `}</style>
-+
-       <Box sx={pageStyle}>
-         {content.map((b, i) => {
-           const commonProps = {
-@@ -119,18 +334,87 @@ export default function A4Editor({ value, onChange, anchors, onAcceptSuggestion,
-           let baseEl: JSX.Element;
- 
-           if (b.type === 'heading') {
--            baseEl = <div {...commonProps} style={{ ...paragraphCss(b), fontWeight: 700, fontSize: '1.2rem' }}>{text}</div>;
-+            baseEl = (
-+              <div {...commonProps} style={{ ...paragraphCss(b), fontWeight: 700, fontSize: '1.2rem' }}>
-+                {text}
-+              </div>
-+            );
-           } else if (b.type === 'paragraph') {
--            baseEl = <div {...commonProps} style={paragraphCss(b)}>{text}</div>;
-+            const runs = (b as any).runs as WRun[] | undefined;
-+            baseEl = (
-+              <div {...commonProps} style={paragraphCss(b)}>
-+                {runs && runs.length
-+                  ? runs.map((r, idx) => (
-+                      <span
-+                        key={idx}
-+                        style={{
-+                          fontWeight: r.bold ? 700 : undefined,
-+                          fontStyle: r.italic ? 'italic' : undefined,
-+                          textDecoration: r.underline ? 'underline' : undefined,
-+                          fontFamily: r.font,
-+                          fontSize: r.size ? `${r.size}px` : undefined,
-+                          color: (r as any).color,
-+                          backgroundColor: (r as any).highlight
-+                        }}
-+                      >
-+                        {r.text}
-+                      </span>
-+                    ))
-+                  : text}
-+              </div>
-+            );
-           } else if (b.type === 'bulletList' || b.type === 'numberedList') {
--            baseEl = <div {...commonProps} style={paragraphCss(b)}>{text}</div>;
-+            const items = (b as any).items || [];
-+            const ListTag = (b.type === 'bulletList' ? 'ul' : 'ol') as any;
-+            baseEl = (
-+              <ListTag style={{ ...paragraphCss(b), paddingInlineStart: '18px' }}>
-+                {items.map((it: { runs: WRun[] }, idx: number) => (
-+                  <li
-+                    key={idx}
-+                    contentEditable
-+                    suppressContentEditableWarning
-+                    onInput={(e: any) => {
-+                      const next: any = { ...(value as any) };
-+                      const nextRoot: any = next?.json ?? next;
-+                      const t = (e.currentTarget.innerText ?? '').replace(/\r/g, '');
-+                      if (Array.isArray(nextRoot.content)) {
-+                        (nextRoot.content[i] as any).items[idx] = { runs: [{ text: t }] };
-+                      } else if (Array.isArray(nextRoot.blocks)) {
-+                        if (!nextRoot.blocks[i].items) nextRoot.blocks[i].items = [];
-+                        nextRoot.blocks[i].items[idx] = { runs: [{ content: t }] };
-+                      } else {
-+                        nextRoot.content = [...content];
-+                        (nextRoot.content[i] as any).items[idx] = { runs: [{ text: t }] };
-+                      }
-+                      onChange(next);
-+                    }}
-+                  >
-+                    {(it.runs || [{ text: '' }]).map((r, k) => <span key={k}>{r.text}</span>)}
-+                  </li>
-+                ))}
-+              </ListTag>
-+            );
-           } else if (b.type === 'pageBreak') {
--            baseEl = <hr style={{ border: 0, borderTop: '1px dashed #ccc', margin: '16mm 0' }} />;
-+            baseEl = <div style={{ breakAfter: 'page', height: 0, margin: 0, padding: 0 }} />;
-           } else {
-             baseEl = <div style={paragraphCss(b)}>{text}</div>;
+           // 1) tenta por índice
+           const blockOpAnchors = opAnchors?.get(i) || [];
++          const blockFindingAnchors = findingAnchors?.get(i) || [];
+           const hasOps = blockOpAnchors.length > 0;
+           let blockAnchors = hasOps ? [] : (anchors?.get(i) || []); // não renderiza sugestões se tiver ops
+           
+@@ -426,7 +431,7 @@ export default function A4Editor({
+             if (byId.length) blockAnchors = byId;
            }
- 
--          const blockAnchors = anchors?.get(i) || [];
-+          // 1) tenta por índice
-+          let blockAnchors = anchors?.get(i) || [];
-+          // 2) fallback: tenta por id estável do bloco
-+          const blkId = (b as any)?.id;
-+          if ((!blockAnchors || blockAnchors.length === 0) && blkId && anchors) {
-+            const byId: AnchoredSuggestion[] = [];
-+            anchors.forEach((arr) => {
-+              (arr || []).forEach((s) => {
-+                if (Array.isArray(s.ops) && s.ops.some((op: any) => op?.meta?.anchorId === blkId)) {
-+                  byId.push(s as any);
-+                }
-+              });
-+            });
-+            if (byId.length) blockAnchors = byId;
-+          }
-           const hasSug = blockAnchors.length > 0;
+           
+-          const hasSug = blockAnchors.length > 0 || blockOpAnchors.length > 0;
++          const hasSug = blockAnchors.length > 0 || blockOpAnchors.length > 0 || blockFindingAnchors.length > 0;
  
            return (
-@@ -138,17 +422,31 @@ export default function A4Editor({ value, onChange, anchors, onAcceptSuggestion,
-               {/* bloco original — só o fundo vermelho, sem alterar formatação do texto */}
-               <div style={hasSug ? redWrap : undefined}>{baseEl}</div>
- 
--              {/* bloco sugerido — só o fundo verde, texto com a MESMA formatação do bloco */}
-+              {/* bloco sugerido — só o fundo verde, com a MESMA formatação do bloco */}
-               {blockAnchors.map((s) => {
-                 const preview = typeof s.previewText === 'string' ? s.previewText : '';
-                 return (
--                  <div key={s.id} style={greenWrap}>
-+                  <div
-+                    key={s.id}
-+                    style={{ ...greenWrap, position: 'relative', zIndex: 2 }}
-+                    // evita que o bloco "vermelho" de cima capture foco/clique
-+                    contentEditable={false}
-+                    suppressContentEditableWarning
-+                  >
-                     <div style={{ ...paragraphCss(b), whiteSpace: 'pre-wrap' }}>
-                       {preview}
-                     </div>
--
--                    {/* ações abaixo do texto, sem sobrepor */}
--                    <div style={{ display: 'flex', gap: 0, justifyContent: 'flex-end', marginTop: 0 }}>
-+                    <div
-+                      style={{
-+                        display: 'flex',
-+                        gap: 0,
-+                        justifyContent: 'flex-end',
-+                        marginTop: 4,
-+                        position: 'relative',
-+                        zIndex: 3,
-+                        pointerEvents: 'auto'
-+                      }}
-+                    >
-                       <button style={btnAccept} onClick={() => onAcceptSuggestion?.(s)}>Aceitar</button>
-                       <button style={btnReject} onClick={() => onRejectSuggestion?.(s)}>Recusar</button>
-                     </div>
+             <div key={i}>
+@@ -492,6 +497,23 @@ export default function A4Editor({
+                   </div>
+                 </div>
+               ))}
++
++              {/* Findings de análise - apenas destaque visual */}
++              {(findingAnchors?.get(i) || []).map((af) => (
++                <div
++                  key={af.findingId}
++                  style={{ ...blueWrap, position: 'relative', zIndex: 1 }}
++                  contentEditable={false}
++                  suppressContentEditableWarning
++                >
++                  <div style={{ ...paragraphCss(b), opacity: 0.8 }}>
++                    <strong>{af.finding.title}</strong>
++                  </div>
++                  <div style={{ fontSize: '0.8em', color: '#666', marginTop: 2 }}>
++                    {af.finding.detail}
++                  </div>
++                </div>
++              ))}
+             </div>
+           );
+         })}
 diff --git a/src/hooks/useAnchoredSuggestions.ts b/src/hooks/useAnchoredSuggestions.ts
-index f849676..3da7296 100644
+index f4b9fe7..9371cbd 100644
 --- a/src/hooks/useAnchoredSuggestions.ts
 +++ b/src/hooks/useAnchoredSuggestions.ts
-@@ -15,14 +15,94 @@ function parsePath(path: string): (string|number)[] {
-   });
+@@ -1,5 +1,5 @@
+ import { useMemo } from 'react';
+-import type { WDoc, SuggestionOp } from 'types/wdoc';
++import type { WDoc, SuggestionOp, AnalysisFinding } from 'types/wdoc';
+ import type { AiSuggestion } from 'types/wdoc';
+ 
+ export type AnchoredSuggestion = AiSuggestion & {
+@@ -15,6 +15,12 @@ export type AnchoredOp = {
+   op: SuggestionOp;
+ };
+ 
++export type AnchoredFinding = {
++  findingId: string;
++  blockIndex: number;
++  finding: AnalysisFinding;
++};
++
+ function parsePath(path: string): (string|number)[] {
+   // JSON Pointer -> tokens
+   return path.split('/').slice(1).map(tok => {
+@@ -91,6 +97,14 @@ function getBlocksArray(doc: any): any[] {
+   return Array.isArray(doc?.blocks) ? doc.blocks : Array.isArray(doc?.content) ? doc.content : [];
  }
  
--function getBlockIndexFromOpPath(path: string): number | null {
-+function sha1(s: string): string {
-+  // Implementação simples de hash para o frontend
-+  let hash = 0;
-+  if (s.length === 0) return hash.toString();
-+  for (let i = 0; i < s.length; i++) {
-+    const char = s.charCodeAt(i);
-+    hash = ((hash << 5) - hash) + char;
-+    hash = hash & hash; // Convert to 32bit integer
-+  }
-+  return Math.abs(hash).toString(16);
-+}
-+
-+function norm(s: string): string {
-+  return (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
-+}
-+
-+function getBlockPlainText(b: any): string {
-+  if (typeof b?.content === 'string' && b.content) return b.content;
-+  if (typeof b?.text === 'string' && b.text) return b.text;
-+  if (Array.isArray(b?.runs)) return b.runs.map((r: any) => String(r?.text ?? '')).join('');
-+  if (Array.isArray(b?.items)) {
-+    return b.items.map((it: any) =>
-+      Array.isArray(it?.runs) ? it.runs.map((r: any) => String(r?.text ?? '')).join('') : String(it?.text ?? '')
-+    ).join('\n');
-+  }
-+  return '';
-+}
-+
-+function findBlockIndexByAnchor(op: any, doc: any): number {
++function findBlockIndexById(blockId: string, doc: any): number {
 +  const blocks = getBlocksArray(doc);
-+  if (!blocks.length) return -1;
-+
-+  // 1) pelo id estável
-+  const anchorId = op?.meta?.anchorId;
-+  if (anchorId) {
-+    const j = blocks.findIndex(b => b?.id === anchorId);
-+    if (j >= 0) return j;
-+  }
-+
-+  // 2) pela hash do texto "antes"
-+  const beforeHash = op?.meta?.beforeHash;
-+  if (beforeHash) {
-+    const j = blocks.findIndex((b) => sha1(norm(getBlockPlainText(b))) === beforeHash);
-+    if (j >= 0) return j;
-+  }
-+
-+  // 3) fallback por snippet (similaridade)
-+  const snippet = (op?.meta?.beforeSnippet || '').toLowerCase();
-+  if (snippet) {
-+    let best = -1, bestScore = 0;
-+    blocks.forEach((b, i) => {
-+      const content = getBlockPlainText(b).toLowerCase();
-+      const score = content.includes(snippet) ? snippet.length : 0;
-+      if (score > bestScore) {
-+        best = i;
-+        bestScore = score;
-+      }
-+    });
-+    if (best >= 0) return best;
-+  }
-+
-+  return -1;
++  const index = blocks.findIndex((b: any) => 
++    b?.id === blockId || b?._id === blockId || b?.anchorId === blockId
++  );
++  return index >= 0 ? index : -1;
 +}
 +
-+function getBlocksArray(doc: any): any[] {
-+  return Array.isArray(doc?.blocks) ? doc.blocks : Array.isArray(doc?.content) ? doc.content : [];
-+}
-+
-+function getBlockIndexFromOpPath(path: string, doc: any): number | null {
+ function getBlockIndexFromOpPath(path: string, doc: any): number | null {
    const toks = parsePath(path || '');
-+  const blocks = getBlocksArray(doc);
-   for (let i = 0; i < toks.length; i++) {
-     const t = toks[i];
--    // WDoc: /content/<N>/...
--    // Docflow: /blocks/<N>/...
--    if ((t === 'content' || t === 'blocks') && typeof toks[i + 1] === 'number') {
--      return toks[i + 1] as number;
-+    if (t === 'blocks' || t === 'content') {
-+      const key = toks[i + 1];
-+      if (typeof key === 'number') {
-+        // caso antigo: índice numérico
-+        return key;
-+      }
-+      if (typeof key === 'string') {
-+        // novo caso: ID string (ex.: /blocks/ca3gy0.../content)
-+        const id = key;
-+        if (!blocks.length) return null;
-+        const j = blocks.findIndex((b: any) =>
-+          b?.id === id || b?._id === id || b?.anchorId === id
-+        );
-+        if (j >= 0) return j;
-+      }
-     }
-   }
+   const blocks = getBlocksArray(doc);
+@@ -116,6 +130,30 @@ function getBlockIndexFromOpPath(path: string, doc: any): number | null {
    return null;
-@@ -47,11 +127,29 @@ export function useAnchoredSuggestions(doc: WDoc | null, suggestions: AiSuggesti
-     const map = new Map<number, AnchoredSuggestion[]>();
-     for (const s of suggestions) {
-       let bestIdx: number | null = null;
-+      
-+      // Primeiro tenta resolver por âncora
-       for (const op of s.ops || []) {
--        const bi = getBlockIndexFromOpPath(op.path || '');
--        if (typeof bi === 'number') { bestIdx = bi; break; }
-+        const anchorIdx = findBlockIndexByAnchor(op, doc);
-+        if (anchorIdx >= 0) { 
-+          bestIdx = anchorIdx; 
-+          break; 
-+        }
+ }
+ 
++function normTxt(s: any): string {
++  return String(s ?? '')
++    .replace(/\s+/g, ' ')
++    .trim()
++    .toLowerCase();
++}
++
++function findBlockIndexBySnippet(doc: any, snippet?: string): number {
++  if (!snippet) return -1;
++  const want = normTxt(snippet);
++  const blocks = getBlocksArray(doc);
++  let best = { idx: -1, score: -1 };
++  for (let i = 0; i < blocks.length; i++) {
++    const txt = normTxt(blocks[i]?.content ?? blocks[i]?.text ?? '');
++    if (!txt) continue;
++    // score simples: começa com (2), inclui (1)
++    let score = -1;
++    if (txt.startsWith(want)) score = 2;
++    else if (txt.includes(want)) score = 1;
++    if (score > best.score) best = { idx: i, score };
++  }
++  return best.idx;
++}
++
+ function tryPreviewTextFromOps(ops: SuggestionOp[]): string | undefined {
+   for (const op of ops) {
+     if (op.op !== 'replace') continue;
+@@ -169,15 +207,44 @@ export function useAnchoredSuggestions(doc: WDoc | null, suggestions: AiSuggesti
+ export function useAnchoredOps(doc: WDoc | null, suggestions: AiSuggestion[]) {
+   return useMemo(() => {
+     const perBlock: Map<number, AnchoredOp[]> = new Map();
+-    
++
++    // Novo: resolve bloco a partir de meta.anchorId OU do token após /blocks/
++    const resolveBlockIndex = (op: SuggestionOp): number | null => {
++      const path = String(op?.path ?? '');
++      const blocks = getBlocksArray(doc);
++
++      // 1) prioridade: anchorId estável
++      const meta: any = (op as any)?.meta || {};
++      const anchor = meta.anchorId as string | undefined;
++      if (anchor) {
++        const bi = findBlockIndexById(anchor, doc);
++        if (bi >= 0) return bi;
 +      }
-+      
-+      // Se não achou por âncora, usa o método antigo (índice do path)
-+      if (bestIdx === null) {
-+        for (const op of s.ops || []) {
-+          const pathIdx = getBlockIndexFromOpPath(op.path || '', doc);
-+          if (typeof pathIdx === 'number') { 
-+            bestIdx = pathIdx; 
-+            break; 
-+          }
++
++      // 2) /blocks/<token>/...
++      const m = path.match(/^\/blocks\/([^/]+)/);
++      if (!m) return null;
++      const token = m[1];
++      if (/^\d+$/.test(token)) {
++        const idx = parseInt(token, 10);
++        return idx >= 0 && idx < blocks.length ? idx : null;
++      }
++      // 3) token é um ID → procurar por ID
++      const byId = findBlockIndexById(token, doc);
++      if (byId >= 0) return byId;
++
++      // 4) FALLBACK por evidência textual (beforeSnippet)
++      //    cobre casos em que IDs não batem, mas o texto alvo está presente.
++      const bySnippet = findBlockIndexBySnippet(doc, meta.beforeSnippet);
++      if (bySnippet >= 0) return bySnippet;
++
++      return null;
++    };
++
+     for (const s of suggestions) {
+       for (const op of (s.ops || []).filter(o => o.status === 'PENDING')) {
+-        let bi = findBlockIndexByAnchor(op, doc);
+-        if (bi < 0) {
+-          const byPath = getBlockIndexFromOpPath(op.path || '', doc);
+-          bi = typeof byPath === 'number' ? byPath : -1;
+-        }
+-        if (bi < 0) continue;
++        const bi = resolveBlockIndex(op as any);
++        if (bi == null || bi < 0) continue;
+         
+         const arr = perBlock.get(bi) || [];
+         arr.push({
+@@ -194,3 +261,28 @@ export function useAnchoredOps(doc: WDoc | null, suggestions: AiSuggestion[]) {
+     return perBlock; // Map<blockIndex, AnchoredOp[]>
+   }, [doc, suggestions]);
+ }
++
++// Hook para ancorar findings por bloco
++export function useAnchoredFindings(doc: WDoc | null, findings: AnalysisFinding[]) {
++  return useMemo(() => {
++    const perBlock: Map<number, AnchoredFinding[]> = new Map();
++    
++    for (const finding of findings) {
++      // Para cada anchor do finding, tenta encontrar o bloco correspondente
++      for (const anchor of finding.anchors || []) {
++        const bi = findBlockIndexById(anchor, doc);
++        if (bi < 0) continue;
++        
++        const arr = perBlock.get(bi) || [];
++        arr.push({
++          findingId: finding.id,
++          blockIndex: bi,
++          finding
++        });
++        perBlock.set(bi, arr);
++      }
++    }
++    
++    return perBlock; // Map<blockIndex, AnchoredFinding[]>
++  }, [doc, findings]);
++}
+diff --git a/src/pages/ai-docs/A4Playground.tsx b/src/pages/ai-docs/A4Playground.tsx
+index 1bfbc36..fbd0fd4 100644
+--- a/src/pages/ai-docs/A4Playground.tsx
++++ b/src/pages/ai-docs/A4Playground.tsx
+@@ -7,7 +7,7 @@ import {
+ } from '@mui/material';
+ import MainCard from 'components/MainCard';
+ import A4Editor from 'components/A4Editor';
+-import { useAnchoredSuggestions, useAnchoredOps, type AnchoredSuggestion, type AnchoredOp } from 'hooks/useAnchoredSuggestions';
++import { useAnchoredSuggestions, useAnchoredOps, useAnchoredFindings, type AnchoredSuggestion, type AnchoredOp, type AnchoredFinding } from 'hooks/useAnchoredSuggestions';
+ import { 
+   listChatMessages, 
+   postChatMessage, 
+@@ -16,8 +16,11 @@ import {
+   acceptSuggestionOps,
+   rejectSuggestionOps,
+   updateDraft,
++  getDraft,
+   type AiChatMessage,
+-  type AiSuggestion 
++  type AiSuggestion,
++  type AiChatResponse,
++  type AnalysisFinding
+ } from 'api/aiDocs';
+ import { openSnackbar } from 'api/snackbar';
+ import axios from 'utils/axios';
+@@ -36,6 +39,7 @@ export default function A4Playground() {
+   const [chatLoading, setChatLoading] = useState(false);
+   const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
+   const [messages, setMessages] = useState<AiChatMessage[]>([]);
++  const [findings, setFindings] = useState<AnalysisFinding[]>([]);
+   
+   // Sugestões ancoradas - garante que documento tenha content para alinhamento correto com A4Editor
+   const docForAnchors = (doc && (doc as any).blocks && !(doc as any).content)
+@@ -43,6 +47,7 @@ export default function A4Playground() {
+     : doc;
+   const anchored = useAnchoredSuggestions(docForAnchors, suggestions || []);
+   const opAnchored = useAnchoredOps(docForAnchors, suggestions || []);
++  const findingAnchored = useAnchoredFindings(docForAnchors, findings || []);
+ 
+   // Função para aceitar sugestão
+   async function onAcceptAnchored(suggestion: AnchoredSuggestion) {
+@@ -246,23 +251,51 @@ export default function A4Playground() {
+     try {
+       const out = await postChatMessage(caseId, chat.trim());
+ 
++      // 0) pegue o draft ATUAL antes de ancorar sugestões/findings
++      try {
++        const fresh = await getDraft(out.data.draftId); // retorna { data: AiDraft }
++        setDoc(fresh.json || fresh); // ajuste conforme seu shape
++      } catch (e) {
++        // se falhar, segue com o doc atual (anchors por snippet ainda podem salvar)
++        console.warn('Falha ao buscar draft atual:', e);
++      }
++
+       // 1) atualiza histórico
+       try {
+         setMessages(await listChatMessages(caseId));
+       } catch { }
+ 
+-      // 2) aplica sugestões vindas desta rodada na UI (mantenha os paths originais (/blocks/<id>/...) para ancorar por ID)
+-      setSuggestions(out.suggestions || []);
+-
+-      // 3) feedback visual
+-      const hasSuggestions = out.suggestions && out.suggestions.length > 0;
+-      if (hasSuggestions) {
+-        openSnackbar({ 
+-          open: true, 
+-          message: `${out.suggestions.length} sugestão(ões) recebida(s). Use os botões no documento para aceitar/rejeitar.`, 
+-          variant: 'alert', 
+-          alert: { color: 'info' } 
+-        } as any);
++      // 2) processa resposta baseada no modo
++      if (out.data.mode === 'chat') {
++        // Modo análise: atualiza findings e limpa sugestões
++        setFindings(out.data.findings || []);
++        setSuggestions([]);
++        
++        // Feedback para findings
++        const hasFindings = out.data.findings && out.data.findings.length > 0;
++        if (hasFindings) {
++          openSnackbar({ 
++            open: true, 
++            message: `${out.data.findings?.length || 0} item(ns) de análise encontrado(s). Veja os detalhes no chat.`, 
++            variant: 'alert', 
++            alert: { color: 'info' } 
++          } as any);
++        }
++      } else {
++        // Modo sugestão: aplica sugestões vindas desta rodada na UI
++        setSuggestions(out.suggestions || []);
++        setFindings([]);
++        
++        // Feedback visual para sugestões
++        const hasSuggestions = out.suggestions && out.suggestions.length > 0;
++        if (hasSuggestions) {
++          openSnackbar({ 
++            open: true, 
++            message: `${out.suggestions?.length || 0} sugestão(ões) recebida(s). Use os botões no documento para aceitar/rejeitar.`, 
++            variant: 'alert', 
++            alert: { color: 'info' } 
++          } as any);
 +        }
        }
--      if (bestIdx == null) continue;
-+      
-+      if (bestIdx === null) continue;
-+      
-       const arr = map.get(bestIdx) || [];
-       arr.push({ ...s, blockIndex: bestIdx, previewText: tryPreviewTextFromOps(s.ops) });
-       map.set(bestIdx, arr);
-diff --git a/src/pages/ai-docs/A4Playground.tsx b/src/pages/ai-docs/A4Playground.tsx
-new file mode 100644
-index 0000000..d762f2b
---- /dev/null
-+++ b/src/pages/ai-docs/A4Playground.tsx
-@@ -0,0 +1,353 @@
-+// src/pages/ai-docs/A4Playground.tsx
-+import { useEffect, useState } from 'react';
-+import { useParams } from 'react-router-dom';
-+import { 
-+  Box, Alert, CircularProgress, Paper, Stack, Typography, 
-+  TextField, Button
-+} from '@mui/material';
-+import MainCard from 'components/MainCard';
-+import A4Editor from 'components/A4Editor';
-+import { useAnchoredSuggestions, type AnchoredSuggestion } from 'hooks/useAnchoredSuggestions';
-+import { 
-+  listChatMessages, 
-+  postChatMessage, 
-+  acceptSuggestion, 
-+  rejectSuggestion,
-+  updateDraft,
-+  type AiChatMessage,
-+  type AiSuggestion 
-+} from 'api/aiDocs';
-+import { openSnackbar } from 'api/snackbar';
-+import axios from 'utils/axios';
+ 
+       setChat(''); // limpa input
+@@ -303,6 +336,7 @@ export default function A4Playground() {
+             opAnchors={opAnchored}
+             onAcceptOp={onAcceptOp}
+             onRejectOp={onRejectOp}
++            findingAnchors={findingAnchored}
+           />
+         ) : (
+           <Box sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>
+@@ -376,6 +410,32 @@ export default function A4Playground() {
+                   </Stack>
+                 </Paper>
+               )}
 +
-+
-+// Helper para normalizar paths do Docflow para WDoc (para ancoragem correta)
-+function normalizeOpsToWDoc(ops: Array<{ op: string; path: string; value?: any }>) {
-+  return ops.map(({ op, path, value }) => {
-+    let p = path || '';
-+    p = p.replace(/^\/blocks\//, '/content/');
-+    p = p.replace(/\/inlines\/(\d+)\/content$/i, '/runs/$1/text');
-+    if (/\/content$/i.test(p)) p = p.replace(/\/content$/i, '/text');
-+    return { op, path: p, value };
-+  });
-+}
-+
-+export default function A4Playground() {
-+  const { id } = useParams<{ id: string }>();
-+  const [doc, setDoc] = useState<any>(null);
-+  const [loading, setLoading] = useState<boolean>(false);
-+  const [apiError, setApiError] = useState<string | null>(null);
-+  const [caseId, setCaseId] = useState<string | null>(null);
-+  
-+  // Chat states
-+  const [chat, setChat] = useState('');
-+  const [chatLoading, setChatLoading] = useState(false);
-+  const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
-+  const [messages, setMessages] = useState<AiChatMessage[]>([]);
-+  
-+  // Sugestões ancoradas - garante que documento tenha content para alinhamento correto com A4Editor
-+  const docForAnchors = (doc && (doc as any).blocks && !(doc as any).content)
-+    ? { ...doc, content: (doc as any).blocks }
-+    : doc;
-+  const anchored = useAnchoredSuggestions(docForAnchors, suggestions || []);
-+
-+  // Função para aceitar sugestão
-+  async function onAcceptAnchored(suggestion: AnchoredSuggestion) {
-+    if (!id) {
-+      openSnackbar({ 
-+        open: true, 
-+        message: 'ID do draft não encontrado', 
-+        variant: 'alert', 
-+        alert: { color: 'error' } 
-+      } as any);
-+      return;
-+    }
-+    try {
-+      const res = await acceptSuggestion(id, suggestion.id);
-+      console.log('Resposta do acceptSuggestion:', res);
-+      
-+      // Atualiza o documento com o que veio do back
-+      // Agora res = { message: "...", data: { draft: { ... }, suggestion: { ... } } }
-+      const nextDoc = res?.data?.draft?.json ?? null;
-+      
-+      console.log('nextDoc extraído:', nextDoc);
-+      
-+      if (nextDoc) {
-+        console.log('Atualizando documento...');
-+        setDoc(nextDoc);
-+      } else {
-+        console.log('nextDoc é null, não atualizando');
-+      }
-+      
-+      // Remove a sugestão aceita da lista local
-+      setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
-+      openSnackbar({ 
-+        open: true, 
-+        message: 'Sugestão aceita com sucesso!', 
-+        variant: 'alert', 
-+        alert: { color: 'success' } 
-+      } as any);
-+    } catch (err: any) {
-+      openSnackbar({ 
-+        open: true, 
-+        message: err?.response?.data?.message || err?.message || 'Erro ao aceitar sugestão', 
-+        variant: 'alert', 
-+        alert: { color: 'error' } 
-+      } as any);
-+    }
-+  }
-+
-+  // Função para rejeitar sugestão
-+  async function onRejectAnchored(suggestion: AnchoredSuggestion) {
-+    if (!id) {
-+      openSnackbar({ 
-+        open: true, 
-+        message: 'ID do draft não encontrado', 
-+        variant: 'alert', 
-+        alert: { color: 'error' } 
-+      } as any);
-+      return;
-+    }
-+    try {
-+      const res = await rejectSuggestion(id, suggestion.id);
-+      console.log('Resposta do rejectSuggestion:', res);
-+      
-+      // rejectSuggestion não retorna o draft atualizado, apenas remove a sugestão
-+      // Remove a sugestão rejeitada da lista local
-+      setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
-+      openSnackbar({ 
-+        open: true, 
-+        message: 'Sugestão rejeitada.', 
-+        variant: 'alert', 
-+        alert: { color: 'info' } 
-+      } as any);
-+    } catch (err: any) {
-+      openSnackbar({ 
-+        open: true, 
-+        message: err?.response?.data?.message || err?.message || 'Erro ao rejeitar sugestão', 
-+        variant: 'alert', 
-+        alert: { color: 'error' } 
-+      } as any);
-+    }
-+  }
-+
-+  // carregar dados da API
-+  useEffect(() => {
-+    if (!id) {
-+      setApiError('ID do draft não fornecido');
-+      return;
-+    }
-+
-+    const loadFromApi = async () => {
-+      setLoading(true);
-+      setApiError(null);
-+      
-+      try {
-+        const response = await axios.get(`/ai/drafts/${id}`);
-+        const data = response.data;
-+        
-+        if (data?.data?.json) {
-+          // Usa apenas o conteúdo da prop json
-+          setDoc(data.data.json);
-+          setCaseId(data.data.caseId); // Salva o caseId para o chat
-+        } else {
-+          setApiError('Resposta da API não contém dados válidos');
-+        }
-+      } catch (err: any) {
-+        setApiError(err?.response?.data?.message || err?.message || 'Erro ao carregar dados da API');
-+      } finally {
-+        setLoading(false);
-+      }
-+    };
-+
-+    loadFromApi();
-+  }, [id]);
-+
-+  // carrega histórico do chat
-+  useEffect(() => {
-+    if (!caseId) return;
-+    
-+    const loadChatMessages = async () => {
-+      try {
-+        const chatMessages = await listChatMessages(caseId);
-+        setMessages(chatMessages);
-+      } catch (error) {
-+        console.error('Erro ao carregar mensagens do chat:', error);
-+      }
-+    };
-+
-+    loadChatMessages();
-+  }, [caseId]);
-+
-+  // Função para enviar mensagem do chat
-+  async function sendChat() {
-+    if (!caseId || !chat.trim()) return;
-+    
-+    setChatLoading(true);
-+    try {
-+      const out = await postChatMessage(caseId, chat.trim());
-+
-+      // 1) atualiza histórico
-+      try {
-+        setMessages(await listChatMessages(caseId));
-+      } catch { }
-+
-+      // 2) aplica sugestões vindas desta rodada na UI (sempre converte para WDoc para ancoragem correta)
-+      const normalized = (out.suggestions || []).map(s => ({
-+        ...s,
-+        ops: normalizeOpsToWDoc(s.ops || []),
-+      }));
-+      setSuggestions(normalized);
-+
-+      // 3) feedback visual
-+      const hasSuggestions = out.suggestions && out.suggestions.length > 0;
-+      if (hasSuggestions) {
-+        openSnackbar({ 
-+          open: true, 
-+          message: `${out.suggestions.length} sugestão(ões) recebida(s). Use os botões no documento para aceitar/rejeitar.`, 
-+          variant: 'alert', 
-+          alert: { color: 'info' } 
-+        } as any);
-+      }
-+
-+      setChat(''); // limpa input
-+    } catch (err: any) {
-+      openSnackbar({ 
-+        open: true, 
-+        message: err?.response?.data?.message || err?.message || 'Erro ao enviar mensagem', 
-+        variant: 'alert', 
-+        alert: { color: 'error' } 
-+      } as any);
-+    } finally {
-+      setChatLoading(false);
-+    }
-+  }
-+
-+
-+
-+  return (
-+    <Box sx={{ p: { xs: 1, md: 3 }, pr: { md: '400px' } }}>
-+      <MainCard title="Prévia do Documento">
-+        {apiError && (
-+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setApiError(null)}>
-+            {apiError}
-+          </Alert>
-+        )}
-+        
-+        {loading ? (
-+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-+            <CircularProgress />
-+          </Box>
-+        ) : doc ? (
-+          <A4Editor
-+            value={doc}
-+            onChange={setDoc}
-+            anchors={anchored}
-+            onAcceptSuggestion={onAcceptAnchored}
-+            onRejectSuggestion={onRejectAnchored}
-+          />
-+        ) : (
-+          <Box sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>
-+            Nenhum documento para exibir
-+          </Box>
-+        )}
-+      </MainCard>
-+
-+      {/* CHAT FLUTUANTE */}
-+      <Box sx={{
-+        position: 'fixed',
-+        top: '80px',
-+        right: '24px',
-+        width: '360px',
-+        height: 'calc(100vh - 104px)',
-+        zIndex: 1000,
-+        display: { xs: 'none', md: 'block' }
-+      }}>
-+        <Paper
-+          variant="outlined"
-+          sx={{
-+            height: '100%',
-+            display: 'flex',
-+            flexDirection: 'column',
-+            p: 1.5,
-+            maxHeight: '70vh',
-+          }}
-+        >
-+          <Stack spacing={1.25} sx={{ height: '100%', overflow: 'hidden' }}>
-+            <Typography variant="subtitle2">Chat</Typography>
-+
-+            {/* histórico */}
-+            <Stack
-+              spacing={1}
-+              sx={{
-+                flex: 1,
-+                overflowY: 'auto',
-+                minHeight: 0
-+              }}
-+            >
-+              {messages.map(m => (
-+                <Paper key={m.id} variant="outlined" sx={{ p: 1, bgcolor: m.role === 'assistant' ? 'grey.50' : 'background.paper' }}>
-+                  <Typography variant="caption" color="text.secondary">
-+                    {m.role === 'assistant' ? 'Assistente' : 'Você'}
-+                  </Typography>
-+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-+                    {m.text}
-+                  </Typography>
-+                </Paper>
-+              ))}
-+
-+              {/* Sugestões ativas */}
-+              {suggestions.length > 0 && (
-+                <Paper variant="outlined" sx={{ p: 1, bgcolor: 'warning.light', border: '2px solid', borderColor: 'warning.main' }}>
++              {/* Findings de análise */}
++              {findings.length > 0 && (
++                <Paper variant="outlined" sx={{ p: 1, bgcolor: 'info.light', border: '2px solid', borderColor: 'info.main' }}>
 +                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
-+                    Sugestões Pendentes ({suggestions.length})
++                    Análise do Documento ({findings.length})
 +                  </Typography>
 +                  <Stack spacing={0.5} sx={{ mt: 0.5 }}>
-+                    {suggestions.map(s => (
-+                      <Box key={s.id} sx={{ p: 0.5, bgcolor: 'background.paper', borderRadius: 0.5 }}>
-+                        <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-+                          {s.rationale || 'Sugestão sem descrição'}
++                    {findings.map(f => (
++                      <Box key={f.id} sx={{ p: 0.5, bgcolor: 'background.paper', borderRadius: 0.5 }}>
++                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: f.severity === 'error' ? 'error.main' : f.severity === 'warn' ? 'warning.main' : 'info.main' }}>
++                          {f.title}
 +                        </Typography>
-+                        {s.ops && s.ops.length > 0 && (
-+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-+                            {s.ops.length} operação(ões) - Use os botões no editor para aceitar/rejeitar
++                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
++                          {f.detail}
++                        </Typography>
++                        {f.evidence && f.evidence.length > 0 && (
++                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontStyle: 'italic', mt: 0.5 }}>
++                            "{f.evidence[0]}"
 +                          </Typography>
 +                        )}
 +                      </Box>
@@ -975,555 +430,24 @@ index 0000000..d762f2b
 +                  </Stack>
 +                </Paper>
 +              )}
-+            </Stack>
+             </Stack>
+ 
+             {/* input */}
+diff --git a/src/types/wdoc.ts b/src/types/wdoc.ts
+index 37f1e11..3bf6909 100644
+--- a/src/types/wdoc.ts
++++ b/src/types/wdoc.ts
+@@ -66,3 +66,13 @@ export type AiSuggestion = {
+   createdAt: string;
+   resolvedAt?: string | null;
+ };
 +
-+            {/* input */}
-+            <Box sx={{ flexShrink: 0 }}>
-+              <TextField
-+                value={chat}
-+                onChange={(e) => setChat(e.target.value)}
-+                placeholder="Peça ajustes no documento..."
-+                multiline
-+                minRows={3}
-+                fullWidth
-+                onKeyDown={(e) => {
-+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-+                    e.preventDefault();
-+                    sendChat();
-+                  }
-+                }}
-+              />
-+              <Button
-+                onClick={sendChat}
-+                disabled={chatLoading || !caseId || !chat.trim()}
-+                fullWidth
-+                sx={{ mt: 1 }}
-+              >
-+                {chatLoading ? 'Enviando…' : 'Enviar (Ctrl+Enter)'}
-+              </Button>
-+            </Box>
-+          </Stack>
-+        </Paper>
-+      </Box>
-+    </Box>
-+  );
-+}
-diff --git a/src/pages/ai-docs/CasesPage.tsx b/src/pages/ai-docs/CasesPage.tsx
-index 20fad5f..d5810ce 100644
---- a/src/pages/ai-docs/CasesPage.tsx
-+++ b/src/pages/ai-docs/CasesPage.tsx
-@@ -1,7 +1,7 @@
- import { useEffect, useState } from 'react';
- import { useNavigate } from 'react-router-dom';
- import { Box, Stack, TextField, Button, CircularProgress, Paper, Typography } from '@mui/material';
--import { PlusOutlined } from '@ant-design/icons';
-+import { PlusOutlined, PlayCircleOutlined } from '@ant-design/icons';
- import MainCard from 'components/MainCard';
- import { openSnackbar } from 'api/snackbar';
- import { listCases, getLatestDraftForCase, type AiCase } from 'api/aiDocs';
-@@ -79,6 +79,25 @@ export default function CasesPage() {
-                   >
-                     Novo rascunho
-                   </Button>
-+                  <Button
-+                    variant="contained"
-+                    startIcon={<PlayCircleOutlined />}
-+                    onClick={async () => {
-+                      const latest = await getLatestDraftForCase(c.id);
-+                      if (latest) {
-+                        nav(`/ai-docs/a4-playground/${latest.id}`);
-+                      } else {
-+                        openSnackbar({ 
-+                          open: true, 
-+                          message: 'Nenhum rascunho encontrado. Crie um rascunho primeiro.', 
-+                          variant: 'alert', 
-+                          alert: { color: 'warning' } 
-+                        } as any);
-+                      }
-+                    }}
-+                  >
-+                    Playground
-+                  </Button>
-                 </Stack>
-               </Stack>
-             </Paper>
-diff --git a/src/pages/ai-docs/CreateCaseStep1.tsx b/src/pages/ai-docs/CreateCaseStep1.tsx
-index a7f6d1b..3484aab 100644
---- a/src/pages/ai-docs/CreateCaseStep1.tsx
-+++ b/src/pages/ai-docs/CreateCaseStep1.tsx
-@@ -31,6 +31,7 @@ import {
-   getTemplateDocxBlob,
-   createCase,
-   uploadCaseDocs,
-+  generateDraft,
-   type AiTemplate
- } from 'api/aiDocs';
- 
-@@ -238,15 +239,21 @@ export default function CreateCaseStep1() {
-       const c = await createCase({ type: selected.kind, requestText: pedidoText.trim() });
-       if (files.length > 0) await uploadCaseDocs(c.id, files);
- 
-+      // Gerar draft automaticamente
-+      const draft = await generateDraft(c.id, selected.id);
-+
-       // limpar progresso do sessionStorage ao criar caso
-       sessionStorage.removeItem('createCaseProgress');
- 
--      const qs = new URLSearchParams();
--      qs.set('caseId', c.id);
--      qs.set('templateId', selected.id);
--      qs.set('kind', selected.kind);
--      qs.set('pedido', encodeURIComponent(pedidoText.trim()));
--      navigate(`/ai-docs/editor?${qs.toString()}`);
-+      // Redirecionar para o playground com o draft gerado
-+      navigate(`/ai-docs/a4-playground/${draft.id}`);
-+      
-+      openSnackbar({ 
-+        open: true, 
-+        message: 'Caso criado e documento gerado com sucesso!', 
-+        variant: 'alert', 
-+        alert: { color: 'success' } 
-+      } as any);
-     } catch (e: any) {
-       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-     } finally {
-diff --git a/src/pages/ai-docs/EditorChatPage.tsx b/src/pages/ai-docs/EditorChatPage.tsx
-index 111e969..4b178fc 100644
---- a/src/pages/ai-docs/EditorChatPage.tsx
-+++ b/src/pages/ai-docs/EditorChatPage.tsx
-@@ -1,5 +1,5 @@
- // src/pages/ai-docs/EditorChatPage.tsx
--import { useEffect, useMemo, useRef, useState } from 'react';
-+import { useEffect, useState } from 'react';
- import { useSearchParams } from 'react-router-dom';
- import {
-   Box, Stack, Typography, Paper, Divider, TextField, Button, Chip, CircularProgress, IconButton
-@@ -18,104 +18,15 @@ import {
-   acceptSuggestion,
-   rejectSuggestion,
-   type AiDraft,
--  type DraftJson,
--  type AiSuggestion,
--  type WDoc
-+  type AiSuggestion
- } from 'api/aiDocs';
-+import A4Editor from 'components/A4Editor';
-+import type { WDoc } from 'types/wdoc';
-+import { isDocflowDoc, docflowToWDoc, wdocToDocflow } from 'utils/docflow';
- 
- // Helper para verificar se uma sugestão está pendente, independente do formato do status
- const isPending = (s: AiSuggestion) => (s.status || 'PENDING').toUpperCase() === 'PENDING';
- 
--const EMPTY: DraftJson = {
--  enderecamento: '',
--  qualificacao: '',
--  fatos: '',
--  fundamentos: '',
--  pedidos: [],
--  jurisprudencia: [],
--  observacoes: ''
--};
--
--// Helper para converter WDoc para DraftJson
--function wdocToDraftJson(wdoc: WDoc): DraftJson {
--  const extractText = (blocks: any[]) => {
--    return blocks?.map(block => {
--      if (block.text) return block.text;
--      if (block.runs) return block.runs.map((r: any) => r.text || '').join('');
--      if (block.items) return block.items.map((item: any) => 
--        item.runs?.map((r: any) => r.text || '').join('') || ''
--      ).join('\n');
--      return '';
--    }).join('\n') || '';
--  };
--
--  return {
--    enderecamento: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Endereçamento')) || []),
--    qualificacao: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Qualificação')) || []),
--    fatos: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Fatos')) || []),
--    fundamentos: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Fundamentos')) || []),
--    pedidos: wdoc.content?.filter((b: any) => b.type === 'bulletList' && b.items).flatMap((b: any) => 
--      b.items?.map((item: any) => item.runs?.map((r: any) => r.text || '').join('') || '') || []
--    ) || [],
--    jurisprudencia: wdoc.content?.filter((b: any) => b.type === 'bulletList' && b.items).flatMap((b: any) => 
--      b.items?.map((item: any) => item.runs?.map((r: any) => r.text || '').join('') || '') || []
--    ) || [],
--    observacoes: extractText(wdoc.content?.filter((b: any) => b.type === 'heading' && b.text?.includes('Observações')) || [])
--  };
--}
--
--// Helper para converter DraftJson para WDoc
--function draftJsonToWDoc(draftJson: DraftJson): WDoc {
--  const createTextBlock = (text: string, type: 'paragraph' | 'heading' = 'paragraph') => ({
--    type,
--    text,
--    runs: [{ text }]
--  });
--
--  const createListBlock = (items: string[]) => ({
--    type: 'bulletList' as const,
--    items: items.map(item => ({
--      runs: [{ text: item }]
--    }))
--  });
--
--  const content = [
--    createTextBlock(draftJson.enderecamento, 'heading'),
--    createTextBlock(draftJson.qualificacao, 'heading'),
--    createTextBlock(draftJson.fatos, 'heading'),
--    createTextBlock(draftJson.fundamentos, 'heading'),
--    createListBlock(draftJson.pedidos),
--    createListBlock(draftJson.jurisprudencia),
--    createTextBlock(draftJson.observacoes, 'heading')
--  ].filter(block => {
--    if (block.type === 'bulletList') {
--      return block.items.length > 0;
--    }
--    return block.text && block.text.trim().length > 0;
--  });
--
--  return {
--    meta: {},
--    styles: {
--      Normal: {
--        paragraph: { spacing: { line: 1.15, before: 0, after: 0 } },
--        run: {}
--      }
--    },
--    content
--  };
--}
--
--const SECTIONS: Array<{ key: keyof DraftJson; label: string; multiline?: boolean }> = [
--  { key: 'enderecamento', label: 'Endereçamento', multiline: true },
--  { key: 'qualificacao', label: 'Qualificação', multiline: true },
--  { key: 'fatos', label: 'Fatos', multiline: true },
--  { key: 'fundamentos', label: 'Fundamentos', multiline: true },
--  { key: 'pedidos', label: 'Pedidos', multiline: true },
--  { key: 'jurisprudencia', label: 'Jurisprudência', multiline: true },
--  { key: 'observacoes', label: 'Observações', multiline: true }
--];
--
- export default function EditorChatPage() {
-   const [params] = useSearchParams();
-   const caseId = params.get('caseId');
-@@ -125,7 +36,7 @@ export default function EditorChatPage() {
-   const [genLoading, setGenLoading] = useState(true);
-   const [ticker, setTicker] = useState(true);
-   const [draft, setDraft] = useState<AiDraft | null>(null);
--  const [json, setJson] = useState<DraftJson>(EMPTY);
-+  const [wdoc, setWdoc] = useState<WDoc | any>(null);
-   const [saveLoading, setSaveLoading] = useState(false);
- 
-   // Chat
-@@ -139,8 +50,6 @@ export default function EditorChatPage() {
-   const [expLoading, setExpLoading] = useState(false);
-   const [lastFileId, setLastFileId] = useState<string | null>(null);
- 
--  // refs para "sumário" rolar até a seção
--  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
- 
-   // ======================= INIT (gera rascunho) =======================
-   useEffect(() => {
-@@ -151,7 +60,46 @@ export default function EditorChatPage() {
-         setTicker(true);
-         const d = await generateDraft(caseId, templateId);
-         setDraft(d);
--        setJson(wdocToDraftJson(d.json));
-+        
-+        // 🔧 USA EXATAMENTE O MESMO SAMPLE DO A4PLAYGROUND:
-+        const SAMPLE: WDoc = {
-+          meta: {
-+            sections: [{
-+              page: { size: { name: 'A4', widthPt: 595.28, heightPt: 841.89 }, orientation: 'portrait' },
-+              margins: { top: 85.05, left: 85.05, right: 56.7, bottom: 56.7 }
-+            }]
-+          },
-+          styles: {
-+            Normal: {
-+              paragraph: { spacing: { line: 1.15, before: 12, after: 12 }, textAlign: 'left' },
-+              run: {}
-+            },
-+            Heading: {
-+              paragraph: { spacing: { line: 1.15, before: 12, after: 12 }, textAlign: 'center' },
-+              run: { bold: true }
-+            }
-+          },
-+          content: [
-+            { type: 'heading', style: 'Heading', text: 'RECLAMAÇÃO TRABALHISTA — PRÉVIA A4' },
-+            { type: 'paragraph', style: 'Normal', runs: [
-+              { text: 'Este é um parágrafo com ' },
-+              { text: 'negrito', bold: true },
-+              { text: ' e ' },
-+              { text: 'itálico', italic: true },
-+              { text: '.' }
-+            ]},
-+            { type: 'bulletList', style: 'Normal', items: [
-+              { runs: [{ text: 'Item 1' }] },
-+              { runs: [{ text: 'Item 2' }] },
-+              { runs: [{ text: 'Item 3' }] }
-+            ]},
-+            { type: 'pageBreak' as const },
-+            { type: 'heading', style: 'Heading', text: 'PÁGINA 2' },
-+            { type: 'paragraph', style: 'Normal', runs: [{ text: 'Texto na segunda página.' }] }
-+          ]
-+        };
-+        
-+        setWdoc(SAMPLE);
-         openSnackbar({ open: true, message: 'Documento gerado pela IA.', variant: 'alert', alert: { color: 'success' } } as any);
-       } catch (e: any) {
-         openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-@@ -168,9 +116,14 @@ export default function EditorChatPage() {
-     if (!draft) return;
-     try {
-       setSaveLoading(true);
--      const updated = await updateDraft(draft.id, { json: draftJsonToWDoc(json) });
-+      // Se o servidor espera docflow, converte de volta
-+      const jsonToSave = isDocflowDoc(draft.json) ? wdocToDocflow(wdoc, draft.json) : wdoc;
-+      const updated = await updateDraft(draft.id, { json: jsonToSave });
-       setDraft(updated);
--      setJson(wdocToDraftJson(updated.json));
-+      
-+      // Normaliza a resposta também
-+      const raw = updated.json as any;
-+      setWdoc(isDocflowDoc(raw) ? docflowToWDoc(raw, { preferContentOnMismatch: true }) : raw);
-       openSnackbar({ open: true, message: 'Rascunho salvo!', variant: 'alert', alert: { color: 'success' } } as any);
-     } catch (e: any) {
-       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
-@@ -216,8 +169,11 @@ export default function EditorChatPage() {
-     if (!draft) return;
-     try {
-       const res = await acceptSuggestion(draft.id, s.id);
--      setDraft(res.draft);
--      setJson(wdocToDraftJson(res.draft.json));
-+      setDraft(res.data.draft);
-+      
-+      // Normaliza a resposta também
-+      const raw = res.data.draft.json as any;
-+      setWdoc(isDocflowDoc(raw) ? docflowToWDoc(raw, { preferContentOnMismatch: true }) : raw);
-       setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: 'ACCEPTED' } : x));
-       openSnackbar({ open: true, message: 'Sugestão aplicada.', variant: 'alert', alert: { color: 'success' } } as any);
-     } catch (e: any) {
-@@ -239,6 +195,9 @@ export default function EditorChatPage() {
-     if (!draft) return;
-     try {
-       setExpLoading(true);
-+      // Se o servidor espera docflow, converte de volta
-+      const jsonToSave = isDocflowDoc(draft.json) ? wdocToDocflow(wdoc, draft.json) : wdoc;
-+      await updateDraft(draft.id, { json: jsonToSave });
-       const ex = await exportDraft(draft.id, kind);
-       setLastFileId(ex.fileId || null);
-       openSnackbar({ open: true, message: `Export ${kind} gerado.`, variant: 'alert', alert: { color: 'success' } } as any);
-@@ -262,23 +221,6 @@ export default function EditorChatPage() {
-     } finally { setExpLoading(false); }
-   }
- 
--  // ======================= UI helpers =======================
--  const outline = useMemo(
--    () => [
--      { k: 'enderecamento', t: 'Endereçamento' },
--      { k: 'qualificacao', t: 'Qualificação' },
--      { k: 'fatos', t: 'Fatos' },
--      { k: 'fundamentos', t: 'Fundamentos' },
--      { k: 'pedidos', t: 'Pedidos' },
--      { k: 'jurisprudencia', t: 'Jurisprudência' },
--      { k: 'observacoes', t: 'Observações' }
--    ],
--    []
--  );
--  const scrollTo = (key: string) => {
--    const el = sectionRefs.current[key];
--    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
--  };
- 
-   return (
-     <Box sx={{ p: { xs: 1, md: 3 } }}>
-@@ -315,61 +257,26 @@ export default function EditorChatPage() {
-           </Box>
-         )}
- 
--        {/* Layout 3 colunas: sumário | editor | chat */}
-+        {/* Layout 2 colunas: editor | chat */}
-         <Stack direction="row" spacing={2} alignItems="stretch">
--          {/* SUMÁRIO */}
--          <Paper variant="outlined" sx={{ p: 1.25, width: 260, position: 'sticky', top: 88, height: 'calc(100vh - 140px)', overflow: 'auto' }}>
--            <Typography variant="subtitle2" sx={{ mb: 1 }}>Estrutura do documento</Typography>
--            <Stack spacing={0.5}>
--              {outline.map((o) => (
--                <Button key={o.k} onClick={() => scrollTo(o.k)} sx={{ justifyContent: 'flex-start' }} size="small" variant="text">
--                  {o.t}
--                </Button>
--              ))}
--            </Stack>
--          </Paper>
--
--          {/* EDITOR */}
--          <Paper variant="outlined" sx={{ p: 2, flex: 1, minHeight: '70vh' }}>
--            {!draft ? (
-+          {/* EDITOR (com formatação preservada) */}
-+          <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-+            {!draft || !wdoc ? (
-               <Stack alignItems="center" justifyContent="center" sx={{ height: '40vh' }}>
-                 <CircularProgress />
-               </Stack>
-             ) : (
--              <Stack spacing={2}>
--                <Typography variant="h5" fontWeight={700}>Minuta gerada pela IA</Typography>
--                <Divider />
--                {SECTIONS.map((s) => {
--                  const value =
--                    s.key === 'pedidos'
--                      ? (json.pedidos || []).join('\n')
--                      : s.key === 'jurisprudencia'
--                      ? (json.jurisprudencia || []).join('\n')
--                      : (json[s.key] as string);
--                  return (
--                    <Box key={s.key as string} ref={(el: HTMLDivElement | null) => { sectionRefs.current[s.key as string] = el; }}>
--                      <Typography variant="subtitle1" sx={{ mb: 0.5 }}>{s.label}</Typography>
--                      <TextField
--                        value={value}
--                        onChange={(e) => {
--                          const v = e.target.value;
--                          if (s.key === 'pedidos') {
--                            setJson((prev) => ({ ...prev, pedidos: v.split('\n').filter(Boolean) }));
--                          } else if (s.key === 'jurisprudencia') {
--                            setJson((prev) => ({ ...prev, jurisprudencia: v.split('\n').filter(Boolean) }));
--                          } else {
--                            setJson((prev) => ({ ...prev, [s.key]: v }));
--                          }
--                        }}
--                        fullWidth
--                        multiline
--                        minRows={s.multiline ? 3 : 1}
--                        placeholder={`Escreva a seção "${s.label}"...`}
--                      />
--                    </Box>
--                  );
--                })}
--                <Stack direction="row" spacing={1}>
-+              <>
-+                <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>Minuta gerada pela IA</Typography>
-+                <Divider sx={{ mb: 1 }} />
-+                <A4Editor
-+                  value={wdoc}
-+                  onChange={(next) => {
-+                    // mantém o A4 igual ao Playground: editor é a fonte da verdade
-+                    setWdoc(next as WDoc);
-+                  }}
-+                />
-+                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                   <Button onClick={handleSave} variant="contained" startIcon={<SaveOutlined /> as any} disabled={saveLoading}>
-                     {saveLoading ? <CircularProgress size={18} /> : 'Salvar alterações'}
-                   </Button>
-@@ -380,12 +287,22 @@ export default function EditorChatPage() {
-                     Exportar DOCX
-                   </Button>
-                 </Stack>
--              </Stack>
-+              </>
-             )}
-           </Paper>
- 
-           {/* CHAT */}
--          <Paper variant="outlined" sx={{ p: 1.5, width: 360, height: '5svh', position: 'fixed', top: 88, overflow: 'auto' }}>
-+          <Paper
-+            variant="outlined"
-+            sx={{
-+              position: 'sticky',
-+              top: 88,
-+              p: 1.5,
-+              width: 360,
-+              maxHeight: '60svh',
-+              overflow: 'auto'
-+            }}
-+          >
-             <Stack spacing={1.5}>
-               <Typography variant="subtitle2">Chat1</Typography>
-               <TextField
-diff --git a/src/routes/MainRoutes.tsx b/src/routes/MainRoutes.tsx
-index 266ef87..bee5cc9 100644
---- a/src/routes/MainRoutes.tsx
-+++ b/src/routes/MainRoutes.tsx
-@@ -42,6 +42,7 @@ const AiDocsSubCategories = Loadable(lazy(() => import('pages/ai-docs/SubCategor
- const CreateCaseStep1 = Loadable(lazy(() => import('pages/ai-docs/CreateCaseStep1')));
- const WDocEditorPage = Loadable(lazy(() => import('pages/ai-docs/WDocEditorPage')));
- const AiCasesPage = Loadable(lazy(() => import('pages/ai-docs/CasesPage')));
-+const A4Playground = Loadable(lazy(() => import('pages/ai-docs/A4Playground')));
- 
- // ==============================|| MAIN ROUTING ||============================== //
- 
-@@ -108,6 +109,10 @@ const MainRoutes = {
-         {
-           path: 'ai-docs/cases',
-           element: <AiCasesPage />
-+        },
-+        {
-+          path: 'ai-docs/a4-playground/:id',
-+          element: <A4Playground />
-         }
-       ]
-     },
-diff --git a/src/utils/docflow.ts b/src/utils/docflow.ts
-index 1bddbc6..ddf4f33 100644
---- a/src/utils/docflow.ts
-+++ b/src/utils/docflow.ts
-@@ -64,6 +64,8 @@ export function docflowToWDoc(
-     const styleName = b.styleName || 'Normal';
-     const asHeading =
-       /heading|t[ií]tulo|titulo|heading\s*[\d]/i.test(styleName || '') ||
-+      // também detecta por formatação (bold + centralizado)
-+      (b.style?.textAlign === 'center' && b.inlines?.[0]?.style?.bold) ||
-       false;
- 
-     // cria/garante style no mapa
-@@ -74,9 +76,16 @@ export function docflowToWDoc(
-             line: b.style?.spacing?.line ?? 1.15,
-             before: b.style?.spacing?.before ?? 0,
-             after: b.style?.spacing?.after ?? 0
--          }
-+          },
-+          textAlign: b.style?.textAlign || 'left'
-         },
--        run: {}
-+        run: {
-+          bold: b.inlines?.[0]?.style?.bold || false,
-+          italic: b.inlines?.[0]?.style?.italic || false,
-+          underline: b.inlines?.[0]?.style?.underline || false,
-+          font: b.inlines?.[0]?.style?.fontFamily || undefined,
-+          size: b.inlines?.[0]?.style?.fontSize || undefined
-+        }
-       };
-     }
- 
-@@ -95,8 +104,30 @@ export function docflowToWDoc(
-     } as WBlock;
-   });
- 
-+  // 🔧 PRESERVA seções e margens do documento original
-+  // Procura seções em vários lugares possíveis
-+  const sections = docflow?.sections || 
-+                  docflow?.meta?.sections || 
-+                  docflow?.pageSection || 
-+                  docflow?.pageSections ||
-+                  null;
-+  
-+  const meta: WDoc['meta'] = {
-+    source: 'docflow',
-+    // preserva seções se existirem no docflow original
-+    sections: sections || [
-+      {
-+        page: { 
-+          size: { name: 'A4', widthPt: 595.28, heightPt: 841.89 }, 
-+          orientation: 'portrait' 
-+        },
-+        margins: { top: 85.05, left: 85.05, right: 56.7, bottom: 56.7 }
-+      }
-+    ]
-+  };
-+
-   const doc: WDoc = {
--    meta: { source: 'docflow' },
-+    meta,
-     styles,
-     content
-   };
++export type AnalysisFinding = {
++  id: string; // sha1 de (type|title|anchors|evidence)
++  type: 'PLACEHOLDER'|'MISSING_FIELD'|'INCONSISTENCY'|'STYLE'|'TODO'|'OTHER';
++  title: string;          // curto
++  detail: string;         // explicação
++  severity: 'info'|'warn'|'error';
++  anchors?: string[];     // block ids
++  evidence?: string[];    // trechos curtos
++};

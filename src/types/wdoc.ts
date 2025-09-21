@@ -66,3 +66,13 @@ export type AiSuggestion = {
   createdAt: string;
   resolvedAt?: string | null;
 };
+
+export type AnalysisFinding = {
+  id: string; // sha1 de (type|title|anchors|evidence)
+  type: 'PLACEHOLDER'|'MISSING_FIELD'|'INCONSISTENCY'|'STYLE'|'TODO'|'OTHER';
+  title: string;          // curto
+  detail: string;         // explicação
+  severity: 'info'|'warn'|'error';
+  anchors?: string[];     // block ids
+  evidence?: string[];    // trechos curtos
+};
