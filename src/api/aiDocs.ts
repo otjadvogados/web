@@ -10,6 +10,18 @@ export type AiChatMessage = {
   role: 'user' | 'assistant';
   text: string;           // mensagem do usuário OU rationale agregado
   createdAt: string;
+  refs?: {
+    mode: 'checklist';
+    checklist: {
+      id: string;
+      items: {
+        id: string;
+        checked: boolean;
+        content: string;
+      }[];
+      content: string;
+    };
+  };
 };
 
 export type AiChatResponse = {

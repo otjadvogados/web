@@ -1,13 +1,16 @@
 // src/pages/ai-docs/A4Playground.tsx
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
   Box, Alert, CircularProgress, Paper, Stack, Typography, 
-  TextField, Button
+  TextField, Button, List, ListItem, ListItemIcon, ListItemText
 } from '@mui/material';
 import MainCard from 'components/MainCard';
 import A4Editor from 'components/A4Editor';
+import CheckedIcon from 'components/icons/CheckedIcon';
+import UncheckedIcon from 'components/icons/UncheckedIcon';
 import { useAnchoredSuggestions, useAnchoredOps, useAnchoredFindings, type AnchoredSuggestion, type AnchoredOp, type AnchoredFinding } from 'hooks/useAnchoredSuggestions';
+import { useWebSocket } from 'hooks/useWebSocket';
 import { 
   listChatMessages, 
   postChatMessage, 
@@ -33,6 +36,7 @@ export default function A4Playground() {
   const [loading, setLoading] = useState<boolean>(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [caseId, setCaseId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   
   // Chat states
   const [chat, setChat] = useState('');
@@ -49,6 +53,50 @@ export default function A4Playground() {
   const anchored = useAnchoredSuggestions(docForAnchors, suggestions || []);
   const opAnchored = useAnchoredOps(docForAnchors, suggestions || []);
   const findingAnchored = useAnchoredFindings(docForAnchors, findings || []);
+
+  // WebSocket para receber checklists em tempo real
+  const { isConnected: wsConnected } = useWebSocket({
+    sessionId: sessionId || undefined,
+    caseId: caseId || undefined,
+    onChecklist: (payload) => {
+      // Criar uma nova mensagem com o checklist recebido
+      const checklistMessage: AiChatMessage = {
+        id: `ws-${Date.now()}`,
+        role: 'assistant',
+        text: payload.checklist.content,
+        createdAt: new Date().toISOString(),
+        refs: {
+          mode: 'checklist',
+          checklist: payload.checklist
+        }
+      };
+      
+      // Adicionar a mensagem ao histórico apenas se não existir uma mensagem similar
+      setMessages(prev => {
+        // Verifica se já existe uma mensagem com o mesmo conteúdo de checklist
+        const exists = prev.some(msg => 
+          msg.refs?.mode === 'checklist' && 
+          msg.refs?.checklist?.id === payload.checklist.id
+        );
+        
+        if (exists) {
+          console.log('Checklist já existe, ignorando duplicação via WebSocket');
+          return prev;
+        }
+        
+        return [...prev, checklistMessage];
+      });
+      
+      // Feedback visual
+      openSnackbar({
+        open: true,
+        message: 'Checklist recebido em tempo real!',
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+    },
+    enabled: !!(sessionId || caseId)
+  });
 
   // Função para aceitar sugestão
   async function onAcceptAnchored(suggestion: AnchoredSuggestion) {
@@ -215,6 +263,7 @@ export default function A4Playground() {
           // Usa apenas o conteúdo da prop json
           setDoc(data.data.json);
           setCaseId(data.data.caseId); // Salva o caseId para o chat
+          setSessionId(data.data.sessionId); // Salva o sessionId para o WebSocket
         } else {
           setApiError('Resposta da API não contém dados válidos');
         }
@@ -255,6 +304,18 @@ export default function A4Playground() {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   };
+
+  // Função para fazer auto-scroll para o item marcado mais abaixo no checklist
+  const scrollToLastCheckedItem = useCallback((checklistContainer: HTMLElement) => {
+    const checkedItems = checklistContainer.querySelectorAll('[data-checked="true"]');
+    if (checkedItems.length > 0) {
+      const lastCheckedItem = checkedItems[checkedItems.length - 1] as HTMLElement;
+      lastCheckedItem.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+    }
+  }, []);
 
   // Função para remover sugestões completamente processadas
   const cleanupCompletedSuggestions = () => {
@@ -403,7 +464,26 @@ export default function A4Playground() {
           }}
         >
           <Stack spacing={1.25} sx={{ height: '100%', overflow: 'hidden' }}>
-            <Typography variant="subtitle2">Chat</Typography>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="subtitle2">Chat</Typography>
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  bgcolor: wsConnected ? 'success.main' : 'error.main',
+                  animation: wsConnected ? 'pulse 2s infinite' : 'none',
+                  '@keyframes pulse': {
+                    '0%': { opacity: 1 },
+                    '50%': { opacity: 0.5 },
+                    '100%': { opacity: 1 }
+                  }
+                }}
+              />
+              <Typography variant="caption" color="text.secondary">
+                {wsConnected ? 'Conectado' : 'Desconectado'}
+              </Typography>
+            </Stack>
 
             {/* histórico */}
             <Stack
@@ -417,6 +497,8 @@ export default function A4Playground() {
             >
               {messages.map(m => {
                 const isAssistant = m.role?.toLowerCase() === 'assistant';
+                const hasChecklist = m.refs?.mode === 'checklist';
+                
                 return (
                   <Paper 
                     key={m.id} 
@@ -431,9 +513,66 @@ export default function A4Playground() {
                     <Typography variant="caption" color="text.secondary">
                       {isAssistant ? 'Assistente' : 'Você'}
                     </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                      {m.text}
-                    </Typography>
+                    
+                    {/* Renderizar checklist se existir */}
+                    {hasChecklist && m.refs?.checklist ? (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" color="text.primary" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
+                          {m.refs.checklist.content}
+                        </Typography>
+                        <Box
+                          sx={{
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            bgcolor: 'background.paper'
+                          }}
+                          ref={(el: HTMLDivElement | null) => {
+                            if (el) {
+                              // Auto-scroll para o último item marcado após renderização
+                              setTimeout(() => scrollToLastCheckedItem(el), 100);
+                            }
+                          }}
+                        >
+                          <List dense sx={{ py: 0 }}>
+                            {m.refs.checklist.items.map((item) => (
+                              <ListItem 
+                                key={item.id} 
+                                sx={{ py: 0, px: 1 }}
+                                data-checked={item.checked}
+                              >
+                                <ListItemIcon sx={{ minWidth: 24 }}>
+                                  {item.checked ? (
+                                    <CheckedIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                                  ) : (
+                                    <UncheckedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                  )}
+                                </ListItemIcon>
+                                <ListItemText 
+                                  primary={
+                                    <Typography 
+                                      variant="caption" 
+                                      sx={{ 
+                                        textDecoration: item.checked ? 'line-through' : 'none',
+                                        color: item.checked ? 'text.secondary' : 'text.primary'
+                                      }}
+                                    >
+                                      {item.content}
+                                    </Typography>
+                                  }
+                                />
+                              </ListItem>
+                            ))}
+                          </List>
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{color: 'text.primary',  whiteSpace: 'pre-wrap' }}>
+                        {m.text}
+                      </Typography>
+                    )}
                   </Paper>
                 );
               })}

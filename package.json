@@ -36,6 +36,7 @@
     "react-timer-hook": "4.0.5",
     "simplebar-react": "3.3.2",
     "slick-carousel": "1.8.1",
+    "socket.io-client": "^4.8.1",
     "stylis-plugin-rtl": "2.1.1",
     "swr": "2.3.4",
     "vite": "7.0.4",

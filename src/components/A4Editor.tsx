@@ -114,7 +114,8 @@ function asWBlocks(root: any): WBlock[] {
         type: 'heading',
         style: 'Heading',
         text: text.trim(),
-        content: text.trim()                  // << ajuda os fallbacks do hook
+        content: text.trim(),                 // << ajuda os fallbacks do hook
+        runs: runsFromInlines ?? [{ text: text.trim() }]  // << preserva runs com fontSize
       };
     }
 
@@ -345,8 +346,13 @@ export default function A4Editor({
           let baseEl: JSX.Element;
 
           if (b.type === 'heading') {
+            // Para headings, usar o fontSize do primeiro run se disponível, senão usar 1.2rem
+            const runs = (b as any).runs as WRun[] | undefined;
+            const firstRunSize = runs?.[0]?.size;
+            const headingFontSize = firstRunSize ? `${firstRunSize}px` : '1.2rem';
+            
             baseEl = (
-              <div {...commonProps} style={{ ...paragraphCss(b), fontWeight: 700, fontSize: '1.2rem' }}>
+              <div {...commonProps} style={{ ...paragraphCss(b), fontWeight: 700, fontSize: headingFontSize }}>
                 {text}
               </div>
             );
@@ -362,7 +368,7 @@ export default function A4Editor({
                           fontWeight: r.bold ? 700 : undefined,
                           fontStyle: r.italic ? 'italic' : undefined,
                           textDecoration: r.underline ? 'underline' : undefined,
-                          fontFamily: r.font,
+                          fontFamily: r.font ? `"${r.font}", "Century Gothic", "Inter", "Roboto", "Arial", sans-serif` : undefined,
                           fontSize: r.size ? `${r.size}px` : undefined,
                           color: (r as any).color,
                           backgroundColor: (r as any).highlight

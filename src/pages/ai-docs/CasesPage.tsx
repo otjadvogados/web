@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Stack, TextField, Button, CircularProgress, Paper, Typography } from '@mui/material';
-import { PlusOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
 import { listCases, getLatestDraftForCase, type AiCase } from 'api/aiDocs';
@@ -59,45 +59,24 @@ export default function CasesPage() {
                   <Typography variant="subtitle2">{c.type}</Typography>
                   <Typography variant="body2" color="text.secondary" noWrap title={c.requestText} sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.requestText}</Typography>
                 </Stack>
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    variant="outlined"
-                    onClick={async () => {
-                      const latest = await getLatestDraftForCase(c.id);
-                      if (latest) {
-                        nav(`/ai-docs/a4-playground/${latest.id}`);
-                      } else {
-                        openSnackbar({ 
-                          open: true, 
-                          message: 'Nenhum rascunho encontrado. Crie um caso primeiro.', 
-                          variant: 'alert', 
-                          alert: { color: 'warning' } 
-                        } as any);
-                      }
-                    }}
-                  >
-                    Continuar
-                  </Button>
-                  <Button
-                    variant="contained"
-                    startIcon={<PlayCircleOutlined />}
-                    onClick={async () => {
-                      const latest = await getLatestDraftForCase(c.id);
-                      if (latest) {
-                        nav(`/ai-docs/a4-playground/${latest.id}`);
-                      } else {
-                        openSnackbar({ 
-                          open: true, 
-                          message: 'Nenhum rascunho encontrado. Crie um rascunho primeiro.', 
-                          variant: 'alert', 
-                          alert: { color: 'warning' } 
-                        } as any);
-                      }
-                    }}
-                  >
-                    Playground
-                  </Button>
-                </Stack>
+                <Button
+                  variant="contained"
+                  onClick={async () => {
+                    const latest = await getLatestDraftForCase(c.id);
+                    if (latest) {
+                      nav(`/ai-docs/a4-playground/${latest.id}`);
+                    } else {
+                      openSnackbar({ 
+                        open: true, 
+                        message: 'Nenhum rascunho encontrado. Crie um caso primeiro.', 
+                        variant: 'alert', 
+                        alert: { color: 'warning' } 
+                      } as any);
+                    }
+                  }}
+                >
+                  Continuar
+                </Button>
               </Stack>
             </Paper>
           ))}
