@@ -3,13 +3,14 @@ import TeamOutlined from '@ant-design/icons/TeamOutlined';
 import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
 import AppstoreOutlined from '@ant-design/icons/AppstoreOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
+import UserOutlined from '@ant-design/icons/UserOutlined';
 import AIIcon from 'components/icons/AIIcon';
 
 // type
 import { NavItemType } from 'types/menu';
 
 // icons
-const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined, AIIcon };
+const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined, UserOutlined, AIIcon };
 
 // ==============================|| MENU ITEMS - PAGES ||============================== //
 
@@ -53,6 +54,14 @@ const pages: NavItemType = {
       type: 'item',
       icon: icons.TeamOutlined,
       url: '/users'
+    },
+    // 👇 Clientes
+    {
+      id: 'clients',
+      title: 'Clientes',
+      type: 'item',
+      icon: icons.UserOutlined,
+      url: '/clients'
     },
     // 👇 AI Docs
     {

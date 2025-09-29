@@ -33,6 +33,12 @@ const DepartmentsPage = Loadable(lazy(() => import('pages/departments')));
 // NOVO: Empresa
 const CompanyPage = Loadable(lazy(() => import('pages/company')));
 
+// NOVO: Clientes
+const ClientsPage = Loadable(lazy(() => import('pages/clients')));
+const NewClientPage = Loadable(lazy(() => import('pages/clients/new')));
+const ClientDetailsPage = Loadable(lazy(() => import('pages/clients/[id]')));
+const EditClientPage = Loadable(lazy(() => import('pages/clients/[id]/edit')));
+
 // NOVO: Bloqueios de Conta
 const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
 
@@ -81,6 +87,22 @@ const MainRoutes = {
         {
           path: 'company',
           element: <CompanyPage />
+        },
+        {
+          path: 'clients',
+          element: <ClientsPage />
+        },
+        {
+          path: 'clients/new',
+          element: <NewClientPage />
+        },
+        {
+          path: 'clients/:id',
+          element: <ClientDetailsPage />
+        },
+        {
+          path: 'clients/:id/edit',
+          element: <EditClientPage />
         },
         {
           path: 'sensitive-fields',
