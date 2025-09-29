@@ -90,8 +90,6 @@ export type CompanyPersonLink = {
   role?: string;
   isPrimary: boolean;
   isLegalRepresentative: boolean;
-  startedOn?: string; // 'YYYY-MM-DD'
-  endedOn?: string; // 'YYYY-MM-DD'
   createdAt: string;
   updatedAt: string;
   person?: CustomerPerson & { customer: Customer }; // incluído em listagens
@@ -208,8 +206,6 @@ export type CreateCompanyPersonPayload = {
   role?: string;
   isPrimary?: boolean;
   isLegalRepresentative?: boolean;
-  startedOn?: string;
-  endedOn?: string;
 };
 
 export type CreateBranchPayload =

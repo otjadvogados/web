@@ -41,6 +41,7 @@ import {
   linkAsBranch, createCompanyAsBranch, deleteCompanyBranch, getCompanyBranches,
   getCompanyPeople, upsertCompanyPerson, deleteCompanyPerson
 } from '../../api/customers';
+import { openSnackbar } from '../../api/snackbar';
 import type { CreateAddressPayload, AddressType, UpdateAddressPayload } from '../../types/customers';
 
 // Interface para endereços no formulário (pode ter id se for existente)
@@ -144,8 +145,6 @@ type DraftLink = {
   role?: string;
   isPrimary?: boolean;
   isLegalRepresentative?: boolean;
-  startedOn?: string;          // YYYY-MM-DD
-  endedOn?: string;            // YYYY-MM-DD
 };
 
 // Mensagens amigáveis p/ erros 400/404
@@ -167,9 +166,7 @@ export default function CustomerForm() {
   
   const [formData, setFormData] = useState<CustomerFormData>(initialFormData);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [cnpjSearching, setCnpjSearching] = useState(false);
-  const [cnpjSearchError, setCnpjSearchError] = useState<string | null>(null);
   const [receitaData, setReceitaData] = useState<ReceitaFederalData | null>(null);
   // endereços no formulário (existentes com id ou novos sem id)
   const [companyAddresses, setCompanyAddresses] = useState<FormAddressPayload[]>([]);
@@ -188,7 +185,6 @@ export default function CustomerForm() {
   // ---- MATRIZ / FILIAIS (no Editar) ----
   const [branches, setBranches] = useState<CustomerBranch[]>([]);
   const [branchesLoading, setBranchesLoading] = useState(false);
-  const [branchesError, setBranchesError] = useState<string | null>(null);
   // dialog "Adicionar Filial"
   const [addOpen, setAddOpen] = useState(false);
   const [addTab, setAddTab] = useState(0); // 0 = existente, 1 = nova
@@ -197,7 +193,6 @@ export default function CustomerForm() {
   const [existingBranchOptions, setExistingBranchOptions] = useState<Customer[]>([]);
   const [selectedExistingBranch, setSelectedExistingBranch] = useState<Customer | null>(null);
   const [creatingBranch, setCreatingBranch] = useState(false);
-  const [addBranchError, setAddBranchError] = useState<string | null>(null);
   const [newBranch, setNewBranch] = useState({
     displayName: '',
     legalName: '',
@@ -227,8 +222,6 @@ export default function CustomerForm() {
   const [peopleRole, setPeopleRole] = useState('');
   const [peopleIsPrimary, setPeopleIsPrimary] = useState(false);
   const [peopleIsLegalRep, setPeopleIsLegalRep] = useState(false);
-  const [peopleStart, setPeopleStart] = useState<string>('');
-  const [peopleEnd, setPeopleEnd] = useState<string>('');
   const [peopleActionLoading, setPeopleActionLoading] = useState(false);
   const [peopleActionError, setPeopleActionError] = useState<string | null>(null);
 
@@ -267,7 +260,7 @@ export default function CustomerForm() {
     return () => { alive = false; clearTimeout(t); };
   }, [parentSearch, formData.kind]);
 
-  // Buscar empresas para "Vincular existente" (filial) no diálogo
+  // --- busca para "Vincular existente" (filiais) ---
   useEffect(() => {
     let alive = true;
     if (!addOpen || addTab !== 0) return;
@@ -344,7 +337,6 @@ export default function CustomerForm() {
       return;
     }
     setBranchesLoading(true);
-    setBranchesError(null);
     try {
       const parent = (cust.company as any)?.parent?.customer || null;
       const baseId = parent ? parent.id : cust.id;
@@ -352,7 +344,12 @@ export default function CustomerForm() {
       if (parent) list = list.filter(b => b.childId !== cust.id); // se for filial, oculta ela mesma
       setBranches(list);
     } catch (e: any) {
-      setBranchesError(e?.response?.data?.message || 'Erro ao carregar filiais');
+      openSnackbar({ 
+        open: true, 
+        message: e?.response?.data?.message || 'Erro ao carregar filiais', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
       setBranches([]);
     } finally {
       setBranchesLoading(false);
@@ -385,8 +382,6 @@ export default function CustomerForm() {
     setPeopleRole('');
     setPeopleIsPrimary(false);
     setPeopleIsLegalRep(false);
-    setPeopleStart('');
-    setPeopleEnd('');
     setPeopleActionError(null);
     setPeopleOpen(true);
   };
@@ -481,7 +476,12 @@ export default function CustomerForm() {
          setOriginalAddressIds(customer.person.addresses.map(a => a.id));
        }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erro ao carregar cliente');
+      openSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || 'Erro ao carregar cliente', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
     } finally {
       setLoading(false);
     }
@@ -620,12 +620,16 @@ export default function CustomerForm() {
 
   const handleCnpjSearch = async () => {
     if (!formData.cnpj || formData.cnpj.length < 14) {
-      setCnpjSearchError('Digite um CNPJ válido');
+      openSnackbar({ 
+        open: true, 
+        message: 'Digite um CNPJ válido', 
+        variant: 'alert', 
+        alert: { color: 'warning' } 
+      } as any);
       return;
     }
 
     setCnpjSearching(true);
-    setCnpjSearchError(null);
     setReceitaData(null);
 
     try {
@@ -660,7 +664,12 @@ export default function CustomerForm() {
       });
     } catch (err: any) {
       console.error('Erro ao buscar CNPJ:', err);
-      setCnpjSearchError(err.response?.data?.message || err.message || 'Erro ao buscar dados da Receita Federal');
+      openSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || err.message || 'Erro ao buscar dados da Receita Federal', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
     } finally {
       setCnpjSearching(false);
     }
@@ -689,7 +698,12 @@ export default function CustomerForm() {
       const cust = await getCustomer(id, true);
       await loadBranches(cust);
     } catch (e: any) {
-      setBranchesError(e?.response?.data?.message || 'Erro ao remover filial');
+      openSnackbar({ 
+        open: true, 
+        message: e?.response?.data?.message || 'Erro ao remover filial', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
     }
   };
 
@@ -704,13 +718,17 @@ export default function CustomerForm() {
       const cust = await getCustomer(id, true);
       await loadBranches(cust);
     } catch (e: any) {
-      setBranchesError(e?.response?.data?.message || 'Erro ao remover matriz');
+      openSnackbar({ 
+        open: true, 
+        message: e?.response?.data?.message || 'Erro ao remover matriz', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
     }
   };
 
   // --- Adicionar filial (dialog)
   const openAddDialog = () => {
-    setAddBranchError(null);
     setSelectedExistingBranch(null);
     setSearchExistingBranch('');
     setExistingBranchOptions([]);
@@ -729,11 +747,15 @@ export default function CustomerForm() {
   const confirmAddBranch = async () => {
     if (!id) return;
     setCreatingBranch(true);
-    setAddBranchError(null);
     try {
       if (addTab === 0) {
         if (!selectedExistingBranch?.id) {
-          setAddBranchError('Selecione uma empresa para vincular.');
+          openSnackbar({ 
+            open: true, 
+            message: 'Selecione uma empresa para vincular.', 
+            variant: 'alert', 
+            alert: { color: 'warning' } 
+          } as any);
           setCreatingBranch(false);
           return;
         }
@@ -741,7 +763,12 @@ export default function CustomerForm() {
       } else {
         const cleanCnpj = extractDigits(newBranch.cnpj);
         if (!newBranch.legalName || cleanCnpj.length !== 14) {
-          setAddBranchError('Informe Razão Social e um CNPJ válido (14 dígitos).');
+          openSnackbar({ 
+            open: true, 
+            message: 'Informe Razão Social e um CNPJ válido (14 dígitos).', 
+            variant: 'alert', 
+            alert: { color: 'warning' } 
+          } as any);
           setCreatingBranch(false);
           return;
         }
@@ -761,7 +788,12 @@ export default function CustomerForm() {
       await loadBranches(cust);
       setAddOpen(false);
     } catch (e: any) {
-      setAddBranchError(e?.response?.data?.message || 'Falha ao adicionar filial');
+      openSnackbar({ 
+        open: true, 
+        message: e?.response?.data?.message || 'Falha ao adicionar filial', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
     } finally {
       setCreatingBranch(false);
     }
@@ -770,7 +802,6 @@ export default function CustomerForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       if (isEdit && id) {
@@ -909,9 +940,7 @@ export default function CustomerForm() {
                      ...(p.createPerson ? { createPerson: p.createPerson } : {}),
                      role: p.role || undefined,
                      isPrimary: !!p.isPrimary,
-                     isLegalRepresentative: !!p.isLegalRepresentative,
-                     startedOn: p.startedOn || undefined,
-                     endedOn: p.endedOn || undefined
+                     isLegalRepresentative: !!p.isLegalRepresentative
                    })) : undefined
                  }
                };
@@ -947,9 +976,7 @@ export default function CustomerForm() {
                 ...(p.createPerson ? { createPerson: p.createPerson } : {}),
                 role: p.role || undefined,
                 isPrimary: !!p.isPrimary,
-                isLegalRepresentative: !!p.isLegalRepresentative,
-                startedOn: p.startedOn || undefined,
-                endedOn: p.endedOn || undefined
+                isLegalRepresentative: !!p.isLegalRepresentative
               })) : undefined
             }
           };
@@ -962,7 +989,12 @@ export default function CustomerForm() {
 
       navigate('/clients');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erro ao salvar cliente');
+      openSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || 'Erro ao salvar cliente', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
     } finally {
       setLoading(false);
     }
@@ -992,12 +1024,6 @@ export default function CustomerForm() {
         </Typography>
       </Box>
 
-      {/* Erro */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
 
       <form onSubmit={handleSubmit}>
         <Card>
@@ -1177,8 +1203,7 @@ export default function CustomerForm() {
                         }}
                         placeholder="00.000.000/0000-00"
                         required
-                        error={!!cnpjSearchError}
-                        helperText={cnpjSearchError || "Digite o CNPJ e clique em buscar para preencher automaticamente"}
+                        helperText="Digite o CNPJ e clique em buscar para preencher automaticamente"
                       />
                       <Button
                         variant="contained"
@@ -1492,7 +1517,8 @@ export default function CustomerForm() {
         {formData.kind === 'COMPANY' && (
           <TabPanel value={tabValue} index={2}>
             <Stack spacing={3}>
-              {/* Status atual */}
+              {/* Status atual + lista + ações (somente no EDIT) */}
+              {isEdit && (
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>Matriz / Filiais</Typography>
@@ -1520,8 +1546,6 @@ export default function CustomerForm() {
                     </Typography>
                     {branchesLoading ? (
                       <Typography color="text.secondary">Carregando...</Typography>
-                    ) : branchesError ? (
-                      <Alert severity="error">{branchesError}</Alert>
                     ) : branches.length === 0 ? (
                       <Typography color="text.secondary">
                         {initialParentId ? 'Nenhuma outra filial vinculada à matriz.' : 'Nenhuma filial vinculada.'}
@@ -1555,6 +1579,7 @@ export default function CustomerForm() {
                   )}
                 </CardContent>
               </Card>
+              )}
 
               {/* Alterar/Definir Matriz */}
               <Card>
@@ -1601,6 +1626,7 @@ export default function CustomerForm() {
             </Stack>
 
             {/* Dialog: Adicionar Filial */}
+            {isEdit && (
             <Dialog open={addOpen} onClose={() => setAddOpen(false)} fullWidth maxWidth="md">
               <DialogTitle>Adicionar Filial</DialogTitle>
               <DialogContent dividers>
@@ -1665,9 +1691,6 @@ export default function CustomerForm() {
                     />
                   </Box>
                 )}
-                {addBranchError && (
-                  <Alert severity="error" sx={{ mt: 2 }}>{addBranchError}</Alert>
-                )}
               </DialogContent>
               <DialogActions>
                 <Button onClick={() => setAddOpen(false)}>Cancelar</Button>
@@ -1676,6 +1699,8 @@ export default function CustomerForm() {
                 </Button>
               </DialogActions>
             </Dialog>
+            )}
+
           </TabPanel>
         )}
 
@@ -1703,39 +1728,15 @@ export default function CustomerForm() {
                                 <Typography fontWeight={600}>
                                   {p.createPerson?.fullName || `Pessoa existente #${idx + 1}`}
                                 </Typography>
-                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                                  <TextField
-                                    label="Função"
-                                    value={p.role || ''}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setPeopleDraft(prev => prev.map((it, i) => i === idx ? { ...it, role: v } : it));
-                                    }}
-                                    fullWidth
-                                  />
-                                  <TextField
-                                    label="Início (YYYY-MM-DD)"
-                                    type="date"
-                                    InputLabelProps={{ shrink: true }}
-                                    value={p.startedOn || ''}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setPeopleDraft(prev => prev.map((it, i) => i === idx ? { ...it, startedOn: v } : it));
-                                    }}
-                                    fullWidth
-                                  />
-                                  <TextField
-                                    label="Término (YYYY-MM-DD)"
-                                    type="date"
-                                    InputLabelProps={{ shrink: true }}
-                                    value={p.endedOn || ''}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setPeopleDraft(prev => prev.map((it, i) => i === idx ? { ...it, endedOn: v } : it));
-                                    }}
-                                    fullWidth
-                                  />
-                                </Stack>
+                                <TextField
+                                  label="Função"
+                                  value={p.role || ''}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setPeopleDraft(prev => prev.map((it, i) => i === idx ? { ...it, role: v } : it));
+                                  }}
+                                  fullWidth
+                                />
                                 <Stack direction="row" spacing={2}>
                                   <FormControlLabel
                                     control={<Switch checked={!!p.isPrimary} onChange={() => {
@@ -1826,39 +1827,15 @@ export default function CustomerForm() {
                                 <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                                   Dados do Vínculo
                                 </Typography>
-                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                                  <TextField
-                                    label="Função"
-                                    value={lnk.role || ''}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setPeopleLinks(prev => prev.map((it, i) => i === idx ? { ...it, role: v } : it));
-                                    }}
-                                    fullWidth
-                                  />
-                                  <TextField
-                                    label="Início (YYYY-MM-DD)"
-                                    type="date"
-                                    InputLabelProps={{ shrink: true }}
-                                    value={lnk.startedOn ? lnk.startedOn.split('T')[0] : ''}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setPeopleLinks(prev => prev.map((it, i) => i === idx ? { ...it, startedOn: v } : it));
-                                    }}
-                                    fullWidth
-                                  />
-                                  <TextField
-                                    label="Término (YYYY-MM-DD)"
-                                    type="date"
-                                    InputLabelProps={{ shrink: true }}
-                                    value={lnk.endedOn ? lnk.endedOn.split('T')[0] : ''}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setPeopleLinks(prev => prev.map((it, i) => i === idx ? { ...it, endedOn: v } : it));
-                                    }}
-                                    fullWidth
-                                  />
-                                </Stack>
+                                <TextField
+                                  label="Função"
+                                  value={lnk.role || ''}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setPeopleLinks(prev => prev.map((it, i) => i === idx ? { ...it, role: v } : it));
+                                  }}
+                                  fullWidth
+                                />
                                 
                                 {/* Status e Flags */}
                                 <Stack direction="row" spacing={3} alignItems="center">
@@ -1887,9 +1864,7 @@ export default function CustomerForm() {
                                             personId: lnk.personId,
                                             role: lnk.role || undefined,
                                             isPrimary: !!lnk.isPrimary,
-                                            isLegalRepresentative: !!lnk.isLegalRepresentative,
-                                            startedOn: lnk.startedOn || undefined,
-                                            endedOn: lnk.endedOn || undefined
+                                            isLegalRepresentative: !!lnk.isLegalRepresentative
                                           });
                                         } catch (e: any) {
                                           setPeopleError(friendlyError(e, 'Falha ao salvar vínculo'));
@@ -1963,10 +1938,6 @@ export default function CustomerForm() {
                       )}
                     />
                     <TextField label="Função" value={peopleRole} onChange={(e) => setPeopleRole(e.target.value)} fullWidth />
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                      <TextField label="Início" type="date" InputLabelProps={{ shrink: true }} value={peopleStart} onChange={(e)=>setPeopleStart(e.target.value)} fullWidth />
-                      <TextField label="Término" type="date" InputLabelProps={{ shrink: true }} value={peopleEnd} onChange={(e)=>setPeopleEnd(e.target.value)} fullWidth />
-                    </Stack>
                     <Stack direction="row" spacing={2}>
                       <FormControlLabel control={<Switch checked={peopleIsPrimary} onChange={(e)=>setPeopleIsPrimary(e.target.checked)} />} label="Primário" />
                       <FormControlLabel control={<Switch checked={peopleIsLegalRep} onChange={(e)=>setPeopleIsLegalRep(e.target.checked)} />} label="Representante Legal" />
@@ -1983,10 +1954,6 @@ export default function CustomerForm() {
                     <TextField label="Telefone" value={newPerson.phone} onChange={(e)=>setNewPerson({...newPerson, phone: e.target.value})} fullWidth />
                     <Divider />
                     <TextField label="Papel (role)" value={peopleRole} onChange={(e) => setPeopleRole(e.target.value)} fullWidth />
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                      <TextField label="Início" type="date" InputLabelProps={{ shrink: true }} value={peopleStart} onChange={(e)=>setPeopleStart(e.target.value)} fullWidth />
-                      <TextField label="Término" type="date" InputLabelProps={{ shrink: true }} value={peopleEnd} onChange={(e)=>setPeopleEnd(e.target.value)} fullWidth />
-                    </Stack>
                     <Stack direction="row" spacing={2}>
                       <FormControlLabel control={<Switch checked={peopleIsPrimary} onChange={(e)=>setPeopleIsPrimary(e.target.checked)} />} label="Primário" />
                       <FormControlLabel control={<Switch checked={peopleIsLegalRep} onChange={(e)=>setPeopleIsLegalRep(e.target.checked)} />} label="Representante Legal" />
@@ -2007,7 +1974,7 @@ export default function CustomerForm() {
                         const personPayloadId = (selectedExistingPerson as any)?.person?.id;
                         const personCpf = (selectedExistingPerson as any)?.person?.cpf;
                         if (!personPayloadId && !personCpf) {
-                          setPeopleActionError('Pessoa selecionada sem payload (id/cpf). Tente buscar novamente.');
+                          setPeopleActionError('Pessoa não selecionada');
                           setPeopleActionLoading(false);
                           return;
                         }
@@ -2017,9 +1984,7 @@ export default function CustomerForm() {
                             ...(personPayloadId ? { personId: personPayloadId } : { cpf: personCpf }),
                             role: peopleRole || undefined,
                             isPrimary: !!peopleIsPrimary,
-                            isLegalRepresentative: !!peopleIsLegalRep,
-                            startedOn: peopleStart || undefined,
-                            endedOn: peopleEnd || undefined
+                            isLegalRepresentative: !!peopleIsLegalRep
                           });
                           await refreshPeopleLinks(id);
                         } else {
@@ -2029,9 +1994,7 @@ export default function CustomerForm() {
                             ...(personCpf ? { cpf: personCpf } : {}),
                             role: peopleRole || undefined,
                             isPrimary: !!peopleIsPrimary,
-                            isLegalRepresentative: !!peopleIsLegalRep,
-                            startedOn: peopleStart || undefined,
-                            endedOn: peopleEnd || undefined
+                            isLegalRepresentative: !!peopleIsLegalRep
                           };
                           setPeopleDraft(prev => {
                             const arr = [...prev, item];
@@ -2056,9 +2019,7 @@ export default function CustomerForm() {
                             },
                             role: peopleRole || undefined,
                             isPrimary: !!peopleIsPrimary,
-                            isLegalRepresentative: !!peopleIsLegalRep,
-                            startedOn: peopleStart || undefined,
-                            endedOn: peopleEnd || undefined
+                            isLegalRepresentative: !!peopleIsLegalRep
                           });
                           await refreshPeopleLinks(id);
                         } else {
@@ -2072,9 +2033,7 @@ export default function CustomerForm() {
                             },
                             role: peopleRole || undefined,
                             isPrimary: !!peopleIsPrimary,
-                            isLegalRepresentative: !!peopleIsLegalRep,
-                            startedOn: peopleStart || undefined,
-                            endedOn: peopleEnd || undefined
+                            isLegalRepresentative: !!peopleIsLegalRep
                           };
                           setPeopleDraft(prev => {
                             const arr = [...prev, item];

@@ -16,12 +16,6 @@ import {
   Tab,
   Divider
 } from '@mui/material';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import TextField from '@mui/material/TextField';
-import Autocomplete from '@mui/material/Autocomplete';
 import {
   EditOutlined as EditIcon,
   ArrowLeftOutlined as ArrowBackIcon,
@@ -34,21 +28,17 @@ import {
   IdcardOutlined as IdIcon,
   EnvironmentOutlined as AddressIcon
 } from '@ant-design/icons';
-import { LoadingOutlined as LoadingIcon, PlusOutlined as AddIcon, LinkOutlined as LinkIcon } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Customer, CustomerWithDetails, CustomerBranch } from '../../../types/customers';
+import { CustomerWithDetails, CustomerBranch } from '../../../types/customers';
 import {
   getCustomer,
   formatCPF,
   formatCNPJ,
   formatCEP,
   getCompanyBranches,
-  deleteCompanyBranch,
-  listCompanies,
-  linkAsBranch,
-  createCompanyAsBranch,
-  extractDigits
+  deleteCompanyBranch
 } from '../../../api/customers';
+import { openSnackbar } from '../../../api/snackbar';
 
 // ==============================|| CLIENT DETAILS PAGE ||============================== //
 
@@ -79,7 +69,6 @@ export default function ClientDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [customer, setCustomer] = useState<CustomerWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [tabValue, setTabValue] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
   const [branches, setBranches] = useState<CustomerBranch[]>([]);
@@ -131,24 +120,6 @@ export default function ClientDetailsPage() {
     return ch?.id || ch?.customer?.id || b.childId;
   };
   
-  // Dialog "Adicionar Filial"
-  const [addOpen, setAddOpen] = useState(false);
-  const [addTab, setAddTab] = useState(0); // 0=existente, 1=nova
-  const [searchExisting, setSearchExisting] = useState('');
-  const [existingLoading, setExistingLoading] = useState(false);
-  const [existingOptions, setExistingOptions] = useState<Customer[]>([]);
-  const [selectedExisting, setSelectedExisting] = useState<Customer | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
-  // formulário de nova filial (mínimo viável)
-  const [newBranch, setNewBranch] = useState({
-    displayName: '',
-    legalName: '',
-    cnpj: '',
-    tradeName: '',
-    email: '',
-    phone: ''
-  });
 
   const copy = async (text: string, key: string) => { try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(()=>setCopied(null), 1200);} catch(_){} };
 
@@ -213,30 +184,6 @@ export default function ClientDetailsPage() {
       .catch(() => setBranches([]));
   }, [customer]);
 
-  // --- efeitos/busca para "Vincular existente" ---
-  useEffect(() => {
-    let alive = true;
-    const q = searchExisting.trim();
-    if (!addOpen || addTab !== 0) return;
-    if (q.length < 2) {
-      setExistingOptions([]);
-      setExistingLoading(false);
-      return;
-    }
-    setExistingLoading(true);
-    const t = setTimeout(async () => {
-      try {
-        const res = await listCompanies(q);
-        if (!alive) return;
-        // evita listar a própria empresa na busca
-        const filtered = customer ? res.filter(c => c.id !== customer.id) : res;
-        setExistingOptions(filtered);
-      } finally {
-        if (alive) setExistingLoading(false);
-      }
-    }, 300);
-    return () => { alive = false; clearTimeout(t); };
-  }, [searchExisting, addTab, addOpen, customer]);
 
   const loadCustomer = async () => {
     if (!id) return;
@@ -252,7 +199,12 @@ export default function ClientDetailsPage() {
         setBranches([]);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erro ao carregar cliente');
+      openSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || 'Erro ao carregar cliente', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
     } finally {
       setLoading(false);
     }
@@ -274,7 +226,12 @@ export default function ClientDetailsPage() {
       await deleteCompanyBranch(parent.id, customer.id);
       await loadCustomer();
     } catch (e: any) {
-      setError(e.response?.data?.message || 'Erro ao remover matriz');
+      openSnackbar({ 
+        open: true, 
+        message: e.response?.data?.message || 'Erro ao remover matriz', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
     }
   };
 
@@ -282,66 +239,6 @@ export default function ClientDetailsPage() {
     navigate('/clients');
   };
 
-  const handleOpenAdd = () => {
-    setAddError(null);
-    setSelectedExisting(null);
-    setSearchExisting('');
-    setExistingOptions([]);
-    setAddTab(0);
-    setNewBranch({
-      displayName: '',
-      legalName: '',
-      cnpj: '',
-      tradeName: '',
-      email: '',
-      phone: ''
-    });
-    setAddOpen(true);
-  };
-
-  const handleConfirmAdd = async () => {
-    if (!customer || customer.kind !== 'COMPANY') return;
-    setCreating(true);
-    setAddError(null);
-    try {
-      if (addTab === 0) {
-        // Vincular existente
-        if (!selectedExisting?.id) {
-          setAddError('Selecione uma empresa para vincular.');
-          setCreating(false);
-          return;
-        }
-        await linkAsBranch(customer.id, selectedExisting.id);
-      } else {
-        // Criar nova filial
-        const cleanCnpj = extractDigits(newBranch.cnpj);
-        if (!newBranch.legalName || cleanCnpj.length !== 14) {
-          setAddError('Informe Razão Social e um CNPJ válido (14 dígitos).');
-          setCreating(false);
-          return;
-        }
-        await createCompanyAsBranch(customer.id, {
-          kind: 'COMPANY',
-          displayName: newBranch.displayName || newBranch.legalName,
-          company: {
-            legalName: newBranch.legalName,
-            tradeName: newBranch.tradeName || undefined,
-            cnpj: cleanCnpj,
-            email: newBranch.email || undefined,
-            phone: newBranch.phone || undefined
-          }
-        } as any);
-      }
-      // refresh lista de filiais
-      const res = await getCompanyBranches(customer.id);
-      setBranches(await hydrateChildren(res));
-      setAddOpen(false);
-    } catch (e: any) {
-      setAddError(e?.response?.data?.message || 'Falha ao adicionar filial');
-    } finally {
-      setCreating(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -351,11 +248,11 @@ export default function ClientDetailsPage() {
     );
   }
 
-  if (error || !customer) {
+  if (!customer) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error" sx={{ mb: 3 }}>
-          {error || 'Cliente não encontrado'}
+          Cliente não encontrado
         </Alert>
         <Button onClick={handleBack}>Voltar</Button>
       </Box>
@@ -798,14 +695,6 @@ export default function ClientDetailsPage() {
               <Stack direction="row" spacing={2}>
                 <Button
                   variant="contained"
-                  color="primary"
-                  startIcon={<AddIcon />}
-                  onClick={handleOpenAdd}
-                >
-                  Adicionar Filial
-                </Button>
-                <Button
-                  variant="contained"
                   onClick={() => navigate(`/clients/${id}/edit`)}
                   startIcon={<EditIcon />}
                 >
@@ -866,82 +755,6 @@ export default function ClientDetailsPage() {
               })()}
             </Box>
 
-            {/* Dialog: Adicionar Filial */}
-            <Dialog open={addOpen} onClose={() => setAddOpen(false)} fullWidth maxWidth="md">
-              <DialogTitle>Adicionar Filial</DialogTitle>
-              <DialogContent dividers>
-                <Tabs value={addTab} onChange={(_, v) => setAddTab(v)} sx={{ mb: 2 }}>
-                  <Tab label="Vincular existente" icon={<LinkIcon />} iconPosition="start" />
-                  <Tab label="Criar nova" icon={<AddIcon />} iconPosition="start" />
-                </Tabs>
-                {addTab === 0 && (
-                  <Box sx={{ display: 'grid', gap: 2 }}>
-                    <Autocomplete
-                      loading={existingLoading}
-                      options={existingOptions}
-                      value={selectedExisting}
-                      getOptionLabel={(opt) => opt.displayName}
-                      noOptionsText={searchExisting.length < 2 ? 'Digite ao menos 2 caracteres' : 'Nenhuma empresa encontrada'}
-                      onInputChange={(_, value) => setSearchExisting(value)}
-                      onChange={(_, value) => setSelectedExisting(value)}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Buscar empresa para vincular como filial"
-                          placeholder="Nome, CNPJ..."
-                        />
-                      )}
-                    />
-                  </Box>
-                )}
-                {addTab === 1 && (
-                  <Box sx={{ display: 'grid', gap: 2 }}>
-                    <TextField
-                      label="Razão Social *"
-                      value={newBranch.legalName}
-                      onChange={(e) => setNewBranch({ ...newBranch, legalName: e.target.value })}
-                      fullWidth
-                      required
-                    />
-                    <TextField
-                      label="Nome Fantasia"
-                      value={newBranch.tradeName}
-                      onChange={(e) => setNewBranch({ ...newBranch, tradeName: e.target.value })}
-                      fullWidth
-                    />
-                    <TextField
-                      label="CNPJ *"
-                      value={newBranch.cnpj}
-                      onChange={(e) => setNewBranch({ ...newBranch, cnpj: e.target.value })}
-                      placeholder="00.000.000/0000-00"
-                      fullWidth
-                      required
-                    />
-                    <TextField
-                      label="E-mail"
-                      value={newBranch.email}
-                      onChange={(e) => setNewBranch({ ...newBranch, email: e.target.value })}
-                      fullWidth
-                    />
-                    <TextField
-                      label="Telefone"
-                      value={newBranch.phone}
-                      onChange={(e) => setNewBranch({ ...newBranch, phone: e.target.value })}
-                      fullWidth
-                    />
-                  </Box>
-                )}
-                {addError && (
-                  <Alert severity="error" sx={{ mt: 2 }}>{addError}</Alert>
-                )}
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={() => setAddOpen(false)}>Cancelar</Button>
-                <Button onClick={handleConfirmAdd} variant="contained" disabled={creating}>
-                  {creating ? <><LoadingIcon />&nbsp;Salvando...</> : 'Confirmar'}
-                </Button>
-              </DialogActions>
-            </Dialog>
           </TabPanel>
         )}
 

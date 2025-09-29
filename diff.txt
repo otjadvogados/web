@@ -329,10 +329,10 @@ index 0000000..d66dbd6
 +}
 diff --git a/src/pages/clients/[id]/index.tsx b/src/pages/clients/[id]/index.tsx
 new file mode 100644
-index 0000000..f1fd021
+index 0000000..c0f4d7d
 --- /dev/null
 +++ b/src/pages/clients/[id]/index.tsx
-@@ -0,0 +1,962 @@
+@@ -0,0 +1,775 @@
 +import React, { useState, useEffect } from 'react';
 +import {
 +  Box,
@@ -351,12 +351,6 @@ index 0000000..f1fd021
 +  Tab,
 +  Divider
 +} from '@mui/material';
-+import Dialog from '@mui/material/Dialog';
-+import DialogTitle from '@mui/material/DialogTitle';
-+import DialogContent from '@mui/material/DialogContent';
-+import DialogActions from '@mui/material/DialogActions';
-+import TextField from '@mui/material/TextField';
-+import Autocomplete from '@mui/material/Autocomplete';
 +import {
 +  EditOutlined as EditIcon,
 +  ArrowLeftOutlined as ArrowBackIcon,
@@ -369,21 +363,17 @@ index 0000000..f1fd021
 +  IdcardOutlined as IdIcon,
 +  EnvironmentOutlined as AddressIcon
 +} from '@ant-design/icons';
-+import { LoadingOutlined as LoadingIcon, PlusOutlined as AddIcon, LinkOutlined as LinkIcon } from '@ant-design/icons';
 +import { useNavigate, useParams } from 'react-router-dom';
-+import { Customer, CustomerWithDetails, CustomerBranch } from '../../../types/customers';
++import { CustomerWithDetails, CustomerBranch } from '../../../types/customers';
 +import {
 +  getCustomer,
 +  formatCPF,
 +  formatCNPJ,
 +  formatCEP,
 +  getCompanyBranches,
-+  deleteCompanyBranch,
-+  listCompanies,
-+  linkAsBranch,
-+  createCompanyAsBranch,
-+  extractDigits
++  deleteCompanyBranch
 +} from '../../../api/customers';
++import { openSnackbar } from '../../../api/snackbar';
 +
 +// ==============================|| CLIENT DETAILS PAGE ||============================== //
 +
@@ -414,7 +404,6 @@ index 0000000..f1fd021
 +  const { id } = useParams<{ id: string }>();
 +  const [customer, setCustomer] = useState<CustomerWithDetails | null>(null);
 +  const [loading, setLoading] = useState(true);
-+  const [error, setError] = useState<string | null>(null);
 +  const [tabValue, setTabValue] = useState(0);
 +  const [copied, setCopied] = useState<string | null>(null);
 +  const [branches, setBranches] = useState<CustomerBranch[]>([]);
@@ -466,24 +455,6 @@ index 0000000..f1fd021
 +    return ch?.id || ch?.customer?.id || b.childId;
 +  };
 +  
-+  // Dialog "Adicionar Filial"
-+  const [addOpen, setAddOpen] = useState(false);
-+  const [addTab, setAddTab] = useState(0); // 0=existente, 1=nova
-+  const [searchExisting, setSearchExisting] = useState('');
-+  const [existingLoading, setExistingLoading] = useState(false);
-+  const [existingOptions, setExistingOptions] = useState<Customer[]>([]);
-+  const [selectedExisting, setSelectedExisting] = useState<Customer | null>(null);
-+  const [creating, setCreating] = useState(false);
-+  const [addError, setAddError] = useState<string | null>(null);
-+  // formulário de nova filial (mínimo viável)
-+  const [newBranch, setNewBranch] = useState({
-+    displayName: '',
-+    legalName: '',
-+    cnpj: '',
-+    tradeName: '',
-+    email: '',
-+    phone: ''
-+  });
 +
 +  const copy = async (text: string, key: string) => { try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(()=>setCopied(null), 1200);} catch(_){} };
 +
@@ -548,30 +519,6 @@ index 0000000..f1fd021
 +      .catch(() => setBranches([]));
 +  }, [customer]);
 +
-+  // --- efeitos/busca para "Vincular existente" ---
-+  useEffect(() => {
-+    let alive = true;
-+    const q = searchExisting.trim();
-+    if (!addOpen || addTab !== 0) return;
-+    if (q.length < 2) {
-+      setExistingOptions([]);
-+      setExistingLoading(false);
-+      return;
-+    }
-+    setExistingLoading(true);
-+    const t = setTimeout(async () => {
-+      try {
-+        const res = await listCompanies(q);
-+        if (!alive) return;
-+        // evita listar a própria empresa na busca
-+        const filtered = customer ? res.filter(c => c.id !== customer.id) : res;
-+        setExistingOptions(filtered);
-+      } finally {
-+        if (alive) setExistingLoading(false);
-+      }
-+    }, 300);
-+    return () => { alive = false; clearTimeout(t); };
-+  }, [searchExisting, addTab, addOpen, customer]);
 +
 +  const loadCustomer = async () => {
 +    if (!id) return;
@@ -587,7 +534,12 @@ index 0000000..f1fd021
 +        setBranches([]);
 +      }
 +    } catch (err: any) {
-+      setError(err.response?.data?.message || 'Erro ao carregar cliente');
++      openSnackbar({ 
++        open: true, 
++        message: err.response?.data?.message || 'Erro ao carregar cliente', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +    } finally {
 +      setLoading(false);
 +    }
@@ -609,7 +561,12 @@ index 0000000..f1fd021
 +      await deleteCompanyBranch(parent.id, customer.id);
 +      await loadCustomer();
 +    } catch (e: any) {
-+      setError(e.response?.data?.message || 'Erro ao remover matriz');
++      openSnackbar({ 
++        open: true, 
++        message: e.response?.data?.message || 'Erro ao remover matriz', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +    }
 +  };
 +
@@ -617,66 +574,6 @@ index 0000000..f1fd021
 +    navigate('/clients');
 +  };
 +
-+  const handleOpenAdd = () => {
-+    setAddError(null);
-+    setSelectedExisting(null);
-+    setSearchExisting('');
-+    setExistingOptions([]);
-+    setAddTab(0);
-+    setNewBranch({
-+      displayName: '',
-+      legalName: '',
-+      cnpj: '',
-+      tradeName: '',
-+      email: '',
-+      phone: ''
-+    });
-+    setAddOpen(true);
-+  };
-+
-+  const handleConfirmAdd = async () => {
-+    if (!customer || customer.kind !== 'COMPANY') return;
-+    setCreating(true);
-+    setAddError(null);
-+    try {
-+      if (addTab === 0) {
-+        // Vincular existente
-+        if (!selectedExisting?.id) {
-+          setAddError('Selecione uma empresa para vincular.');
-+          setCreating(false);
-+          return;
-+        }
-+        await linkAsBranch(customer.id, selectedExisting.id);
-+      } else {
-+        // Criar nova filial
-+        const cleanCnpj = extractDigits(newBranch.cnpj);
-+        if (!newBranch.legalName || cleanCnpj.length !== 14) {
-+          setAddError('Informe Razão Social e um CNPJ válido (14 dígitos).');
-+          setCreating(false);
-+          return;
-+        }
-+        await createCompanyAsBranch(customer.id, {
-+          kind: 'COMPANY',
-+          displayName: newBranch.displayName || newBranch.legalName,
-+          company: {
-+            legalName: newBranch.legalName,
-+            tradeName: newBranch.tradeName || undefined,
-+            cnpj: cleanCnpj,
-+            email: newBranch.email || undefined,
-+            phone: newBranch.phone || undefined
-+          }
-+        } as any);
-+      }
-+      // refresh lista de filiais
-+      const res = await getCompanyBranches(customer.id);
-+      setBranches(await hydrateChildren(res));
-+      setAddOpen(false);
-+    } catch (e: any) {
-+      setAddError(e?.response?.data?.message || 'Falha ao adicionar filial');
-+    } finally {
-+      setCreating(false);
-+    }
-+  };
 +
 +  if (loading) {
 +    return (
@@ -686,11 +583,11 @@ index 0000000..f1fd021
 +    );
 +  }
 +
-+  if (error || !customer) {
++  if (!customer) {
 +    return (
 +      <Box sx={{ p: 3 }}>
 +        <Alert severity="error" sx={{ mb: 3 }}>
-+          {error || 'Cliente não encontrado'}
++          Cliente não encontrado
 +        </Alert>
 +        <Button onClick={handleBack}>Voltar</Button>
 +      </Box>
@@ -1133,14 +1030,6 @@ index 0000000..f1fd021
 +              <Stack direction="row" spacing={2}>
 +                <Button
 +                  variant="contained"
-+                  color="primary"
-+                  startIcon={<AddIcon />}
-+                  onClick={handleOpenAdd}
-+                >
-+                  Adicionar Filial
-+                </Button>
-+                <Button
-+                  variant="contained"
 +                  onClick={() => navigate(`/clients/${id}/edit`)}
 +                  startIcon={<EditIcon />}
 +                >
@@ -1201,82 +1090,6 @@ index 0000000..f1fd021
 +              })()}
 +            </Box>
 +
-+            {/* Dialog: Adicionar Filial */}
-+            <Dialog open={addOpen} onClose={() => setAddOpen(false)} fullWidth maxWidth="md">
-+              <DialogTitle>Adicionar Filial</DialogTitle>
-+              <DialogContent dividers>
-+                <Tabs value={addTab} onChange={(_, v) => setAddTab(v)} sx={{ mb: 2 }}>
-+                  <Tab label="Vincular existente" icon={<LinkIcon />} iconPosition="start" />
-+                  <Tab label="Criar nova" icon={<AddIcon />} iconPosition="start" />
-+                </Tabs>
-+                {addTab === 0 && (
-+                  <Box sx={{ display: 'grid', gap: 2 }}>
-+                    <Autocomplete
-+                      loading={existingLoading}
-+                      options={existingOptions}
-+                      value={selectedExisting}
-+                      getOptionLabel={(opt) => opt.displayName}
-+                      noOptionsText={searchExisting.length < 2 ? 'Digite ao menos 2 caracteres' : 'Nenhuma empresa encontrada'}
-+                      onInputChange={(_, value) => setSearchExisting(value)}
-+                      onChange={(_, value) => setSelectedExisting(value)}
-+                      renderInput={(params) => (
-+                        <TextField
-+                          {...params}
-+                          label="Buscar empresa para vincular como filial"
-+                          placeholder="Nome, CNPJ..."
-+                        />
-+                      )}
-+                    />
-+                  </Box>
-+                )}
-+                {addTab === 1 && (
-+                  <Box sx={{ display: 'grid', gap: 2 }}>
-+                    <TextField
-+                      label="Razão Social *"
-+                      value={newBranch.legalName}
-+                      onChange={(e) => setNewBranch({ ...newBranch, legalName: e.target.value })}
-+                      fullWidth
-+                      required
-+                    />
-+                    <TextField
-+                      label="Nome Fantasia"
-+                      value={newBranch.tradeName}
-+                      onChange={(e) => setNewBranch({ ...newBranch, tradeName: e.target.value })}
-+                      fullWidth
-+                    />
-+                    <TextField
-+                      label="CNPJ *"
-+                      value={newBranch.cnpj}
-+                      onChange={(e) => setNewBranch({ ...newBranch, cnpj: e.target.value })}
-+                      placeholder="00.000.000/0000-00"
-+                      fullWidth
-+                      required
-+                    />
-+                    <TextField
-+                      label="E-mail"
-+                      value={newBranch.email}
-+                      onChange={(e) => setNewBranch({ ...newBranch, email: e.target.value })}
-+                      fullWidth
-+                    />
-+                    <TextField
-+                      label="Telefone"
-+                      value={newBranch.phone}
-+                      onChange={(e) => setNewBranch({ ...newBranch, phone: e.target.value })}
-+                      fullWidth
-+                    />
-+                  </Box>
-+                )}
-+                {addError && (
-+                  <Alert severity="error" sx={{ mt: 2 }}>{addError}</Alert>
-+                )}
-+              </DialogContent>
-+              <DialogActions>
-+                <Button onClick={() => setAddOpen(false)}>Cancelar</Button>
-+                <Button onClick={handleConfirmAdd} variant="contained" disabled={creating}>
-+                  {creating ? <><LoadingIcon />&nbsp;Salvando...</> : 'Confirmar'}
-+                </Button>
-+              </DialogActions>
-+            </Dialog>
 +          </TabPanel>
 +        )}
 +
@@ -1365,10 +1178,10 @@ index 9130811..7b81a01 100644
            element: <SensitiveFieldsPage />
 diff --git a/src/sections/customers/CustomerForm.tsx b/src/sections/customers/CustomerForm.tsx
 new file mode 100644
-index 0000000..4967623
+index 0000000..75cfb51
 --- /dev/null
 +++ b/src/sections/customers/CustomerForm.tsx
-@@ -0,0 +1,2078 @@
+@@ -0,0 +1,2160 @@
 +import React, { useState, useEffect } from 'react';
 +import {
 +  AlertTitle,
@@ -1412,6 +1225,7 @@ index 0000000..4967623
 +  linkAsBranch, createCompanyAsBranch, deleteCompanyBranch, getCompanyBranches,
 +  getCompanyPeople, upsertCompanyPerson, deleteCompanyPerson
 +} from '../../api/customers';
++import { openSnackbar } from '../../api/snackbar';
 +import type { CreateAddressPayload, AddressType, UpdateAddressPayload } from '../../types/customers';
 +
 +// Interface para endereços no formulário (pode ter id se for existente)
@@ -1504,6 +1318,7 @@ index 0000000..4967623
 +type DraftLink = {
 +  // Identificação
 +  personId?: string;           // quando adicionar existente
++  cpf?: string;                // fallback para identificação por CPF
 +  createPerson?: {             // quando criar nova pessoa
 +    fullName: string;
 +    cpf: string;               // com máscara no input; enviaremos só dígitos
@@ -1537,9 +1352,7 @@ index 0000000..4967623
 +  
 +  const [formData, setFormData] = useState<CustomerFormData>(initialFormData);
 +  const [loading, setLoading] = useState(false);
-+  const [error, setError] = useState<string | null>(null);
 +  const [cnpjSearching, setCnpjSearching] = useState(false);
-+  const [cnpjSearchError, setCnpjSearchError] = useState<string | null>(null);
 +  const [receitaData, setReceitaData] = useState<ReceitaFederalData | null>(null);
 +  // endereços no formulário (existentes com id ou novos sem id)
 +  const [companyAddresses, setCompanyAddresses] = useState<FormAddressPayload[]>([]);
@@ -1558,7 +1371,6 @@ index 0000000..4967623
 +  // ---- MATRIZ / FILIAIS (no Editar) ----
 +  const [branches, setBranches] = useState<CustomerBranch[]>([]);
 +  const [branchesLoading, setBranchesLoading] = useState(false);
-+  const [branchesError, setBranchesError] = useState<string | null>(null);
 +  // dialog "Adicionar Filial"
 +  const [addOpen, setAddOpen] = useState(false);
 +  const [addTab, setAddTab] = useState(0); // 0 = existente, 1 = nova
@@ -1567,7 +1379,6 @@ index 0000000..4967623
 +  const [existingBranchOptions, setExistingBranchOptions] = useState<Customer[]>([]);
 +  const [selectedExistingBranch, setSelectedExistingBranch] = useState<Customer | null>(null);
 +  const [creatingBranch, setCreatingBranch] = useState(false);
-+  const [addBranchError, setAddBranchError] = useState<string | null>(null);
 +  const [newBranch, setNewBranch] = useState({
 +    displayName: '',
 +    legalName: '',
@@ -1637,7 +1448,7 @@ index 0000000..4967623
 +    return () => { alive = false; clearTimeout(t); };
 +  }, [parentSearch, formData.kind]);
 +
-+  // Buscar empresas para "Vincular existente" (filial) no diálogo
++  // --- busca para "Vincular existente" (filiais) ---
 +  useEffect(() => {
 +    let alive = true;
 +    if (!addOpen || addTab !== 0) return;
@@ -1698,9 +1509,13 @@ index 0000000..4967623
 +           ch?.legalName ||
 +           b.childId;
 +  };
++  // Sempre devolver o *customerId* da filial para navegação/remoção
 +  const branchTargetId = (b: CustomerBranch) => {
 +    const ch: any = (b as any).child;
-+    return ch?.id || ch?.customer?.id || b.childId;
++    // 1) childId (id do Customer da filial vindo do link)
++    // 2) child.customer.id (quando child vem expandido)
++    // 3) ch.id (fallback legado; pode ser company.id)
++    return b.childId || ch?.customer?.id || ch?.id;
 +  };
 +
 +  // Carrega lista de filiais para a empresa atual (se for matriz), ou irmãs (se for filial)
@@ -1710,7 +1525,6 @@ index 0000000..4967623
 +      return;
 +    }
 +    setBranchesLoading(true);
-+    setBranchesError(null);
 +    try {
 +      const parent = (cust.company as any)?.parent?.customer || null;
 +      const baseId = parent ? parent.id : cust.id;
@@ -1718,7 +1532,12 @@ index 0000000..4967623
 +      if (parent) list = list.filter(b => b.childId !== cust.id); // se for filial, oculta ela mesma
 +      setBranches(list);
 +    } catch (e: any) {
-+      setBranchesError(e?.response?.data?.message || 'Erro ao carregar filiais');
++      openSnackbar({ 
++        open: true, 
++        message: e?.response?.data?.message || 'Erro ao carregar filiais', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +      setBranches([]);
 +    } finally {
 +      setBranchesLoading(false);
@@ -1803,7 +1622,7 @@ index 0000000..4967623
 +
 +       // pessoas vinculadas (EDIT de empresa)
 +       if (customer.kind === 'COMPANY') {
-+         await refreshPeopleLinks(customer.id);
++         await refreshPeopleLinks(id);
 +       }
 +
 +       // Carregar endereços existentes
@@ -1847,7 +1666,12 @@ index 0000000..4967623
 +         setOriginalAddressIds(customer.person.addresses.map(a => a.id));
 +       }
 +    } catch (err: any) {
-+      setError(err.response?.data?.message || 'Erro ao carregar cliente');
++      openSnackbar({ 
++        open: true, 
++        message: err.response?.data?.message || 'Erro ao carregar cliente', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +    } finally {
 +      setLoading(false);
 +    }
@@ -1986,12 +1810,16 @@ index 0000000..4967623
 +
 +  const handleCnpjSearch = async () => {
 +    if (!formData.cnpj || formData.cnpj.length < 14) {
-+      setCnpjSearchError('Digite um CNPJ válido');
++      openSnackbar({ 
++        open: true, 
++        message: 'Digite um CNPJ válido', 
++        variant: 'alert', 
++        alert: { color: 'warning' } 
++      } as any);
 +      return;
 +    }
 +
 +    setCnpjSearching(true);
-+    setCnpjSearchError(null);
 +    setReceitaData(null);
 +
 +    try {
@@ -2026,7 +1854,12 @@ index 0000000..4967623
 +      });
 +    } catch (err: any) {
 +      console.error('Erro ao buscar CNPJ:', err);
-+      setCnpjSearchError(err.response?.data?.message || err.message || 'Erro ao buscar dados da Receita Federal');
++      openSnackbar({ 
++        open: true, 
++        message: err.response?.data?.message || err.message || 'Erro ao buscar dados da Receita Federal', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +    } finally {
 +      setCnpjSearching(false);
 +    }
@@ -2055,7 +1888,12 @@ index 0000000..4967623
 +      const cust = await getCustomer(id, true);
 +      await loadBranches(cust);
 +    } catch (e: any) {
-+      setBranchesError(e?.response?.data?.message || 'Erro ao remover filial');
++      openSnackbar({ 
++        open: true, 
++        message: e?.response?.data?.message || 'Erro ao remover filial', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +    }
 +  };
 +
@@ -2070,13 +1908,17 @@ index 0000000..4967623
 +      const cust = await getCustomer(id, true);
 +      await loadBranches(cust);
 +    } catch (e: any) {
-+      setBranchesError(e?.response?.data?.message || 'Erro ao remover matriz');
++      openSnackbar({ 
++        open: true, 
++        message: e?.response?.data?.message || 'Erro ao remover matriz', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +    }
 +  };
 +
 +  // --- Adicionar filial (dialog)
 +  const openAddDialog = () => {
-+    setAddBranchError(null);
 +    setSelectedExistingBranch(null);
 +    setSearchExistingBranch('');
 +    setExistingBranchOptions([]);
@@ -2095,11 +1937,15 @@ index 0000000..4967623
 +  const confirmAddBranch = async () => {
 +    if (!id) return;
 +    setCreatingBranch(true);
-+    setAddBranchError(null);
 +    try {
 +      if (addTab === 0) {
 +        if (!selectedExistingBranch?.id) {
-+          setAddBranchError('Selecione uma empresa para vincular.');
++          openSnackbar({ 
++            open: true, 
++            message: 'Selecione uma empresa para vincular.', 
++            variant: 'alert', 
++            alert: { color: 'warning' } 
++          } as any);
 +          setCreatingBranch(false);
 +          return;
 +        }
@@ -2107,7 +1953,12 @@ index 0000000..4967623
 +      } else {
 +        const cleanCnpj = extractDigits(newBranch.cnpj);
 +        if (!newBranch.legalName || cleanCnpj.length !== 14) {
-+          setAddBranchError('Informe Razão Social e um CNPJ válido (14 dígitos).');
++          openSnackbar({ 
++            open: true, 
++            message: 'Informe Razão Social e um CNPJ válido (14 dígitos).', 
++            variant: 'alert', 
++            alert: { color: 'warning' } 
++          } as any);
 +          setCreatingBranch(false);
 +          return;
 +        }
@@ -2127,7 +1978,12 @@ index 0000000..4967623
 +      await loadBranches(cust);
 +      setAddOpen(false);
 +    } catch (e: any) {
-+      setAddBranchError(e?.response?.data?.message || 'Falha ao adicionar filial');
++      openSnackbar({ 
++        open: true, 
++        message: e?.response?.data?.message || 'Falha ao adicionar filial', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +    } finally {
 +      setCreatingBranch(false);
 +    }
@@ -2136,7 +1992,6 @@ index 0000000..4967623
 +  const handleSubmit = async (e: React.FormEvent) => {
 +    e.preventDefault();
 +    setLoading(true);
-+    setError(null);
 +
 +    try {
 +      if (isEdit && id) {
@@ -2271,6 +2126,7 @@ index 0000000..4967623
 +                   // pessoas vinculadas (draft)
 +                   people: peopleDraft.length ? peopleDraft.map(p => ({
 +                     ...(p.personId ? { personId: p.personId } : {}),
++                     ...(p.cpf ? { cpf: extractDigits(p.cpf) } : {}),
 +                     ...(p.createPerson ? { createPerson: p.createPerson } : {}),
 +                     role: p.role || undefined,
 +                     isPrimary: !!p.isPrimary,
@@ -2308,6 +2164,7 @@ index 0000000..4967623
 +              // pessoas vinculadas (draft)
 +              people: peopleDraft.length ? peopleDraft.map(p => ({
 +                ...(p.personId ? { personId: p.personId } : {}),
++                ...(p.cpf ? { cpf: extractDigits(p.cpf) } : {}),
 +                ...(p.createPerson ? { createPerson: p.createPerson } : {}),
 +                role: p.role || undefined,
 +                isPrimary: !!p.isPrimary,
@@ -2326,7 +2183,12 @@ index 0000000..4967623
 +
 +      navigate('/clients');
 +    } catch (err: any) {
-+      setError(err.response?.data?.message || 'Erro ao salvar cliente');
++      openSnackbar({ 
++        open: true, 
++        message: err.response?.data?.message || 'Erro ao salvar cliente', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +    } finally {
 +      setLoading(false);
 +    }
@@ -2356,12 +2218,6 @@ index 0000000..4967623
 +        </Typography>
 +      </Box>
 +
-+      {/* Erro */}
-+      {error && (
-+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-+          {error}
-+        </Alert>
-+      )}
 +
 +      <form onSubmit={handleSubmit}>
 +        <Card>
@@ -2541,8 +2397,7 @@ index 0000000..4967623
 +                        }}
 +                        placeholder="00.000.000/0000-00"
 +                        required
-+                        error={!!cnpjSearchError}
-+                        helperText={cnpjSearchError || "Digite o CNPJ e clique em buscar para preencher automaticamente"}
++                        helperText="Digite o CNPJ e clique em buscar para preencher automaticamente"
 +                      />
 +                      <Button
 +                        variant="contained"
@@ -2856,7 +2711,8 @@ index 0000000..4967623
 +        {formData.kind === 'COMPANY' && (
 +          <TabPanel value={tabValue} index={2}>
 +            <Stack spacing={3}>
-+              {/* Status atual */}
++              {/* Status atual + lista + ações (somente no EDIT) */}
++              {isEdit && (
 +              <Card>
 +                <CardContent>
 +                  <Typography variant="h6" gutterBottom>Matriz / Filiais</Typography>
@@ -2884,8 +2740,6 @@ index 0000000..4967623
 +                    </Typography>
 +                    {branchesLoading ? (
 +                      <Typography color="text.secondary">Carregando...</Typography>
-+                    ) : branchesError ? (
-+                      <Alert severity="error">{branchesError}</Alert>
 +                    ) : branches.length === 0 ? (
 +                      <Typography color="text.secondary">
 +                        {initialParentId ? 'Nenhuma outra filial vinculada à matriz.' : 'Nenhuma filial vinculada.'}
@@ -2901,9 +2755,7 @@ index 0000000..4967623
 +                              label={label}
 +                              onDelete={!initialParentId ? () => handleRemoveBranch(childId!) : undefined}
 +                              clickable
-+                              component="a"
-+                              href={childId ? `/clients/${childId}` : undefined}
-+                              target="_self"
++                              onClick={() => childId && navigate(`/clients/${childId}`)}
 +                            />
 +                          );
 +                        })}
@@ -2921,6 +2773,7 @@ index 0000000..4967623
 +                  )}
 +                </CardContent>
 +              </Card>
++              )}
 +
 +              {/* Alterar/Definir Matriz */}
 +              <Card>
@@ -2967,6 +2820,7 @@ index 0000000..4967623
 +            </Stack>
 +
 +            {/* Dialog: Adicionar Filial */}
++            {isEdit && (
 +            <Dialog open={addOpen} onClose={() => setAddOpen(false)} fullWidth maxWidth="md">
 +              <DialogTitle>Adicionar Filial</DialogTitle>
 +              <DialogContent dividers>
@@ -3031,9 +2885,6 @@ index 0000000..4967623
 +                    />
 +                  </Box>
 +                )}
-+                {addBranchError && (
-+                  <Alert severity="error" sx={{ mt: 2 }}>{addBranchError}</Alert>
-+                )}
 +              </DialogContent>
 +              <DialogActions>
 +                <Button onClick={() => setAddOpen(false)}>Cancelar</Button>
@@ -3042,6 +2893,8 @@ index 0000000..4967623
 +                </Button>
 +              </DialogActions>
 +            </Dialog>
++            )}
++
 +          </TabPanel>
 +        )}
 +
@@ -3157,9 +3010,40 @@ index 0000000..4967623
 +                        {peopleLinks.map((lnk, idx) => (
 +                          <Card key={lnk.personId} variant="outlined">
 +                            <CardContent>
-+                              <Stack spacing={1}>
-+                                <Typography fontWeight={600}>
-+                                  {lnk.person?.customer?.displayName || lnk.person?.fullName || 'Pessoa'}
++                              <Stack spacing={2}>
++                                {/* Informações da Pessoa */}
++                                <Box>
++                                  <Typography variant="h6" fontWeight={600} gutterBottom>
++                                    {lnk.person?.customer?.displayName || lnk.person?.fullName || 'Pessoa'}
++                                  </Typography>
++                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
++                                    <Box sx={{ minWidth: '200px', flex: '1 1 200px' }}>
++                                      <Typography variant="body2" color="text.secondary">
++                                        <strong>CPF:</strong> {lnk.person?.cpf ? lnk.person.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
++                                      </Typography>
++                                    </Box>
++                                    <Box sx={{ minWidth: '200px', flex: '1 1 200px' }}>
++                                      <Typography variant="body2" color="text.secondary">
++                                        <strong>RG:</strong> {lnk.person?.rg || '-'}
++                                      </Typography>
++                                    </Box>
++                                    <Box sx={{ minWidth: '200px', flex: '1 1 200px' }}>
++                                      <Typography variant="body2" color="text.secondary">
++                                        <strong>Email:</strong> {lnk.person?.email || '-'}
++                                      </Typography>
++                                    </Box>
++                                    <Box sx={{ minWidth: '200px', flex: '1 1 200px' }}>
++                                      <Typography variant="body2" color="text.secondary">
++                                        <strong>Telefone:</strong> {lnk.person?.phone || '-'}
++                                      </Typography>
++                                    </Box>
++                                  </Box>
++                                </Box>
++
++                                {/* Campos Editáveis */}
++                                <Divider />
++                                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
++                                  Dados do Vínculo
 +                                </Typography>
 +                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
 +                                  <TextField
@@ -3175,7 +3059,7 @@ index 0000000..4967623
 +                                    label="Início (YYYY-MM-DD)"
 +                                    type="date"
 +                                    InputLabelProps={{ shrink: true }}
-+                                    value={lnk.startedOn || ''}
++                                    value={lnk.startedOn ? lnk.startedOn.split('T')[0] : ''}
 +                                    onChange={(e) => {
 +                                      const v = e.target.value;
 +                                      setPeopleLinks(prev => prev.map((it, i) => i === idx ? { ...it, startedOn: v } : it));
@@ -3186,7 +3070,7 @@ index 0000000..4967623
 +                                    label="Término (YYYY-MM-DD)"
 +                                    type="date"
 +                                    InputLabelProps={{ shrink: true }}
-+                                    value={lnk.endedOn || ''}
++                                    value={lnk.endedOn ? lnk.endedOn.split('T')[0] : ''}
 +                                    onChange={(e) => {
 +                                      const v = e.target.value;
 +                                      setPeopleLinks(prev => prev.map((it, i) => i === idx ? { ...it, endedOn: v } : it));
@@ -3194,7 +3078,9 @@ index 0000000..4967623
 +                                    fullWidth
 +                                  />
 +                                </Stack>
-+                                <Stack direction="row" spacing={2}>
++                                
++                                {/* Status e Flags */}
++                                <Stack direction="row" spacing={3} alignItems="center">
 +                                  <FormControlLabel
 +                                    control={<Switch checked={!!lnk.isPrimary} onChange={() => {
 +                                      // local: garantir 1 primário
@@ -3210,40 +3096,46 @@ index 0000000..4967623
 +                                    label="Representante Legal"
 +                                  />
 +                                  <Box sx={{ flex: 1 }} />
-+                                  <Button
-+                                    variant="contained"
-+                                    onClick={async () => {
-+                                      if (!id) return;
-+                                      try {
-+                                        await upsertCompanyPerson(id, {
-+                                          personId: lnk.personId,
-+                                          role: lnk.role || undefined,
-+                                          isPrimary: !!lnk.isPrimary,
-+                                          isLegalRepresentative: !!lnk.isLegalRepresentative,
-+                                          startedOn: lnk.startedOn || undefined,
-+                                          endedOn: lnk.endedOn || undefined
-+                                        });
-+                                      } catch (e: any) {
-+                                        setPeopleError(friendlyError(e, 'Falha ao salvar vínculo'));
-+                                      } finally {
-+                                        await refreshPeopleLinks(id);
-+                                      }
-+                                    }}
-+                                  >
-+                                    Salvar
-+                                  </Button>
-+                                  <Button color="error" onClick={async () => {
-+                                    if (!id) return;
-+                                    try {
-+                                      await deleteCompanyPerson(id, lnk.personId);
-+                                    } catch (e: any) {
-+                                      setPeopleError(friendlyError(e, 'Falha ao remover vínculo'));
-+                                    } finally {
-+                                      await refreshPeopleLinks(id);
-+                                    }
-+                                  }}>
-+                                    Remover
-+                                  </Button>
++                                  <Stack direction="row" spacing={1}>
++                                    <Button
++                                      variant="contained"
++                                      onClick={async () => {
++                                        if (!id) return;
++                                        try {
++                                          await upsertCompanyPerson(id, {
++                                            personId: lnk.personId,
++                                            role: lnk.role || undefined,
++                                            isPrimary: !!lnk.isPrimary,
++                                            isLegalRepresentative: !!lnk.isLegalRepresentative,
++                                            startedOn: lnk.startedOn || undefined,
++                                            endedOn: lnk.endedOn || undefined
++                                          });
++                                        } catch (e: any) {
++                                          setPeopleError(friendlyError(e, 'Falha ao salvar vínculo'));
++                                        } finally {
++                                          await refreshPeopleLinks(id);
++                                        }
++                                      }}
++                                    >
++                                      Salvar
++                                    </Button>
++                                    <Button 
++                                      color="error" 
++                                      variant="outlined"
++                                      onClick={async () => {
++                                        if (!id) return;
++                                        try {
++                                          await deleteCompanyPerson(id, lnk.personId);
++                                        } catch (e: any) {
++                                          setPeopleError(friendlyError(e, 'Falha ao remover vínculo'));
++                                        } finally {
++                                          await refreshPeopleLinks(id);
++                                        }
++                                      }}
++                                    >
++                                      Remover
++                                    </Button>
++                                  </Stack>
 +                                </Stack>
 +                              </Stack>
 +                            </CardContent>
@@ -3331,15 +3223,17 @@ index 0000000..4967623
 +                    setPeopleActionLoading(true);
 +                    try {
 +                      if (peopleTab === 0) {
-+                        if (!selectedExistingPerson?.id) {
-+                          setPeopleActionError('Selecione uma pessoa existente.');
++                        const personPayloadId = (selectedExistingPerson as any)?.person?.id;
++                        const personCpf = (selectedExistingPerson as any)?.person?.cpf;
++                        if (!personPayloadId && !personCpf) {
++                          setPeopleActionError('Pessoa selecionada sem payload (id/cpf). Tente buscar novamente.');
 +                          setPeopleActionLoading(false);
 +                          return;
 +                        }
 +                        if (isEdit && id) {
 +                          // EDIT: upsert imediato
 +                          await upsertCompanyPerson(id, {
-+                            personId: selectedExistingPerson.id,
++                            ...(personPayloadId ? { personId: personPayloadId } : { cpf: personCpf }),
 +                            role: peopleRole || undefined,
 +                            isPrimary: !!peopleIsPrimary,
 +                            isLegalRepresentative: !!peopleIsLegalRep,
@@ -3350,7 +3244,8 @@ index 0000000..4967623
 +                        } else {
 +                          // CREATE: acumula no draft
 +                          const item: DraftLink = {
-+                            personId: selectedExistingPerson.id,
++                            ...(personPayloadId ? { personId: personPayloadId } : {}),
++                            ...(personCpf ? { cpf: personCpf } : {}),
 +                            role: peopleRole || undefined,
 +                            isPrimary: !!peopleIsPrimary,
 +                            isLegalRepresentative: !!peopleIsLegalRep,
@@ -3449,10 +3344,10 @@ index 0000000..4967623
 +}
 diff --git a/src/sections/customers/CustomersList.tsx b/src/sections/customers/CustomersList.tsx
 new file mode 100644
-index 0000000..0c98c3e
+index 0000000..2ffd8e9
 --- /dev/null
 +++ b/src/sections/customers/CustomersList.tsx
-@@ -0,0 +1,330 @@
+@@ -0,0 +1,333 @@
 +import React, { useState, useEffect } from 'react';
 +import {
 +  Box,
@@ -3493,7 +3388,8 @@ index 0000000..0c98c3e
 +} from '@ant-design/icons';
 +import { useNavigate } from 'react-router-dom';
 +import { Customer, CustomerKind } from '../../types/customers';
-+import { listPeople, listCompanies, deleteCustomer, formatCPF, formatCNPJ } from '../../api/customers';
++import { listPeople, listCompanies, deleteCustomer } from '../../api/customers';
++import { openSnackbar } from '../../api/snackbar';
 +
 +// ==============================|| CUSTOMERS LIST ||============================== //
 +
@@ -3506,12 +3402,10 @@ index 0000000..0c98c3e
 +  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 +  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 +  const [deleteDialog, setDeleteDialog] = useState(false);
-+  const [error, setError] = useState<string | null>(null);
 +
 +  // Carregar clientes
 +  const loadCustomers = async () => {
 +    setLoading(true);
-+    setError(null);
 +    try {
 +      let allCustomers: Customer[] = [];
 +      
@@ -3527,7 +3421,12 @@ index 0000000..0c98c3e
 +      
 +      setCustomers(allCustomers);
 +    } catch (err: any) {
-+      setError(err.response?.data?.message || 'Erro ao carregar clientes');
++      openSnackbar({ 
++        open: true, 
++        message: err.response?.data?.message || 'Erro ao carregar clientes', 
++        variant: 'alert', 
++        alert: { color: 'error' } 
++      } as any);
 +    } finally {
 +      setLoading(false);
 +    }
@@ -3583,7 +3482,12 @@ index 0000000..0c98c3e
 +        setDeleteDialog(false);
 +        setSelectedCustomer(null);
 +      } catch (err: any) {
-+        setError(err.response?.data?.message || 'Erro ao deletar cliente');
++        openSnackbar({ 
++          open: true, 
++          message: err.response?.data?.message || 'Erro ao deletar cliente', 
++          variant: 'alert', 
++          alert: { color: 'error' } 
++        } as any);
 +      }
 +    }
 +  };
@@ -3661,12 +3565,6 @@ index 0000000..0c98c3e
 +        </CardContent>
 +      </Card>
 +
-+      {/* Erro */}
-+      {error && (
-+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-+          {error}
-+        </Alert>
-+      )}
 +
 +      {/* Tabela */}
 +      <Card>
@@ -3785,10 +3683,10 @@ index 0000000..0c98c3e
 +}
 diff --git a/src/types/customers.ts b/src/types/customers.ts
 new file mode 100644
-index 0000000..c91ada7
+index 0000000..19817ff
 --- /dev/null
 +++ b/src/types/customers.ts
-@@ -0,0 +1,301 @@
+@@ -0,0 +1,291 @@
 +// ==============================|| CUSTOMERS TYPES ||============================== //
 +
 +// relação Customer ↔ Customer (matriz ↔ filial)
@@ -4023,45 +3921,41 @@ index 0000000..c91ada7
 +
 +// ==============================|| RECEITA FEDERAL TYPES ||============================== //
 +
-+// Resposta da API da Receita Federal
++// Resposta da sua API de CNPJ/Receita (exatamente como retorna do backend)
 +export type ReceitaFederalApiResponse = {
 +  cnpj: string;
 +  razaoSocial: string;
-+  nomeFantasia: string | null;
-+  situacao: string;
-+  dataSituacao: string;
-+  motivoSituacao: string | null;
-+  naturezaJuridica: string;
-+  porte: string;
-+  abertura: string;
-+  atividadePrincipal: {
-+    codigo: string;
-+    descricao: string;
++  nomeFantasia?: string | null;
++
++  situacao: 'ATIVA' | 'INATIVA' | 'SUSPENSA' | 'INAPTA' | 'BAIXADA' | string;
++  dataSituacao?: string;
++  motivoSituacao?: string | null;
++
++  naturezaJuridica?: string;
++  abertura?: string; // 'dd/MM/yyyy' ou ISO
++  capitalSocial?: number | string;
++  porte?: string; // 'MEI', 'MICRO EMPRESA', etc.
++
++  atividadePrincipal: { codigo: string; descricao: string };
++  atividadesSecundarias: Array<{ codigo: string; descricao: string }>;
++
++  contato: {
++    email?: string | null;
++    telefone?: string | null;
 +  };
-+  atividadesSecundarias: Array<{
-+    codigo: string;
-+    descricao: string;
-+  }>;
++
 +  endereco: {
 +    logradouro: string;
-+    numero: string;
-+    complemento: string | null;
-+    bairro: string;
++    numero?: string;
++    complemento?: string | null;
++    bairro?: string;
 +    municipio: string;
 +    uf: string;
-+    cep: string;
-+    pais: string;
++    cep: string; // pode vir com ou sem máscara
 +  };
-+  contato: {
-+    telefone: string | null;
-+    email: string | null;
-+  };
-+  capitalSocial: string;
-+  ultimaAtualizacao: string;
-+  extra: Record<string, any>;
 +};
 +
-+// Dados mapeados para o frontend
++// Formato interno usado no frontend (mapeado em api/customers.ts)
 +export type ReceitaFederalData = {
 +  cnpj: string;
 +  legalName: string;
@@ -4069,25 +3963,19 @@ index 0000000..c91ada7
 +  phone?: string;
 +  address: {
 +    street: string;
-+    number: string;
++    number?: string;
 +    complement?: string;
-+    district: string;
++    district?: string;
 +    city: string;
 +    state: string;
 +    postalCode: string;
 +  };
-+  status: string; // ex.: 'ATIVA'
-+  openingDate: string; // 'dd/MM/yyyy'
-+  legalNature: string; // ex.: '206-2 - Sociedade Empresária Limitada'
-+  capital: string; // ex.: '10000.00'
-+  size: string; // ex.: 'MICRO EMPRESA'
-+  mainActivity: {
-+    code: string;
-+    description: string;
-+  };
-+  secondaryActivities: Array<{
-+    code: string;
-+    description: string;
-+  }>;
++  status?: 'ATIVA' | 'INATIVA' | 'SUSPENSA' | 'INAPTA' | 'BAIXADA' | string;
++  openingDate?: string; // 'dd/MM/yyyy' ou 'YYYY-MM-DD'
++  legalNature?: string;
++  capital?: number | string;
++  size?: string; // porte
++  mainActivity?: { code: string; description: string };
++  secondaryActivities: Array<{ code: string; description: string }>;
 +};
 \ No newline at end of file

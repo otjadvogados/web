@@ -39,6 +39,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Customer, CustomerKind } from '../../types/customers';
 import { listPeople, listCompanies, deleteCustomer } from '../../api/customers';
+import { openSnackbar } from '../../api/snackbar';
 
 // ==============================|| CUSTOMERS LIST ||============================== //
 
@@ -51,12 +52,10 @@ export default function CustomersList() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [deleteDialog, setDeleteDialog] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Carregar clientes
   const loadCustomers = async () => {
     setLoading(true);
-    setError(null);
     try {
       let allCustomers: Customer[] = [];
       
@@ -72,7 +71,12 @@ export default function CustomersList() {
       
       setCustomers(allCustomers);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erro ao carregar clientes');
+      openSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || 'Erro ao carregar clientes', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
     } finally {
       setLoading(false);
     }
@@ -128,7 +132,12 @@ export default function CustomersList() {
         setDeleteDialog(false);
         setSelectedCustomer(null);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Erro ao deletar cliente');
+        openSnackbar({ 
+          open: true, 
+          message: err.response?.data?.message || 'Erro ao deletar cliente', 
+          variant: 'alert', 
+          alert: { color: 'error' } 
+        } as any);
       }
     }
   };
@@ -206,12 +215,6 @@ export default function CustomersList() {
         </CardContent>
       </Card>
 
-      {/* Erro */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
 
       {/* Tabela */}
       <Card>
