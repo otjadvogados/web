@@ -16,6 +16,12 @@ type Props = {
   onRejectOp?: (aop: AnchoredOp) => void;
   // Props para findings de análise
   findingAnchors?: Map<number, AnchoredFinding[]>;
+  // NOVO: imagens para cabeçalho/rodapé (opcional)
+  headerImageSrc?: string;
+  footerImageSrc?: string;
+  // altura das imagens em milímetros (opcional)
+  headerHeightMm?: number;
+  footerHeightMm?: number;
 };
 
 /* ==================================== util ==================================== */
@@ -143,7 +149,12 @@ export default function A4Editor({
   opAnchors,
   onAcceptOp,
   onRejectOp,
-  findingAnchors
+  findingAnchors,
+  // NOVO
+  headerImageSrc,
+  footerImageSrc,
+  headerHeightMm: headerH = 30, // default ~3cm
+  footerHeightMm: footerH = 20  // default ~2cm
 }: Props) {
   // Pode vir “embrulhado”: { json: { blocks, sections, ... } }
   const root: any = (value as any)?.json ?? value;
@@ -202,6 +213,10 @@ export default function A4Editor({
   const mBottomMm = ptToMm(section?.margins?.bottom) ?? 20;
   const mLeftMm   = ptToMm(section?.margins?.left)   ?? 25;
 
+  // NOVO: espaço reservado para header/footer
+  const headReserve = headerImageSrc ? headerH : 0;
+  const footReserve = footerImageSrc ? footerH : 0;
+
   const pageStyle = useMemo(
     () => ({
       width: `${pageWidthMm}mm`,
@@ -209,11 +224,13 @@ export default function A4Editor({
       background: '#fff',
       boxShadow: '0 0 6px rgba(0,0,0,.15)',
       margin: '0 auto',
-      padding: `${mTopMm}mm ${mRightMm}mm ${mBottomMm}mm ${mLeftMm}mm`,
+      padding: `${mTopMm + headReserve}mm ${mRightMm}mm ${mBottomMm + footReserve}mm ${mLeftMm}mm`,
       color: '#111',
-      lineHeight: 1.5
+      lineHeight: 1.5,
+      position: 'relative',   // NOVO: para posicionar imagens absolutas
+      overflow: 'hidden'
     }),
-    [pageWidthMm, pageHeightMm, mTopMm, mRightMm, mBottomMm, mLeftMm]
+    [pageWidthMm, pageHeightMm, mTopMm, mRightMm, mBottomMm, mLeftMm, headReserve, footReserve]
   );
 
   /* ============================ paragraph CSS (mistura estilo global + do bloco) ============================ */
@@ -332,9 +349,76 @@ export default function A4Editor({
           size: ${pageWidthMm}mm ${pageHeightMm}mm;
           margin: ${mTopMm}mm ${mRightMm}mm ${mBottomMm}mm ${mLeftMm}mm;
         }
+        @media print {
+          /* imprime com as imagens repetidas a cada página */
+          .a4-header {
+            position: absolute !important;
+            top: ${mTopMm + headReserve/2}mm !important;
+            left: ${mLeftMm}mm !important;
+            right: ${mRightMm}mm !important;
+            height: ${headReserve}mm !important;
+          }
+          .a4-footer {
+            position: absolute !important;
+            bottom: ${mBottomMm + footReserve/2}mm !important;
+            left: ${mLeftMm}mm !important;
+            right: ${mRightMm}mm !important;
+            height: ${footReserve * 0.7}mm !important;
+          }
+          img.a4-header, img.a4-footer {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            opacity: 0.7 !important;
+          }
+        }
       `}</style>
 
       <Box sx={pageStyle}>
+        {/* NOVO: Header */}
+        {headerImageSrc && headReserve > 0 && (
+          <img
+            src={headerImageSrc}
+            alt=""
+            aria-hidden
+            className="a4-header"
+            style={{
+              position: 'absolute',
+              top: '20mm',
+              left: `${mLeftMm}mm`,
+              right: `${mRightMm}mm`,
+              height: `${headReserve}mm`,
+              width: 'auto',
+              objectFit: 'contain',
+              zIndex: 0,
+              pointerEvents: 'none',
+              opacity: 0.5
+            }}
+          />
+        )}
+
+        {/* NOVO: Footer */}
+        {footerImageSrc && footReserve > 0 && (
+          <img
+            src={footerImageSrc}
+            alt=""
+            aria-hidden
+            className="a4-footer"
+            style={{
+              position: 'absolute',
+              bottom: `10mm`,
+              left: `${mLeftMm}mm`,
+              right: `${mRightMm}mm`,
+              height: `${footReserve * 0.7}mm`,
+              width: '70%',
+              objectFit: 'contain',
+              zIndex: 0,
+              pointerEvents: 'none',
+              opacity: 0.5
+            }}
+          />
+        )}
+
+        {/* conteúdo (fica acima das imagens) */}
         {content.map((b, i) => {
           const commonProps = {
             contentEditable: true,

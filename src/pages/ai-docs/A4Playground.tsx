@@ -27,6 +27,8 @@ import {
 } from 'api/aiDocs';
 import { openSnackbar } from 'api/snackbar';
 import axios from 'utils/axios';
+import headerPng from 'assets/images/cases/header.png';
+import footerPng from 'assets/images/cases/footer.png';
 
 
 
@@ -435,6 +437,11 @@ export default function A4Playground() {
             onAcceptOp={onAcceptOp}
             onRejectOp={onRejectOp}
             findingAnchors={findingAnchored}
+            // NOVO:
+            headerImageSrc={headerPng}
+            footerImageSrc={footerPng}
+            headerHeightMm={30}   // ajuste fino se precisar
+            footerHeightMm={20}
           />
         ) : (
           <Box sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>
