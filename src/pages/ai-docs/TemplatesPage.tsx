@@ -21,6 +21,7 @@ import {
 import { listCategories, type AiCategory } from 'api/aiCategories';
 import { listSubCategories, type AiSubCategory } from 'api/aiSubCategories';
 import { listDepartments, type Department } from 'api/departments';
+import { listCustomers, type Customer, subjectId, resolveSubjectId } from 'api/customers';
 
 export default function TemplatesPage() {
   // listagem
@@ -32,12 +33,15 @@ export default function TemplatesPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [total, setTotal] = useState(0);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  // sempre guardamos o subject id
+  const [customerFilter, setCustomerFilter] = useState<string | null>(null);
 
   // departamentos
   const [departments, setDepartments] = useState<Department[]>([]);
   const [deptLoading, setDeptLoading] = useState(false);
   
-  // categorias
+  // peças
   const [categories, setCategories] = useState<AiCategory[]>([]);
   const [catLoading, setCatLoading] = useState(false);
   const catById = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
@@ -85,10 +89,10 @@ export default function TemplatesPage() {
   async function loadCategories() {
     try {
       setCatLoading(true);
-      const r = await listCategories({ page: 1, limit: 100 });
+      const r = await listCategories({ page: 1, limit: 100, customerId: customerFilter || undefined });
       setCategories(r.data);
     } catch (e: any) {
-      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar categorias', variant: 'alert', alert: { color: 'error' } } as any);
+      openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar peças', variant: 'alert', alert: { color: 'error' } } as any);
     } finally {
       setCatLoading(false);
     }
@@ -112,7 +116,7 @@ export default function TemplatesPage() {
     }
   }
 
-  // carregar subcats quando a categoria do filtro mudar
+  // carregar subcats quando a peça do filtro mudar
   useEffect(() => {
     (async () => {
       setSubCategoryFilter(null);
@@ -130,10 +134,12 @@ export default function TemplatesPage() {
     })();
   }, [categoryFilter]);
 
-  useEffect(() => { loadDepartments(); loadCategories(); }, []);
+  useEffect(() => { loadDepartments(); }, []);
+  useEffect(() => { (async () => { try { const r = await listCustomers({ page:1, limit:300 }); setCustomers(r.data);} catch {} })(); }, []);
+  useEffect(() => { loadCategories(); }, [customerFilter]);
   useEffect(() => { loadRows(); /* eslint-disable-next-line */ }, [search, categoryFilter, subCategoryFilter, page, limit]);
 
-  // carregar categorias do form quando departamento mudar
+  // carregar peças do form quando departamento mudar
   useEffect(() => {
     (async () => {
       setFormCategoryId(null);
@@ -141,8 +147,8 @@ export default function TemplatesPage() {
       if (!formDepartmentId) { setFormCategories([]); setFormSubCategories([]); return; }
       try {
         setFormCatLoading(true);
-        const r = await listCategories({ page: 1, limit: 100 });
-        // filtrar categorias pelo departamento
+        const r = await listCategories({ page: 1, limit: 100, customerId: customerFilter || undefined });
+        // filtrar peças pelo departamento
         const filteredCategories = r.data.filter(cat => cat.departmentId === formDepartmentId);
         setFormCategories(filteredCategories);
       } finally {
@@ -151,7 +157,7 @@ export default function TemplatesPage() {
     })();
   }, [formDepartmentId]);
 
-  // carregar subcats do form quando categoria mudar
+  // carregar subcats do form quando peça mudar
   useEffect(() => {
     (async () => {
       setFormSubCategoryId(null);
@@ -194,15 +200,15 @@ export default function TemplatesPage() {
           const catId = found.categoryId;
           setFormCategoryId(catId);
           
-          // encontrar categoria para obter departmentId
+          // encontrar peça para obter departmentId
           const category = categories.find(c => c.id === catId);
           if (category?.departmentId) {
             setFormDepartmentId(category.departmentId);
             
-            // carregar categorias do departamento
+            // carregar peças do departamento
             try {
               setFormCatLoading(true);
-              const r = await listCategories({ page: 1, limit: 100 });
+              const r = await listCategories({ page: 1, limit: 100, customerId: customerFilter || undefined });
               const filteredCategories = r.data.filter(cat => cat.departmentId === category.departmentId);
               setFormCategories(filteredCategories);
             } finally {
@@ -210,7 +216,7 @@ export default function TemplatesPage() {
             }
           }
           
-          // carregar subcategorias da categoria
+          // carregar subcategorias da peça
           try {
             setFormScLoading(true);
             const r = await listSubCategories({ categoryId: catId, page: 1, limit: 500 });
@@ -262,7 +268,7 @@ export default function TemplatesPage() {
           title: formTitle,
           description: formDescription || null,
           subCategoryId: formSubCategoryId ?? null,
-          // se não vier subcat mas vier categoria, o backend joga em "Geral"
+          // se não vier subcat mas vier peça, o backend joga em "Geral"
           categoryId: !formSubCategoryId ? (formCategoryId ?? null) : undefined
         });
         setRows(prev => prev.map(r => r.id === updated.id ? updated : r));
@@ -343,13 +349,24 @@ export default function TemplatesPage() {
                 sx={{ minWidth: 320 }}
               />
               <Autocomplete
+                options={customers}
+                getOptionLabel={(o) => o.displayName || o.name || 'Cliente sem nome'}
+                value={customers.find(c => subjectId(c) === customerFilter) || null}
+                onChange={async (_, v) => {
+                  setPage(1);
+                  setCustomerFilter((await resolveSubjectId(v)) ?? null);
+                }}
+                sx={{ minWidth: 220 }}
+                renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Global + Cliente" />}
+              />
+              <Autocomplete
                 options={categories}
                 loading={catLoading}
                 getOptionLabel={(o) => o.name}
                 value={categories.find(c => c.id === categoryFilter) || null}
                 onChange={(_, v) => { setPage(1); setCategoryFilter(v?.id ?? null); }}
                 sx={{ minWidth: 220 }}
-                renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Todas" />}
+                renderInput={(params) => <TextField {...params} label="Peça" placeholder="Todas" />}
               />
 
               <Autocomplete
@@ -359,7 +376,7 @@ export default function TemplatesPage() {
                 value={subCategories.find(sc => sc.id === subCategoryFilter) || null}
                 onChange={(_, v) => { setPage(1); setSubCategoryFilter(v?.id ?? null); }}
                 sx={{ minWidth: 220 }}
-                renderInput={(params) => <TextField {...params} label="Subcategoria" placeholder={categoryFilter ? 'Todas' : 'Selecione uma categoria'} />}
+                renderInput={(params) => <TextField {...params} label="Tópico" placeholder={categoryFilter ? 'Todas' : 'Selecione uma peça'} />}
               />
               <Box sx={{ flex: 1 }} />
               <Button startIcon={<PlusOutlined />} variant="contained" onClick={openCreate}>
@@ -376,7 +393,7 @@ export default function TemplatesPage() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Título</TableCell>
-                    <TableCell>Categoria</TableCell>
+                    <TableCell>Peça</TableCell>
                     <TableCell>Criado</TableCell>
                     <TableCell align="center">Ações</TableCell>
                   </TableRow>
@@ -476,7 +493,7 @@ export default function TemplatesPage() {
               value={formCategories.find(c => c.id === formCategoryId) || null}
               onChange={(_, v) => setFormCategoryId(v?.id ?? null)}
               disabled={!formDepartmentId}
-              renderInput={(params) => <TextField {...params} label="Categoria" placeholder={formDepartmentId ? 'Opcional' : 'Selecione um departamento'} />}
+              renderInput={(params) => <TextField {...params} label="Peça" placeholder={formDepartmentId ? 'Opcional' : 'Selecione um departamento'} />}
             />
             <Autocomplete
               options={formSubCategories}
@@ -485,7 +502,7 @@ export default function TemplatesPage() {
               value={formSubCategories.find(sc => sc.id === formSubCategoryId) || null}
               onChange={(_, v) => setFormSubCategoryId(v?.id ?? null)}
               disabled={!formCategoryId}
-              renderInput={(params) => <TextField {...params} label="Subcategoria" placeholder={formCategoryId ? 'Opcional' : 'Selecione uma categoria'} />}
+              renderInput={(params) => <TextField {...params} label="Tópico" placeholder={formCategoryId ? 'Opcional' : 'Selecione uma peça'} />}
             />
             {!editing && (
               <Button component="label" variant="outlined">

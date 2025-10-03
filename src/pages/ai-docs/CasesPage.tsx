@@ -5,17 +5,22 @@ import { PlusOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
 import { listCases, getLatestDraftForCase, type AiCase } from 'api/aiDocs';
+import { listCustomers, type Customer, subjectId, resolveSubjectId } from 'api/customers';
+import Autocomplete from '@mui/material/Autocomplete';
 
 export default function CasesPage() {
   const nav = useNavigate();
   const [search, setSearch] = useState('');
+  // guardamos o "subject id" correto (person.id se PERSON, senão cai para id padrão)
+  const [customerSubjectId, setCustomerSubjectId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<AiCase[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   async function fetch() {
     try {
       setLoading(true);
-      const res = await listCases({ search, page: 1, limit: 20 });
+      const res = await listCases({ search, customerId: customerSubjectId || undefined, page: 1, limit: 20 });
       setItems(res.data || []);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
@@ -24,7 +29,8 @@ export default function CasesPage() {
     }
   }
 
-  useEffect(() => { fetch(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { fetch(); /* eslint-disable-next-line */ }, [customerSubjectId]);
+  useEffect(() => { (async () => { try { const r = await listCustomers({ page:1, limit:200 }); setCustomers(r.data);} catch {} })(); }, []);
 
   return (
     <Box sx={{ p: { xs: 1, md: 3 } }}>
@@ -36,6 +42,14 @@ export default function CasesPage() {
             onChange={(e) => setSearch(e.target.value)} 
             size="small" 
             sx={{ minWidth: 300 }}
+          />
+          <Autocomplete
+            options={customers}
+            getOptionLabel={(o) => o.displayName || o.name || 'Cliente sem nome'}
+            value={customers.find(c => subjectId(c) === customerSubjectId) || null}
+            onChange={async (_, v) => setCustomerSubjectId((await resolveSubjectId(v)) ?? null)}
+            renderInput={(p) => <TextField {...p} placeholder="Cliente (opcional)" size="small" />}
+            sx={{ minWidth: 260 }}
           />
           <Stack direction="row" spacing={1}>
             <Button onClick={fetch} variant="outlined" disabled={loading}>

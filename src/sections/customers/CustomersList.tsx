@@ -61,22 +61,27 @@ export default function CustomersList() {
       
       if (selectedKind === 'ALL' || selectedKind === 'PERSON') {
         const people = await listPeople(searchTerm || undefined);
-        allCustomers = [...allCustomers, ...people];
+        allCustomers = [...allCustomers, ...(people || [])];
       }
       
       if (selectedKind === 'ALL' || selectedKind === 'COMPANY') {
         const companies = await listCompanies(searchTerm || undefined);
-        allCustomers = [...allCustomers, ...companies];
+        allCustomers = [...allCustomers, ...(companies || [])];
       }
       
       setCustomers(allCustomers);
     } catch (err: any) {
-      openSnackbar({ 
-        open: true, 
-        message: err.response?.data?.message || 'Erro ao carregar clientes', 
-        variant: 'alert', 
-        alert: { color: 'error' } 
-      } as any);
+      console.error('Erro ao carregar clientes:', err);
+      // Só mostra erro se não for um array vazio
+      if (err.response?.status !== 200) {
+        openSnackbar({ 
+          open: true, 
+          message: err.response?.data?.message || 'Erro ao carregar clientes', 
+          variant: 'alert', 
+          alert: { color: 'error' } 
+        } as any);
+      }
+      setCustomers([]);
     } finally {
       setLoading(false);
     }

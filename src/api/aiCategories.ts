@@ -8,7 +8,8 @@ export type AiCategory = {
   name: string; 
   slug: string; 
   companyId?: string | null;
-  departmentId?: string | null; // novo
+  departmentId?: string | null;
+  customerId?: string | null;   // novo
   createdAt?: string;
   updatedAt?: string;
 };
@@ -19,7 +20,13 @@ export type AiCategoryListResponse = {
   pagination: { page: number; limit: number; total: number };
 };
 
-export async function listCategories(params?: { search?: string; page?: number; limit?: number }) {
+export async function listCategories(params?: {
+  search?: string;
+  departmentId?: string;
+  customerId?: string;
+  page?: number;
+  limit?: number;
+}) {
   const res = await api.get<AiCategoryListResponse>('/ai/categories', {
     params,
     headers: { 'Accept-Language': LANG }
@@ -27,14 +34,14 @@ export async function listCategories(params?: { search?: string; page?: number; 
   return res.data;
 }
 
-export async function createCategory(payload: { name: string; departmentId?: string | null }) {
+export async function createCategory(payload: { name: string; departmentId?: string | null; customerId?: string | null }) {
   const res = await api.post<{ message: string; data: AiCategory }>('/ai/categories', payload, {
     headers: { 'Accept-Language': LANG }
   });
   return res.data.data;
 }
 
-export async function updateCategory(id: string, payload: { name?: string; departmentId?: string | null }) {
+export async function updateCategory(id: string, payload: { name?: string; departmentId?: string | null; customerId?: string | null }) {
   const res = await api.patch<{ message: string; data: AiCategory }>(`/ai/categories/${id}`, payload, {
     headers: { 'Accept-Language': LANG }
   });

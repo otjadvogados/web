@@ -26,6 +26,8 @@ import useDebounced from 'utils/useDebounced';
 import { listDepartments, type Department } from 'api/departments';
 import { listCategories, type AiCategory } from 'api/aiCategories';
 import { listSubCategories, type AiSubCategory } from 'api/aiSubCategories';
+
+import { listCustomers, type Customer, subjectId, resolveSubjectId } from 'api/customers';
 import {
   listTemplates,
   getTemplateDocxBlob,
@@ -56,7 +58,7 @@ type TemplateOption = {
   subCategoryName: string;
 };
 
-const steps = ['Departamento', 'Categoria', 'Subcategoria', 'Template'];
+const steps = ['Departamento', 'Cliente', 'Peça', 'Tópico', 'Template'];
 
 export default function CreateCaseStep1() {
   const navigate = useNavigate();
@@ -65,14 +67,24 @@ export default function CreateCaseStep1() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [categories, setCategories] = useState<AiCategory[]>([]);
   const [subCategories, setSubCategories] = useState<AiSubCategory[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   const [deptId, setDeptId] = useState<string | null>(null);
+  // Mantemos 2 IDs:
+  // - subject (company/person) para matching na UI
+  // - customerRecordId (Customer.id) para mandar ao backend
+  const [customerSubjectId, setCustomerSubjectId] = useState<string | null>(null);
+  const [customerRecordId, setCustomerRecordId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subCategoryId, setSubCategoryId] = useState<string | null>(null);
 
   const [deptLoading, setDeptLoading] = useState(false);
+  const [custLoading, setCustLoading] = useState(false);
   const [catLoading, setCatLoading] = useState(false);
   const [scLoading, setScLoading] = useState(false);
+  // busca de peça (categoria)
+  const [categorySearch, setCategorySearch] = useState('');
+  const debouncedCategorySearch = useDebounced(categorySearch, 350);
 
   // ===== templates
   const [tplLoading, setTplLoading] = useState(false);
@@ -95,9 +107,9 @@ export default function CreateCaseStep1() {
 
   // ===== persistir progresso no sessionStorage
   useEffect(() => {
-    const snapshot = { deptId, categoryId, subCategoryId, tplSearch, pedidoText };
+    const snapshot = { deptId, customerSubjectId, customerRecordId, categoryId, subCategoryId, tplSearch, pedidoText };
     sessionStorage.setItem('createCaseProgress', JSON.stringify(snapshot));
-  }, [deptId, categoryId, subCategoryId, tplSearch, pedidoText]);
+  }, [deptId, customerSubjectId, customerRecordId, categoryId, subCategoryId, tplSearch, pedidoText]);
 
   // ===== restaurar progresso do sessionStorage
   useEffect(() => {
@@ -106,6 +118,9 @@ export default function CreateCaseStep1() {
     try {
       const s = JSON.parse(raw);
       setDeptId(s.deptId ?? null);
+      // restaurar ambos
+      setCustomerSubjectId(s.customerSubjectId ?? null);
+      setCustomerRecordId(s.customerRecordId ?? null);
       setCategoryId(s.categoryId ?? null);
       setSubCategoryId(s.subCategoryId ?? null);
       setTplSearch(s.tplSearch ?? '');
@@ -128,7 +143,63 @@ export default function CreateCaseStep1() {
     })();
   }, []);
 
-  // quando departamento muda, recarrega categorias e limpa níveis abaixo
+  // estado para busca de clientes
+  const [customerSearch, setCustomerSearch] = useState('');
+  const debouncedCustomerSearch = useDebounced(customerSearch, 350);
+
+  // carregar clientes iniciais
+  useEffect(() => {
+    (async () => {
+      try {
+        setCustLoading(true);
+        const r = await listCustomers({ page: 1, limit: 50 });
+        setCustomers(r.data || []);
+      } finally {
+        setCustLoading(false);
+      }
+    })();
+  }, []);
+
+  // busca dinâmica de clientes
+  useEffect(() => {
+    (async () => {
+      if (!debouncedCustomerSearch || debouncedCustomerSearch.length < 2) return;
+      
+      try {
+        setCustLoading(true);
+        const r = await listCustomers({ 
+          q: debouncedCustomerSearch, 
+          page: 1, 
+          limit: 50 
+        });
+        setCustomers(r.data || []);
+      } catch (e: any) {
+        openSnackbar({ 
+          open: true, 
+          message: e?.response?.data?.message || 'Erro ao buscar clientes', 
+          variant: 'alert', 
+          alert: { color: 'error' } 
+        } as any);
+      } finally {
+        setCustLoading(false);
+      }
+    })();
+  }, [debouncedCustomerSearch]);
+
+  // quando departamento muda, recarrega peças e limpa níveis abaixo
+  useEffect(() => {
+    (async () => {
+      setCustomerSubjectId(null);
+      setCustomerRecordId(null);
+      setCategoryId(null);
+      setSubCategoryId(null);
+      setSelected(null);
+      setTemplates([]);
+      if (!deptId) { setCategories([]); setSubCategories([]); return; }
+    })();
+  }, [deptId]);
+
+  // quando cliente/departamento muda, recarrega peças "base" (sem depender do texto digitado)
   useEffect(() => {
     (async () => {
       setCategoryId(null);
@@ -138,17 +209,45 @@ export default function CreateCaseStep1() {
       if (!deptId) { setCategories([]); setSubCategories([]); return; }
       try {
         setCatLoading(true);
-        const r = await listCategories({ page: 1, limit: 100 });
-        setCategories((r.data || []).filter((c) => c.departmentId === deptId));
+        const r = await listCategories({
+          page: 1,
+          limit: 100,
+          departmentId: deptId!,
+          customerId: customerRecordId || undefined
+        });
+        setCategories(r.data || []);
       } catch (e: any) {
-        openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar categorias', variant: 'alert', alert: { color: 'error' } } as any);
+        openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao carregar peças', variant: 'alert', alert: { color: 'error' } } as any);
       } finally {
         setCatLoading(false);
       }
     })();
-  }, [deptId]);
+  }, [customerRecordId, deptId]);
 
-  // quando categoria muda, recarrega subcategorias e limpa níveis abaixo
+  // ao DIGITAR na peça, busca remota (sem limpar seleção/subníveis)
+  useEffect(() => {
+    (async () => {
+      if (!deptId) return;
+      const q = (debouncedCategorySearch || '').trim();
+      try {
+        setCatLoading(true);
+        const r = await listCategories({
+          page: 1,
+          limit: 100,
+          departmentId: deptId!,
+          customerId: customerRecordId || undefined,
+          ...(q.length >= 2 ? { search: q } : {}) // só aplica search com 2+ chars
+        });
+        setCategories(r.data || []);
+      } catch (e: any) {
+        openSnackbar({ open: true, message: e?.response?.data?.message || 'Erro ao buscar peças', variant: 'alert', alert: { color: 'error' } } as any);
+      } finally {
+        setCatLoading(false);
+      }
+    })();
+  }, [debouncedCategorySearch, deptId, customerRecordId]);
+
+  // quando peça muda, recarrega subcategorias e limpa níveis abaixo
   useEffect(() => {
     (async () => {
       setSubCategoryId(null);
@@ -208,7 +307,7 @@ export default function CreateCaseStep1() {
   }, [templates, scById, catById]);
 
   // ===== calcular step atual
-  const currentStep = !deptId ? 0 : !categoryId ? 1 : !subCategoryId ? 2 : 3;
+  const currentStep = !deptId ? 0 : !customerRecordId ? 1 : !categoryId ? 2 : !subCategoryId ? 3 : 4;
 
   async function handlePreview() {
     if (!selected?.fileId) return;
@@ -236,7 +335,7 @@ export default function CreateCaseStep1() {
     }
     try {
       setCreating(true);
-      const c = await createCase({ type: selected.kind, requestText: pedidoText.trim() });
+      const c = await createCase({ type: selected.kind, requestText: pedidoText.trim(), customerId: customerRecordId ?? null });
       if (files.length > 0) await uploadCaseDocs(c.id, files);
 
       // Gerar draft automaticamente
@@ -311,20 +410,48 @@ export default function CreateCaseStep1() {
                   sx={{ minWidth: 240 }}
                 />
                 <Autocomplete
+                  options={customers}
+                  loading={custLoading}
+                  getOptionLabel={(o) => o.displayName || o.name || 'Cliente sem nome'}
+                  value={customers.find((c) => subjectId(c) === customerSubjectId) || null}
+                  onChange={(_, v) => {
+                    setCustomerSubjectId(v ? subjectId(v) ?? null : null);
+                    setCustomerRecordId(v?.id ?? null);
+                  }}
+                  onInputChange={(_, value) => setCustomerSearch(value)}
+                  disabled={!deptId}
+                  noOptionsText={customerSearch.length < 2 ? 'Digite ao menos 2 caracteres para buscar' : 'Nenhum cliente encontrado'}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label="Cliente" 
+                      placeholder={deptId ? 'Digite nome, CPF ou CNPJ...' : 'Escolha um departamento'} 
+                    />
+                  )}
+                  sx={{ minWidth: 240 }}
+                />
+                <Autocomplete
                   options={categories}
                   loading={catLoading}
+                  filterOptions={(x) => x} // evita filtro local quando buscamos no servidor
                   getOptionLabel={(o) => o.name}
                   value={categories.find((c) => c.id === categoryId) || null}
                   onChange={(_, v) => setCategoryId(v?.id ?? null)}
+                  onInputChange={(_, value) => setCategorySearch(value)}
                   disabled={!deptId}
                   renderInput={(params) => (
                     <TextField 
                       {...params} 
-                      label="Categoria" 
-                      placeholder={deptId ? 'Selecione' : 'Escolha um departamento'} 
+                      label="Peça" 
+                      placeholder={deptId ? 'Digite para buscar/selecionar' : 'Escolha um departamento'} 
                       required 
                     />
                   )}
+                  noOptionsText={
+                    (categorySearch?.length || 0) < 2
+                      ? 'Digite ao menos 2 caracteres para buscar'
+                      : 'Nenhuma peça encontrada'
+                  }
                   sx={{ minWidth: 240 }}
                 />
                 <Autocomplete
@@ -337,8 +464,8 @@ export default function CreateCaseStep1() {
                   renderInput={(params) => (
                     <TextField 
                       {...params} 
-                      label="Subcategoria" 
-                      placeholder={categoryId ? 'Selecione' : 'Escolha uma categoria'} 
+                      label="Tópico" 
+                      placeholder={categoryId ? 'Selecione' : 'Escolha uma peça'} 
                       required 
                     />
                   )}
@@ -347,13 +474,15 @@ export default function CreateCaseStep1() {
               </Stack>
 
               {/* Chips de filtros selecionados com opção de limpar */}
-              {(deptId || categoryId || subCategoryId) && (
+              {(deptId || customerSubjectId || categoryId || subCategoryId) && (
                 <Stack direction="row" spacing={1} flexWrap="wrap">
                   {deptId && (
                     <Chip
                       label={`Departamento: ${departments.find(d => d.id === deptId)?.name}`}
                       onDelete={() => {
                         setDeptId(null);
+                        setCustomerSubjectId(null);
+                        setCustomerRecordId(null);
                         setCategoryId(null);
                         setSubCategoryId(null);
                         setSelected(null);
@@ -364,9 +493,33 @@ export default function CreateCaseStep1() {
                       variant="outlined"
                     />
                   )}
+                  {customerSubjectId && (() => {
+                    const cust = customers.find(c => subjectId(c) === customerSubjectId);
+                    const label =
+                      cust?.displayName ||
+                      cust?.name ||                       // fallback p/ casos que tenham name
+                      cust?.company?.legalName ||         // outro fallback útil
+                      cust?.person?.fullName || '—';
+                    return (
+                      <Chip
+                        label={`Cliente: ${label}`}
+                        onDelete={() => {
+                          setCustomerSubjectId(null);
+                          setCustomerRecordId(null);
+                          setCategoryId(null);
+                          setSubCategoryId(null);
+                          setSelected(null);
+                          setTemplates([]);
+                        }}
+                        deleteIcon={<CloseOutlined /> as any}
+                        color="primary"
+                        variant="outlined"
+                      />
+                    );
+                  })()}
                   {categoryId && (
                     <Chip
-                      label={`Categoria: ${categories.find(c => c.id === categoryId)?.name}`}
+                      label={`Peça: ${categories.find(c => c.id === categoryId)?.name}`}
                       onDelete={() => {
                         setCategoryId(null);
                         setSubCategoryId(null);
@@ -380,7 +533,7 @@ export default function CreateCaseStep1() {
                   )}
                   {subCategoryId && (
                     <Chip
-                      label={`Subcategoria: ${subCategories.find(s => s.id === subCategoryId)?.name}`}
+                      label={`Tópico: ${subCategories.find(s => s.id === subCategoryId)?.name}`}
                       onDelete={() => {
                         setSubCategoryId(null);
                         setSelected(null);
@@ -425,7 +578,7 @@ export default function CreateCaseStep1() {
                     ))
                   ) : options.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ gridColumn: '1 / -1', textAlign: 'center', py: 2 }}>
-                      Nenhum template nesta subcategoria.
+                      Nenhum template neste tópico.
                     </Typography>
                   ) : (
                     options.map((opt) => (

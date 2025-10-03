@@ -35,6 +35,7 @@ import {
   type AiSubCategory
 } from 'api/aiSubCategories';
 import { listCategories, type AiCategory } from 'api/aiCategories';
+import { listCustomers, type Customer, subjectId, resolveSubjectId } from 'api/customers';
 
 export default function SubCategoriesPage() {
   const [subCategories, setSubCategories] = useState<AiSubCategory[]>([]);
@@ -45,6 +46,8 @@ export default function SubCategoriesPage() {
   const [editingSubCategory, setEditingSubCategory] = useState<AiSubCategory | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [subCategoryToDelete, setSubCategoryToDelete] = useState<AiSubCategory | null>(null);
+  const [customerFilter, setCustomerFilter] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     categoryId: null as string | null
@@ -76,18 +79,18 @@ export default function SubCategoriesPage() {
     }
   };
 
-  // Carregar categorias
+  // Carregar peças
   const loadCategories = async () => {
     try {
       setCategoriesLoading(true);
-      const response = await listCategories({ page: 1, limit:100 });
+      const response = await listCategories({ page: 1, limit:100, customerId: customerFilter || undefined });
       setCategories(response.data);
     } catch (error: any) {
-      openSnackbar({ 
-        open: true, 
-        message: error?.response?.data?.message || 'Erro ao carregar categorias', 
-        variant: 'alert', 
-        alert: { color: 'error' } 
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Erro ao carregar peças',
+        variant: 'alert',
+        alert: { color: 'error' }
       } as any);
     } finally {
       setCategoriesLoading(false);
@@ -100,6 +103,9 @@ export default function SubCategoriesPage() {
 
   useEffect(() => {
     loadCategories();
+  }, [customerFilter]);
+  useEffect(() => {
+    (async () => { try { const r = await listCustomers({ page:1, limit:300 }); setCustomers(r.data);} catch {} })();
   }, []);
 
   // Handlers
@@ -143,7 +149,7 @@ export default function SubCategoriesPage() {
     if (!formData.categoryId) {
       openSnackbar({ 
         open: true, 
-        message: 'Categoria é obrigatória', 
+        message: 'Peça é obrigatória', 
         variant: 'alert', 
         alert: { color: 'warning' } 
       } as any);
@@ -158,7 +164,7 @@ export default function SubCategoriesPage() {
         setSubCategories(prev => prev.map(sc => sc.id === updated.id ? updated : sc));
         openSnackbar({ 
           open: true, 
-          message: 'Subcategoria atualizada com sucesso!', 
+          message: 'Tópico atualizado com sucesso!', 
           variant: 'alert', 
           alert: { color: 'success' } 
         } as any);
@@ -170,7 +176,7 @@ export default function SubCategoriesPage() {
         setSubCategories(prev => [...prev, created]);
         openSnackbar({ 
           open: true, 
-          message: 'Subcategoria criada com sucesso!', 
+          message: 'Tópico criado com sucesso!', 
           variant: 'alert', 
           alert: { color: 'success' } 
         } as any);
@@ -202,7 +208,7 @@ export default function SubCategoriesPage() {
       setSubCategories(prev => prev.filter(sc => sc.id !== subCategoryToDelete.id));
       openSnackbar({ 
         open: true, 
-        message: 'Subcategoria excluída com sucesso!', 
+        message: 'Tópico excluído com sucesso!', 
         variant: 'alert', 
         alert: { color: 'success' } 
       } as any);
@@ -221,7 +227,7 @@ export default function SubCategoriesPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <MainCard title="Subcategorias de Templates AI">
+      <MainCard title="Tópicos de Templates AI">
           <Stack spacing={3}>
             {/* Header com busca, filtro e botão adicionar */}
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
@@ -233,13 +239,21 @@ export default function SubCategoriesPage() {
                 placeholder="Digite o nome da subcategoria..."
               />
               <Autocomplete
+                options={customers}
+                getOptionLabel={(o) => o.displayName || o.name || 'Cliente sem nome'}
+                value={customers.find(c => subjectId(c) === customerFilter) || null}
+                onChange={async (_, v) => setCustomerFilter((await resolveSubjectId(v)) ?? null)}
+                sx={{ minWidth: 240 }}
+                renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Global + Cliente" />}
+              />
+              <Autocomplete
                 options={categories}
                 loading={categoriesLoading}
-                getOptionLabel={(o) => o.name}
+                getOptionLabel={(o) => o.displayName || o.name || 'Cliente sem nome'}
                 value={categories.find(c => c.id === categoryFilter) || null}
                 onChange={(_, v) => setCategoryFilter(v?.id ?? null)}
                 sx={{ minWidth: 280 }}
-                renderInput={(params) => <TextField {...params} label="Filtrar por categoria" placeholder="Todas" />}
+                renderInput={(params) => <TextField {...params} label="Filtrar por peça" placeholder="Todas" />}
               />
               <Button
                 variant="contained"
@@ -247,7 +261,7 @@ export default function SubCategoriesPage() {
                 onClick={() => handleOpenDialog()}
                 sx={{ minWidth: 150 }}
               >
-                Nova Subcategoria
+                Novo Tópico
               </Button>
             </Stack>
 
@@ -258,7 +272,7 @@ export default function SubCategoriesPage() {
                   <TableRow>
                     <TableCell>Nome</TableCell>
                     <TableCell>Slug</TableCell>
-                    <TableCell>Categoria</TableCell>
+                    <TableCell>Peça</TableCell>
                     <TableCell align="center">Ações</TableCell>
                   </TableRow>
                 </TableHead>
@@ -330,12 +344,12 @@ export default function SubCategoriesPage() {
       {/* Dialog de criação/edição */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingSubCategory ? 'Editar Subcategoria' : 'Nova Subcategoria'}
+          {editingSubCategory ? 'Editar Tópico' : 'Novo Tópico'}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <TextField
-              label="Nome da Subcategoria"
+              label="Nome do Tópico"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               fullWidth
@@ -348,7 +362,7 @@ export default function SubCategoriesPage() {
               getOptionLabel={(o) => o.name}
               value={categories.find(c => c.id === formData.categoryId) || null}
               onChange={(_, v) => setFormData({ ...formData, categoryId: v?.id ?? null })}
-              renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Selecione uma categoria" required />}
+              renderInput={(params) => <TextField {...params} label="Peça" placeholder="Selecione uma peça" required />}
             />
           </Stack>
         </DialogContent>
@@ -369,8 +383,8 @@ export default function SubCategoriesPage() {
         open={deleteDialogOpen}
         onCancel={() => setDeleteDialogOpen(false)}
         onConfirm={handleDeleteConfirm}
-        title="Excluir Subcategoria"
-        description={`Tem certeza que deseja excluir a subcategoria "${subCategoryToDelete?.name}"? Esta ação não pode ser desfeita.`}
+        title="Excluir Tópico"
+        description={`Tem certeza que deseja excluir o tópico "${subCategoryToDelete?.name}"? Esta ação não pode ser desfeita.`}
       />
     </Box>
   );

@@ -134,6 +134,7 @@ const initialFormData: CustomerFormData = {
 type DraftLink = {
   // Identificação
   personId?: string;           // quando adicionar existente
+  personName?: string;         // nome da pessoa para exibição
   cpf?: string;                // fallback para identificação por CPF
   createPerson?: {             // quando criar nova pessoa
     fullName: string;
@@ -278,9 +279,9 @@ export default function CustomerForm() {
         // evita listar a própria empresa e filiais já vinculadas
         const avoidIds = new Set<string>([
           id || '',
-          ...branches.map(b => b.childId)
+          ...(branches || []).map(b => b.childId)
         ]);
-        setExistingBranchOptions(res.filter(c => !avoidIds.has(c.id)));
+        setExistingBranchOptions(res.filter((c: Customer) => !avoidIds.has(c.id)));
       } finally {
         if (alive) setExistingBranchLoading(false);
       }
@@ -304,7 +305,7 @@ export default function CustomerForm() {
         const res = await listPeople(q);
         if (!alive) return;
         // apenas pessoas (defensivo)
-        setPersonOptions(res.filter((c) => c.kind === 'PERSON'));
+        setPersonOptions(res.filter((c: { kind: string; }) => c.kind === 'PERSON'));
       } finally {
         if (alive) setPersonLoading(false);
       }
@@ -341,7 +342,7 @@ export default function CustomerForm() {
       const parent = (cust.company as any)?.parent?.customer || null;
       const baseId = parent ? parent.id : cust.id;
       let list = await getCompanyBranches(baseId);
-      if (parent) list = list.filter(b => b.childId !== cust.id); // se for filial, oculta ela mesma
+      if (parent) list = list.filter((b: { childId: string; }) => b.childId !== cust.id); // se for filial, oculta ela mesma
       setBranches(list);
     } catch (e: any) {
       openSnackbar({ 
@@ -437,7 +438,7 @@ export default function CustomerForm() {
 
        // Carregar endereços existentes
        if (customer.kind === 'COMPANY' && customer.company?.addresses) {
-         const existingAddresses: FormAddressPayload[] = customer.company.addresses.map(addr => ({
+         const existingAddresses: FormAddressPayload[] = customer.company.addresses.map((addr: { id: any; addressType: string; label: any; isPrimary: any; street: any; number: any; complement: any; district: any; city: any; state: any; postalCode: any; country: any; reference: any; }) => ({
            id: addr.id, // Incluir o ID do endereço existente
            addressType: addr.addressType as AddressType,
            label: addr.label,
@@ -454,9 +455,9 @@ export default function CustomerForm() {
          }));
          setCompanyAddresses(existingAddresses);
          // Guardar IDs originais dos endereços
-         setOriginalAddressIds(customer.company.addresses.map(a => a.id));
+         setOriginalAddressIds(customer.company.addresses.map((a: { id: any; }) => a.id));
        } else if (customer.kind === 'PERSON' && customer.person?.addresses) {
-         const existingAddresses: FormAddressPayload[] = customer.person.addresses.map(addr => ({
+         const existingAddresses: FormAddressPayload[] = customer.person.addresses.map((addr: { id: any; addressType: string; label: any; isPrimary: any; street: any; number: any; complement: any; district: any; city: any; state: any; postalCode: any; country: any; reference: any; }) => ({
            id: addr.id,
            addressType: addr.addressType as AddressType,
            label: addr.label,
@@ -473,7 +474,7 @@ export default function CustomerForm() {
          }));
          setPersonAddresses(existingAddresses);
          // Guardar IDs originais dos endereços
-         setOriginalAddressIds(customer.person.addresses.map(a => a.id));
+         setOriginalAddressIds(customer.person.addresses.map((a: { id: any; }) => a.id));
        }
     } catch (err: any) {
       openSnackbar({ 
@@ -531,18 +532,18 @@ export default function CustomerForm() {
   };
 
   // mapeia dados da Receita para o payload dos endereços
-  const receitaToAddress = (data: ReceitaFederalData): FormAddressPayload => ({
+  const receitaToAddress = (data: any): FormAddressPayload => ({
     addressType: 'C',
     label: 'Comercial (Receita)',
     isPrimary: companyAddresses.length === 0 || !companyAddresses.some(a => a.isPrimary),
-    street: data.address.street,
-    number: data.address.number,
-    complement: data.address.complement || undefined,
-    district: data.address.district,
-    city: data.address.city,
-    state: data.address.state,
-    postalCode: extractDigits(data.address.postalCode),
-    country: 'Brasil',
+    street: data.endereco.logradouro,
+    number: data.endereco.numero,
+    complement: data.endereco.complemento || undefined,
+    district: data.endereco.bairro,
+    city: data.endereco.municipio,
+    state: data.endereco.uf,
+    postalCode: extractDigits(data.endereco.cep),
+    country: data.endereco.pais || 'Brasil',
     reference: undefined
   });
 
@@ -639,17 +640,18 @@ export default function CustomerForm() {
       // Preencher automaticamente os campos com validação
       setFormData(prev => ({
         ...prev,
-        legalName: data?.legalName || '',
-        displayName: data?.legalName || '',
-        companyEmail: data?.email || '',
-        companyPhone: data?.phone || '',
+        legalName: data?.razaoSocial || '',
+        displayName: data?.razaoSocial || '',
+        tradeName: data?.nomeFantasia || '',
+        companyEmail: data?.contato?.email || '',
+        companyPhone: data?.contato?.telefone || '',
         // Novos campos da Receita Federal
-        status: data?.status || '',
-        openingDate: convertBrDateToISO(data?.openingDate || ''),
-        legalNature: data?.legalNature || '',
-        size: data?.size || '',
-        mainActivity: data?.mainActivity ? `${data.mainActivity.code} - ${data.mainActivity.description}` : '',
-        secondaryActivities: data?.secondaryActivities?.map(activity => `${activity.code} - ${activity.description}`) || []
+        status: data?.situacao || '',
+        openingDate: convertBrDateToISO(data?.abertura || ''),
+        legalNature: data?.naturezaJuridica || '',
+        size: data?.porte || '',
+        mainActivity: data?.atividadePrincipal ? `${data.atividadePrincipal.codigo} - ${data.atividadePrincipal.descricao}` : '',
+        secondaryActivities: data?.atividadesSecundarias?.map((activity: { codigo: any; descricao: any; }) => `${activity.codigo} - ${activity.descricao}`) || []
       }));
 
       // acrescenta o endereço da Receita como Comercial (C) se ainda não existir
@@ -934,7 +936,7 @@ export default function CustomerForm() {
                    addresses: companyAddresses.filter(addr => !addr.id).length ? 
                      companyAddresses.filter(addr => !addr.id).map(({ id: _, ...addr }) => addr) : undefined,
                    // pessoas vinculadas (draft)
-                   people: peopleDraft.length ? peopleDraft.map(p => ({
+                   people: peopleDraft && peopleDraft.length ? peopleDraft.map(p => ({
                      ...(p.personId ? { personId: p.personId } : {}),
                      ...(p.cpf ? { cpf: extractDigits(p.cpf) } : {}),
                      ...(p.createPerson ? { createPerson: p.createPerson } : {}),
@@ -970,7 +972,7 @@ export default function CustomerForm() {
               addresses: companyAddresses.filter(addr => !addr.id).length ? 
                 companyAddresses.filter(addr => !addr.id).map(({ id: _, ...addr }) => addr) : undefined,
               // pessoas vinculadas (draft)
-              people: peopleDraft.length ? peopleDraft.map(p => ({
+              people: peopleDraft && peopleDraft.length ? peopleDraft.map(p => ({
                 ...(p.personId ? { personId: p.personId } : {}),
                 ...(p.cpf ? { cpf: extractDigits(p.cpf) } : {}),
                 ...(p.createPerson ? { createPerson: p.createPerson } : {}),
@@ -1546,7 +1548,7 @@ export default function CustomerForm() {
                     </Typography>
                     {branchesLoading ? (
                       <Typography color="text.secondary">Carregando...</Typography>
-                    ) : branches.length === 0 ? (
+                    ) : !branches || branches.length === 0 ? (
                       <Typography color="text.secondary">
                         {initialParentId ? 'Nenhuma outra filial vinculada à matriz.' : 'Nenhuma filial vinculada.'}
                       </Typography>
@@ -1717,7 +1719,7 @@ export default function CustomerForm() {
                       Adicione pessoas agora; elas serão vinculadas ao salvar a empresa.
                     </Typography>
 
-                    {peopleDraft.length === 0 ? (
+                    {!peopleDraft || peopleDraft.length === 0 ? (
                       <Alert severity="info" sx={{ mb: 2 }}>Nenhuma pessoa adicionada.</Alert>
                     ) : (
                       <Stack spacing={2} sx={{ mb: 2 }}>
@@ -1726,7 +1728,7 @@ export default function CustomerForm() {
                             <CardContent>
                               <Stack spacing={1}>
                                 <Typography fontWeight={600}>
-                                  {p.createPerson?.fullName || `Pessoa existente #${idx + 1}`}
+                                  {p.createPerson?.fullName || p.personName || `Pessoa existente #${idx + 1}`}
                                 </Typography>
                                 <TextField
                                   label="Função"
@@ -1785,7 +1787,7 @@ export default function CustomerForm() {
                     {peopleError && <Alert severity="error" sx={{ mb: 2 }}>{peopleError}</Alert>}
                     {peopleLoading ? (
                       <Typography color="text.secondary">Carregando...</Typography>
-                    ) : peopleLinks.length === 0 ? (
+                    ) : !peopleLinks || peopleLinks.length === 0 ? (
                       <Alert severity="info" sx={{ mb: 2 }}>Nenhuma pessoa vinculada.</Alert>
                     ) : (
                       <Stack spacing={2} sx={{ mb: 2 }}>
@@ -1971,10 +1973,24 @@ export default function CustomerForm() {
                     setPeopleActionLoading(true);
                     try {
                       if (peopleTab === 0) {
-                        const personPayloadId = (selectedExistingPerson as any)?.person?.id;
-                        const personCpf = (selectedExistingPerson as any)?.person?.cpf;
-                        if (!personPayloadId && !personCpf) {
+                        if (!selectedExistingPerson) {
                           setPeopleActionError('Pessoa não selecionada');
+                          setPeopleActionLoading(false);
+                          return;
+                        }
+                        let personPayloadId = (selectedExistingPerson as any)?.person?.id;
+                        let personCpf = (selectedExistingPerson as any)?.person?.cpf;
+
+                        // fallback: se o item não trouxe person.id, busca detalhes do customer
+                        if (!personPayloadId && (selectedExistingPerson as any)?.kind === 'PERSON' && (selectedExistingPerson as any)?.id) {
+                          try {
+                            const full = await getCustomer((selectedExistingPerson as any).id, true);
+                            personPayloadId = full?.person?.id || personPayloadId;
+                            personCpf = personCpf || full?.person?.cpf;
+                          } catch { /* mantém como está */ }
+                        }
+                        if (!personPayloadId && !personCpf) {
+                          setPeopleActionError('Pessoa inválida (sem ID nem CPF)');
                           setPeopleActionLoading(false);
                           return;
                         }
@@ -1990,8 +2006,8 @@ export default function CustomerForm() {
                         } else {
                           // CREATE: acumula no draft
                           const item: DraftLink = {
-                            ...(personPayloadId ? { personId: personPayloadId } : {}),
-                            ...(personCpf ? { cpf: personCpf } : {}),
+                            personId: personPayloadId!,
+                            personName: (selectedExistingPerson as any).displayName,
                             role: peopleRole || undefined,
                             isPrimary: !!peopleIsPrimary,
                             isLegalRepresentative: !!peopleIsLegalRep

@@ -25,12 +25,14 @@ import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import AppstoreOutlined from '@ant-design/icons/AppstoreOutlined';
+import TeamOutlined from '@ant-design/icons/TeamOutlined';
 
 import { listDepartments, deleteDepartment, getDepartment } from '../../api/departments';
 import { DepartmentRow } from '../../types/departments';
 import { openSnackbar } from '../../api/snackbar';
 import DepartmentFormDialog from '../../sections/departments/DepartmentFormDialog';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
+import DeptRolesDrawer from '../../sections/departments/DeptRolesDrawer';
 
 export default function DepartmentsPage() {
   const [items, setItems] = useState<DepartmentRow[]>([]);
@@ -50,6 +52,10 @@ export default function DepartmentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [rolesDept, setRolesDept] = useState<DepartmentRow | null>(null);
+  const openRoles = (d: DepartmentRow) => { setRolesDept(d); setRolesOpen(true); };
+
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
   async function load() {
@@ -58,9 +64,7 @@ export default function DepartmentsPage() {
       const res = await listDepartments({
         page: page + 1,
         limit,
-        search: search.trim() || undefined,
-        sortBy,
-        sortOrder
+        search: search.trim() || undefined
       });
       setItems(res.data);
       setTotal(res.pagination.total);
@@ -83,7 +87,7 @@ export default function DepartmentsPage() {
     try {
       setEditId(id);
       const r = await getDepartment(id);
-      setEditInitial({ name: r.name, description: r.description ?? '' });
+      setEditInitial({ name: r.name, description: '' });
       setFormOpen(true);
     } catch (err: any) {
       openSnackbar({ open: true, message: err?.response?.data?.message || 'Não foi possível carregar o departamento', variant: 'alert', alert: { color: 'error' } } as any);
@@ -104,6 +108,9 @@ export default function DepartmentsPage() {
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{dept.name}</Typography>
           </Stack>
           <Stack direction="row" spacing={0.5}>
+            <Tooltip title="Cargos">
+              <IconButton color="primary" onClick={() => openRoles(dept)}><TeamOutlined /></IconButton>
+            </Tooltip>
             <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(dept.id)}><EditOutlined /></IconButton></Tooltip>
             <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(dept)}><DeleteOutlined /></IconButton></Tooltip>
           </Stack>
@@ -174,6 +181,9 @@ export default function DepartmentsPage() {
                        </TableCell>
                        <TableCell align="right">
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                          <Tooltip title="Cargos">
+                            <IconButton color="primary" onClick={() => openRoles(d)}><TeamOutlined /></IconButton>
+                          </Tooltip>
                           <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(d.id)}><EditOutlined /></IconButton></Tooltip>
                           <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(d)}><DeleteOutlined /></IconButton></Tooltip>
                         </Stack>
@@ -246,6 +256,13 @@ export default function DepartmentsPage() {
         loading={deleting}
         title="Remover departamento"
         description={<span>Esta ação <b>não pode ser desfeita</b>. Deseja remover o departamento <b>{deleteTarget?.name}</b>?</span>}
+      />
+
+      <DeptRolesDrawer
+        open={rolesOpen}
+        department={rolesDept}
+        onClose={() => { setRolesOpen(false); setRolesDept(null); }}
+        onChanged={load}
       />
     </Grid>
   );

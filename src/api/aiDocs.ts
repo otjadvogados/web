@@ -101,6 +101,7 @@ export type AiCase = {
   id: string;
   userId: string;
   companyId?: string | null;
+  customerId?: string | null;   // novo
   type: string;
   requestText: string;
   status: 'DRAFT'|'GENERATING'|'READY'|'APPROVED'|'REJECTED'|string;
@@ -264,6 +265,8 @@ export type AiCaseListResponse = {
 
 export async function listCases(params?: {
   search?: string;
+  type?: string;
+  customerId?: string;
   status?: string;
   page?: number;
   limit?: number;
@@ -282,7 +285,7 @@ export async function getCase(caseId: string) {
   return data.data;
 }
 
-export async function createCase(payload: { type: string; requestText: string }) {
+export async function createCase(payload: { type: string; requestText: string; customerId?: string | null }) {
   const { data } = await axios.post<{ data: { id: string } }>(`/ai/cases`, payload);
   return data.data;
 }
