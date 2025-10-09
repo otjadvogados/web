@@ -6,7 +6,7 @@ export default function Drawer(theme: Theme) {
   const glass = {
     backdropFilter: 'blur(10px) saturate(120%)',
     WebkitBackdropFilter: 'blur(10px) saturate(120%)',
-    border: '1px solid rgba(255,255,255,.08)'
+    border: '1px solid rgba(255,255,255)'
   };
   return {
     MuiDrawer: {
@@ -15,7 +15,7 @@ export default function Drawer(theme: Theme) {
           '& .MuiBackdrop-root': {
             backdropFilter: 'blur(6px)',
             WebkitBackdropFilter: 'blur(6px)',
-            backgroundColor: 'rgba(0,0,0,.35)'
+            backgroundColor: 'rgba(0,0,0,.95)'
           }
         },
         paper: {

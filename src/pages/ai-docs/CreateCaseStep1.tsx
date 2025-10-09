@@ -392,7 +392,19 @@ export default function CreateCaseStep1() {
           {/* Filtros em cascata */}
           <Paper variant="outlined" sx={{ p: 2, width: '100%', maxWidth: 860 }}>
             <Stack spacing={2}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 2,
+                  // 1 col no mobile, 2 no sm, 3 no md, 4 no lg+
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: '1fr 1fr',
+                    md: 'repeat(3, 1fr)',
+                    lg: 'repeat(4, 1fr)'
+                  }
+                }}
+              >
                 <Autocomplete
                   options={departments}
                   loading={deptLoading}
@@ -405,9 +417,10 @@ export default function CreateCaseStep1() {
                       label="Departamento" 
                       placeholder="Selecione" 
                       required 
+                      size="small"
                     />
                   )}
-                  sx={{ minWidth: 240 }}
+                  sx={{ width: '100%' }}
                 />
                 <Autocomplete
                   options={customers}
@@ -426,9 +439,10 @@ export default function CreateCaseStep1() {
                       {...params} 
                       label="Cliente" 
                       placeholder={deptId ? 'Digite nome, CPF ou CNPJ...' : 'Escolha um departamento'} 
+                      size="small"
                     />
                   )}
-                  sx={{ minWidth: 240 }}
+                  sx={{ width: '100%' }}
                 />
                 <Autocomplete
                   options={categories}
@@ -445,6 +459,7 @@ export default function CreateCaseStep1() {
                       label="Peça" 
                       placeholder={deptId ? 'Digite para buscar/selecionar' : 'Escolha um departamento'} 
                       required 
+                      size="small"
                     />
                   )}
                   noOptionsText={
@@ -452,7 +467,7 @@ export default function CreateCaseStep1() {
                       ? 'Digite ao menos 2 caracteres para buscar'
                       : 'Nenhuma peça encontrada'
                   }
-                  sx={{ minWidth: 240 }}
+                  sx={{ width: '100%' }}
                 />
                 <Autocomplete
                   options={subCategories}
@@ -467,11 +482,12 @@ export default function CreateCaseStep1() {
                       label="Tópico" 
                       placeholder={categoryId ? 'Selecione' : 'Escolha uma peça'} 
                       required 
+                      size="small"
                     />
                   )}
-                  sx={{ minWidth: 240 }}
+                  sx={{ width: '100%' }}
                 />
-              </Stack>
+              </Box>
 
               {/* Chips de filtros selecionados com opção de limpar */}
               {(deptId || customerSubjectId || categoryId || subCategoryId) && (

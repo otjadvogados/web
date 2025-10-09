@@ -230,21 +230,27 @@ export default function SubCategoriesPage() {
       <MainCard title="Tópicos de Templates AI">
           <Stack spacing={3}>
             {/* Header com busca, filtro e botão adicionar */}
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+            <Stack 
+              direction="row" 
+              spacing={2} 
+              alignItems={{ md: 'center' }}
+              sx={{ flexWrap: 'wrap' }}
+            >
               <TextField
                 label="Buscar subcategorias"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                sx={{ minWidth: 300 }}
+                sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
                 placeholder="Digite o nome da subcategoria..."
+                size="small"
               />
               <Autocomplete
                 options={customers}
                 getOptionLabel={(o) => o.displayName || o.name || 'Cliente sem nome'}
                 value={customers.find(c => subjectId(c) === customerFilter) || null}
                 onChange={async (_, v) => setCustomerFilter((await resolveSubjectId(v)) ?? null)}
-                sx={{ minWidth: 240 }}
-                renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Global + Cliente" />}
+                sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
+                renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Global + Cliente" size="small" />}
               />
               <Autocomplete
                 options={categories}
@@ -252,8 +258,8 @@ export default function SubCategoriesPage() {
                 getOptionLabel={(o) => o.name || 'Categoria sem nome'}
                 value={categories.find(c => c.id === categoryFilter) || null}
                 onChange={(_, v) => setCategoryFilter(v?.id ?? null)}
-                sx={{ minWidth: 280 }}
-                renderInput={(params) => <TextField {...params} label="Filtrar por peça" placeholder="Todas" />}
+                sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
+                renderInput={(params) => <TextField {...params} label="Filtrar por peça" placeholder="Todas" size="small" />}
               />
               <Button
                 variant="contained"

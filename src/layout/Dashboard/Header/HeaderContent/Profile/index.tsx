@@ -15,6 +15,7 @@ import Tabs from '@mui/material/Tabs';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import Backdrop from '@mui/material/Backdrop';
 
 // project imports
 import ProfileTab from './ProfileTab';
@@ -150,10 +151,14 @@ export default function Profile() {
             }
           ]
         }}
+        sx={{ zIndex: 1200}} // Garante que fique acima do backdrop
       >
         {({ TransitionProps }) => (
           <Transitions type="grow" position="top-right" in={open} {...TransitionProps}>
-            <Paper sx={(theme) => ({ boxShadow: theme.customShadows.z1, width: 290, minWidth: 240, maxWidth: { xs: 250, md: 290 } })}>
+            <Paper sx={(theme) => ({ boxShadow: theme.customShadows.z1,
+          backgroundImage: `${theme.customGradients.paperBg} !important`,
+          backgroundColor: '#0F0B37 !important',
+          backdropFilter: 'blur(10px) !important', WebkitBackdropFilter: 'blur(10px) !important',  width: 290, minWidth: 240, maxWidth: { xs: 250, md: 290 } })}>
               <ClickAwayListener onClickAway={handleClose}>
                 <MainCard elevation={0} border={false} content={false}>
                   <CardContent sx={{ px: 2.5, pt: 3 }}>

@@ -274,13 +274,19 @@ export default function CategoriesPage() {
       <MainCard title="Peças de Templates AI">
         <Stack spacing={3}>
           {/* Header com busca e botão adicionar */}
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+          <Stack 
+            direction="row" 
+            spacing={2} 
+            alignItems={{ md: 'center' }}
+            sx={{ flexWrap: 'wrap' }}
+          >
             <TextField
               label="Buscar peças"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              sx={{ minWidth: 300 }}
+              sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
               placeholder="Digite o nome da peça..."
+              size="small"
             />
             <Autocomplete
               options={departments}
@@ -288,8 +294,8 @@ export default function CategoriesPage() {
               getOptionLabel={(o) => o.name}
               value={departments.find(d => d.id === departmentFilter) || null}
               onChange={(_, v) => setDepartmentFilter(v?.id ?? null)}
-              renderInput={(params) => <TextField {...params} label="Departamento" placeholder="Todos" />}
-              sx={{ minWidth: 240 }}
+              renderInput={(params) => <TextField {...params} label="Departamento" placeholder="Todos" size="small" />}
+              sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
             />
             <Autocomplete
               options={customers}
@@ -299,8 +305,8 @@ export default function CategoriesPage() {
               onChange={async (_, v) => setCustomerFilter((await resolveSubjectId(v)) ?? null)}
               onInputChange={(_, value) => setCustomerSearch(value)}
               noOptionsText={customerSearch.length < 2 ? 'Digite ao menos 2 caracteres para buscar' : 'Nenhum cliente encontrado'}
-              renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Digite nome, CPF ou CNPJ..." />}
-              sx={{ minWidth: 240 }}
+              renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Digite nome, CPF ou CNPJ..." size="small" />}
+              sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
             />
             <Button
               variant="contained"

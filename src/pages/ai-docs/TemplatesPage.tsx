@@ -340,13 +340,19 @@ export default function TemplatesPage() {
         <MainCard title="Templates">
           <Stack spacing={2}>
             {/* filtros */}
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+            <Stack 
+              direction="row" 
+              spacing={2} 
+              alignItems={{ md: 'center' }}
+              sx={{ flexWrap: 'wrap' }}
+            >
               <TextField
                 value={search}
                 onChange={(e) => { setPage(1); setSearch(e.target.value); }}
                 placeholder="Buscar por título ou descrição"
                 InputProps={{ startAdornment: <SearchOutlined style={{ marginRight: 8, opacity: .6 }} /> as any }}
-                sx={{ minWidth: 320 }}
+                sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
+                size="small"
               />
               <Autocomplete
                 options={customers}
@@ -356,8 +362,8 @@ export default function TemplatesPage() {
                   setPage(1);
                   setCustomerFilter((await resolveSubjectId(v)) ?? null);
                 }}
-                sx={{ minWidth: 220 }}
-                renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Global + Cliente" />}
+                sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
+                renderInput={(params) => <TextField {...params} label="Cliente" placeholder="Global + Cliente" size="small" />}
               />
               <Autocomplete
                 options={categories}
@@ -365,8 +371,8 @@ export default function TemplatesPage() {
                 getOptionLabel={(o) => o.name}
                 value={categories.find(c => c.id === categoryFilter) || null}
                 onChange={(_, v) => { setPage(1); setCategoryFilter(v?.id ?? null); }}
-                sx={{ minWidth: 220 }}
-                renderInput={(params) => <TextField {...params} label="Peça" placeholder="Todas" />}
+                sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
+                renderInput={(params) => <TextField {...params} label="Peça" placeholder="Todas" size="small" />}
               />
 
               <Autocomplete
@@ -375,10 +381,10 @@ export default function TemplatesPage() {
                 getOptionLabel={(o) => o.name}
                 value={subCategories.find(sc => sc.id === subCategoryFilter) || null}
                 onChange={(_, v) => { setPage(1); setSubCategoryFilter(v?.id ?? null); }}
-                sx={{ minWidth: 220 }}
-                renderInput={(params) => <TextField {...params} label="Tópico" placeholder={categoryFilter ? 'Todas' : 'Selecione uma peça'} />}
+                sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
+                renderInput={(params) => <TextField {...params} label="Tópico" placeholder={categoryFilter ? 'Todas' : 'Selecione uma peça'} size="small" />}
               />
-              <Box sx={{ flex: 1 }} />
+              <Box sx={{ flexGrow: 1 }} />
               <Button startIcon={<PlusOutlined />} variant="contained" onClick={openCreate}>
                 Novo Template
               </Button>

@@ -35,13 +35,18 @@ export default function CasesPage() {
   return (
     <Box sx={{ p: { xs: 1, md: 3 } }}>
       <MainCard title="Meus Casos">
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }} alignItems={{ md: 'center' }}>
+        <Stack 
+          direction="row" 
+          spacing={2} 
+          sx={{ mb: 2, flexWrap: 'wrap' }} 
+          alignItems={{ md: 'center' }}
+        >
           <TextField 
             placeholder="Buscar casos..." 
             value={search} 
             onChange={(e) => setSearch(e.target.value)} 
             size="small" 
-            sx={{ minWidth: 300 }}
+            sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
           />
           <Autocomplete
             options={customers}
@@ -49,7 +54,7 @@ export default function CasesPage() {
             value={customers.find(c => subjectId(c) === customerSubjectId) || null}
             onChange={async (_, v) => setCustomerSubjectId((await resolveSubjectId(v)) ?? null)}
             renderInput={(p) => <TextField {...p} placeholder="Cliente (opcional)" size="small" />}
-            sx={{ minWidth: 260 }}
+            sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
           />
           <Stack direction="row" spacing={1}>
             <Button onClick={fetch} variant="outlined" disabled={loading}>
