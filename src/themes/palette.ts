@@ -38,9 +38,9 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
     // índices 0..10 + A-series seguem o contrato usado em ThemeOption
     greyPrimary = [
       '#060016  ', // 0  (quase preto azulado)
-      '#08031E', // 1
-      '#0A0526', // 2  -> background.paper
-      '#0D082F', '#0F0B37', '#bfbfbf', '#d9d9d9', '#f0f0f0', '#f5f5f5', '#fafafa', '#ffffff'  // 10 (mantém branco para text.primary via grey[900])
+      '#0D082F', // 1
+      '#0F0B37', // 2  -> background.paper
+      '#1E1C49', '#0F0B37', '#bfbfbf', '#d9d9d9', '#f0f0f0', '#f5f5f5', '#fafafa', '#ffffff'  // 10 (mantém branco para text.primary via grey[900])
     ];
     // acentos frios coerentes com o navy
     greyAscent = ['#fafafa', '#bfbfbf', '#434343', '#1f1f1f'];
