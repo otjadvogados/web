@@ -24,6 +24,7 @@ import HomeFilled from '@ant-design/icons/HomeFilled';
 // types
 import { OverrideIcon } from 'types/root';
 import { NavItemType } from 'types/menu';
+import { Card } from '@mui/material';
 
 interface BreadcrumbLinkProps {
   title: string;
@@ -151,7 +152,7 @@ export default function Breadcrumbs({
       breadcrumbContent = (
         <MainCard
           border={card}
-          sx={card === false ? { mb: 3, bgcolor: 'inherit', backgroundImage: 'none', ...sx } : { mb: 3, ...sx }}
+          sx={card === false ? { mb: 3, backgroundImage: 'none', ...sx } : { mb: 3, ...sx }}
           {...others}
           content={card}
           shadow="none"
@@ -237,12 +238,9 @@ export default function Breadcrumbs({
     // main
     if (item?.breadcrumbs !== false || custom) {
       breadcrumbContent = (
-        <MainCard
-          border={card}
-          sx={card === false ? { mb: 3, bgcolor: 'inherit', backgroundImage: 'none', ...sx } : { mb: 3, ...sx }}
+        <Card
+          sx={card === false ? { mb: 3, background: 'none !important', backgroundImage: 'none', boxShadow: 'none' } : { mb: 3, boxShadow: 'none' }}
           {...others}
-          content={card}
-          shadow="none"
         >
           <Grid
             container
@@ -268,7 +266,7 @@ export default function Breadcrumbs({
             )}
           </Grid>
           {card === false && divider !== false && <Divider sx={{ mt: 2 }} />}
-        </MainCard>
+        </Card>
       );
     }
   }

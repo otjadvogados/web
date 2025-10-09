@@ -226,7 +226,7 @@ export default function SubCategoriesPage() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
       <MainCard title="Tópicos de Templates AI">
           <Stack spacing={3}>
             {/* Header com busca, filtro e botão adicionar */}
@@ -249,7 +249,7 @@ export default function SubCategoriesPage() {
               <Autocomplete
                 options={categories}
                 loading={categoriesLoading}
-                getOptionLabel={(o) => o.displayName || o.name || 'Cliente sem nome'}
+                getOptionLabel={(o) => o.name || 'Categoria sem nome'}
                 value={categories.find(c => c.id === categoryFilter) || null}
                 onChange={(_, v) => setCategoryFilter(v?.id ?? null)}
                 sx={{ minWidth: 280 }}

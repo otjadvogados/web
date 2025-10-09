@@ -270,7 +270,7 @@ export default function CategoriesPage() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
       <MainCard title="Peças de Templates AI">
         <Stack spacing={3}>
           {/* Header com busca e botão adicionar */}

@@ -8,4 +8,8 @@ declare module '@mui/material/styles' {
     A50?: string;
     A800?: string;
   }
+  // Permite acesso tipado aos gradientes customizados em theme
+  interface Theme {
+    customGradients: import('../../types/theme').CustomGradientProps;
+  }
 }

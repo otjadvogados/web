@@ -112,7 +112,7 @@ export default function Profile() {
           borderRadius: 1,
           '&:hover': { bgcolor: 'secondary.lighter' },
           '&:focus-visible': { outline: `2px solid ${theme.palette.secondary.dark}`, outlineOffset: 2 },
-          ...theme.applyStyles('dark', { bgcolor: open ? 'background.default' : 'transparent', '&:hover': { bgcolor: 'secondary.light' } })
+          ...theme.applyStyles('dark', { bgcolor: open ? 'background.default' : 'transparent',  })
         })}
         aria-label="open profile"
         ref={anchorRef}

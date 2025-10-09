@@ -43,9 +43,12 @@ export default function DashboardLayout() {
 
   if (menuMasterLoading) return <Loader />;
 
+  // Verifica se estamos na página A4Playground
+  const isA4Playground = pathname.includes('/ai-docs/a4-playground/');
+
   return (
     <AuthGuard>
-      <Box sx={{ display: 'flex', width: '100%' }}>
+      <Box sx={{ display: 'flex', width: '100%' }} data-page={isA4Playground ? 'a4-playground' : 'other'}>
         <Header />
         {!isHorizontal ? <Drawer /> : <HorizontalBar />}
 
@@ -61,7 +64,7 @@ export default function DashboardLayout() {
               flexDirection: 'column'
             }}
           >
-            {pathname !== '#!' && <Breadcrumbs />}
+            {pathname !== '#!' && !isA4Playground && <Breadcrumbs />}
             <Outlet />
             <Footer />
           </Container>

@@ -14,9 +14,10 @@ export const BRAND_IVORY = '#F7F5F1';
 
 // Função para obter cores adaptativas ao tema
 export const getBrandColors = (isDark: boolean) => ({
-  navy: isDark ? '#515151' : BRAND_NAVY,
+  // Em dark mantemos a identidade
+  navy: BRAND_NAVY,
   gold: isDark ? '#D4B87A' : BRAND_GOLD,
-  ivory: isDark ? '#2A2A2A' : BRAND_IVORY
+  ivory: isDark ? '#162235' : BRAND_IVORY
 });
 
 export const APP_DEFAULT_PATH = '/devices';

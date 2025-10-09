@@ -216,7 +216,7 @@ export default function SensitiveFieldFormDialog({ open, onClose, editingId, ini
       >
         {({ values, errors, touched, handleBlur, handleChange, handleSubmit, isSubmitting, setFieldValue, isValid }) => (
           <>
-            <DialogContent dividers sx={{ p: 3 }}>
+            <DialogContent dividers>
               <Stack spacing={3}>
                 {/* Seção: Identificação */}
                 <Box>

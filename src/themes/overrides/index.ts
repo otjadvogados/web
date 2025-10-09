@@ -63,7 +63,7 @@ export default function ComponentsOverrides(theme: Theme) {
     AccordionSummary(theme),
     Alert(theme),
     AlertTitle(),
-    Autocomplete(),
+    Autocomplete(theme),
     Badge(theme),
     Button(theme),
     ButtonBase(),

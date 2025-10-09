@@ -63,12 +63,12 @@ export function useWebSocket({
 
       socket.on('connect_error', (error) => {
         console.error('Erro de conexão WebSocket:', error);
-        openSnackbar({
-          open: true,
-          message: 'Erro ao conectar com o servidor em tempo real',
-          variant: 'alert',
-          alert: { color: 'warning' }
-        } as any);
+        // openSnackbar({
+        //   open: true,
+        //   message: 'Erro ao conectar com o servidor em tempo real',
+        //   variant: 'alert',
+        //   alert: { color: 'warning' }
+        // } as any);
       });
 
       // Evento para receber checklists

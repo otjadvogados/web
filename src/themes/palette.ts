@@ -34,10 +34,18 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
   let greyConstant = ['#fafafb', '#e6ebf1'];
 
   if (mode === ThemeMode.DARK) {
-    greyPrimary = ['#000000', '#141414', '#1e1e1e', '#595959', '#8c8c8c', '#bfbfbf', '#d9d9d9', '#f0f0f0', '#f5f5f5', '#fafafa', '#ffffff'];
-    // greyPrimary.reverse();
+    // Escala "grey" azulada para o modo DARK (fundo/paper/divider/text)
+    // índices 0..10 + A-series seguem o contrato usado em ThemeOption
+    greyPrimary = [
+      '#060016  ', // 0  (quase preto azulado)
+      '#08031E', // 1
+      '#0A0526', // 2  -> background.paper
+      '#0D082F', '#0F0B37', '#bfbfbf', '#d9d9d9', '#f0f0f0', '#f5f5f5', '#fafafa', '#ffffff'  // 10 (mantém branco para text.primary via grey[900])
+    ];
+    // acentos frios coerentes com o navy
     greyAscent = ['#fafafa', '#bfbfbf', '#434343', '#1f1f1f'];
-    greyConstant = ['#121212', '#d3d8db'];
+    // constantes: base de página + contornos claros
+    greyConstant = ['#0b0927', '#d3d8db'];
   }
   colors.grey = [...greyPrimary, ...greyAscent, ...greyConstant];
 
@@ -52,17 +60,29 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
       },
       ...paletteColor,
       text: {
-        primary: mode === ThemeMode.DARK ? alpha(paletteColor.grey[900]!, 0.9) : paletteColor.grey[800],
-        secondary: mode === ThemeMode.DARK ? alpha(paletteColor.grey[900]!, 0.55) : paletteColor.grey[600],
-        disabled: mode === ThemeMode.DARK ? alpha(paletteColor.grey[900]!, 0.2) : paletteColor.grey[400]
+        // Em dark, grey[900] => último da escala (branco), mantendo boa legibilidade
+        primary: mode === ThemeMode.DARK ? alpha(paletteColor.grey[900]!, 0.92) : paletteColor.grey[800],
+        secondary: mode === ThemeMode.DARK ? alpha(paletteColor.grey[900]!, 0.60) : paletteColor.grey[600],
+        disabled: mode === ThemeMode.DARK ? alpha(paletteColor.grey[900]!, 0.30) : paletteColor.grey[400]
       },
       action: {
-        disabled: paletteColor.grey[300]
+        // usa a cor primária como realce global (hover/selected/focus)
+        hover: alpha(paletteColor.primary.main as string, 0.08),
+        selected: alpha(paletteColor.primary.main as string, 0.16),
+        focus: alpha(paletteColor.primary.main as string, 0.24),
+        active: alpha(paletteColor.primary.main as string, 0.90),
+        disabled: paletteColor.grey[300],
+        hoverOpacity: 0.08,
+        selectedOpacity: 0.16,
+        focusOpacity: 0.24,
+        activatedOpacity: 0.12,
+        disabledOpacity: 0.38
       },
-      divider: mode === ThemeMode.DARK ? alpha(paletteColor.grey[900]!, 0.05) : paletteColor.grey[200],
+      divider: mode === ThemeMode.DARK ? alpha(paletteColor.grey[900]!, 0.06) : paletteColor.grey[200],
       background: {
-        paper: mode === ThemeMode.DARK ? paletteColor.grey[100] : paletteColor.grey[0],
-        default: paletteColor.grey.A50
+        // deixar o gradiente do body aparecer
+        paper: mode === ThemeMode.DARK ? 'transparent' : paletteColor.grey[0],
+        default: 'transparent'
       }
     }
   });

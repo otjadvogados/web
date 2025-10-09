@@ -11,7 +11,6 @@ export default function Footer() {
       sx={{
         mt: 'auto',
         borderTop: `2px solid ${BRAND_GOLD}`,
-        bgcolor: 'grey.50'
       }}
     >
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', p: '16px 16px 0px' }}>

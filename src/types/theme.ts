@@ -32,3 +32,13 @@ export type CustomShadowProps = {
   grey: string;
   greyButton: string;
 };
+
+// Gradientes customizados (CSS strings prontos para usar como backgroundImage)
+export type CustomGradientProps = {
+  /** Fundo geral da app (aplicado no body) */
+  appBg: string;
+  /** Fundo recomendado para Paper/Card */
+  paperBg: string;
+  /** Fundo para AppBar/toolbar, sutil */
+  toolbarBg: string;
+};

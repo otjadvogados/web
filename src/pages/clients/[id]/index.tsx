@@ -59,7 +59,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`client-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box>{children}</Box>}
     </div>
   );
 }
@@ -242,7 +242,7 @@ export default function ClientDetailsPage() {
 
   if (loading) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box>
         <Typography>Carregando...</Typography>
       </Box>
     );
@@ -250,7 +250,7 @@ export default function ClientDetailsPage() {
 
   if (!customer) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box>
         <Alert severity="error" sx={{ mb: 3 }}>
           Cliente não encontrado
         </Alert>

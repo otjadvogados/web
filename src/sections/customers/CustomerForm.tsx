@@ -68,7 +68,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`customer-form-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box>{children}</Box>}
     </div>
   );
 }
