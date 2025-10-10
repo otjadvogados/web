@@ -81,7 +81,8 @@ export function formatCEP(cep: string): string {
 
 export async function getCompanyBranches(companyId: string) {
   const { data } = await axios.get(`/customers/${companyId}/branches`);
-  return data.data;
+  // backend às vezes retorna array puro
+  return Array.isArray(data) ? data : (data.data || []);
 }
 
 export async function deleteCompanyBranch(parentId: string, childId: string) {

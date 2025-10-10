@@ -429,6 +429,11 @@ export default function CustomerForm() {
          setInitialParentId(null);
        }
 
+       // ✅ Pré-popula branches se vierem no payload do tree (melhor first paint)
+       if (customer.kind === 'COMPANY' && Array.isArray((customer as any).branches)) {
+         setBranches((customer as any).branches);
+       }
+
        await loadBranches(customer);
 
        // pessoas vinculadas (EDIT de empresa)
@@ -762,6 +767,7 @@ export default function CustomerForm() {
           return;
         }
         await linkAsBranch(id, selectedExistingBranch.id);
+        openSnackbar({ open: true, message: 'Filial vinculada com sucesso!', variant: 'alert', alert: { color: 'success' } } as any);
       } else {
         const cleanCnpj = extractDigits(newBranch.cnpj);
         if (!newBranch.legalName || cleanCnpj.length !== 14) {
@@ -785,6 +791,7 @@ export default function CustomerForm() {
             phone: newBranch.phone || undefined
           }
         } as any);
+        openSnackbar({ open: true, message: 'Filial criada com sucesso!', variant: 'alert', alert: { color: 'success' } } as any);
       }
       const cust = await getCustomer(id, true);
       await loadBranches(cust);
@@ -948,6 +955,26 @@ export default function CustomerForm() {
                };
 
           await createCustomer(payload);
+
+          // sucesso: mensagem + reset rápido do form
+          openSnackbar({
+            open: true,
+            message: formData.kind === 'COMPANY' ? 'Empresa criada com sucesso!' : 'Pessoa criada com sucesso!',
+            variant: 'alert',
+            alert: { color: 'success' }
+          } as any);
+
+          // reset local (útil se continuar na tela; inofensivo antes do redirect)
+          setFormData(initialFormData);
+          setCompanyAddresses([]);
+          setPersonAddresses([]);
+          setSecondaryInput('');
+          setPeopleDraft([]);
+          setSelectedParent(null);
+          setParentOptions([]);
+          setParentSearch('');
+          setTabValue(0);
+
         } else {
           // COMPANY + tem matriz selecionada => cria já como filial
           const payload: CreateCustomerPayload = {
@@ -983,6 +1010,13 @@ export default function CustomerForm() {
             }
           };
           const link = await createCompanyAsBranch(selectedParent.id, payload);
+          // sucesso: mensagem
+          openSnackbar({
+            open: true,
+            message: 'Filial criada e vinculada à matriz com sucesso!',
+            variant: 'alert',
+            alert: { color: 'success' }
+          } as any);
           // como o backend retorna o link, redirecione para a child
           navigate(`/clients/${link.childId}`);
           return;
