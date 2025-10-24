@@ -91,7 +91,7 @@ const pages: NavItemType = {
         },
         {
           id: 'ai-docs-templates',
-          title: 'Templates',
+          title: 'Tópicos específicos',
           type: 'item',
           url: '/ai-docs/templates'
         }

@@ -20,6 +20,17 @@ export type AiCategoryListResponse = {
   pagination: { page: number; limit: number; total: number };
 };
 
+// ---- Estilo por Categoria (.docx)
+export type AiCategoryStyle = {
+  id: string;
+  name: string;
+  styleFileId?: string | null;
+  styleUpdatedAt?: string | null;
+  styleStyleJson?: any;
+  styleWdocJson?: any;
+  hasStyle: boolean;
+};
+
 export async function listCategories(params?: {
   search?: string;
   departmentId?: string;
@@ -52,5 +63,31 @@ export async function deleteCategory(id: string) {
   const res = await api.delete<{ message: string }>(`/ai/categories/${id}`, {
     headers: { 'Accept-Language': LANG }
   });
+  return res.data;
+}
+
+export async function attachCategoryStyleDocx(categoryId: string, file: File) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await api.post<{ message: string; data: { fileId: string } }>(
+    `/ai/categories/${encodeURIComponent(categoryId)}/style-docx`,
+    fd,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return res.data;
+}
+
+export async function getCategoryStyles(categoryId: string) {
+  const res = await api.get<{ message: string; data: AiCategoryStyle }>(
+    `/ai/categories/${encodeURIComponent(categoryId)}/styles`,
+    { headers: { 'Accept-Language': LANG } }
+  );
+  return res.data.data;
+}
+
+export async function removeCategoryStyle(categoryId: string) {
+  const res = await api.delete<{ message: string }>(
+    `/ai/categories/${encodeURIComponent(categoryId)}/styles`
+  );
   return res.data;
 }

@@ -36,6 +36,7 @@ import ListItemIcon from './ListItemIcon';
 import OutlinedInput from './OutlinedInput';
 import Pagination from './Pagination';
 import PaginationItem from './PaginationItem';
+import Paper from './Paper';
 import Popover from './Popover';
 import Radio from './Radio';
 import Slider from './Slider';
@@ -73,6 +74,7 @@ export default function ComponentsOverrides(theme: Theme) {
     ChartTooltip(theme),
     Checkbox(theme),
     Chip(theme),
+    Paper(theme),
     Dialog(theme),
     DialogContentText(theme),
     DialogTitle(),

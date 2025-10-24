@@ -161,10 +161,20 @@ export async function getLatestDraftForCase(caseId: string) {
   return r.data?.[0] || null;
 }
 
-export async function generateDraft(caseId: string, templateId?: string) {
+export async function generateDraft(
+  caseId: string, 
+  opts?: { 
+    templateId?: string; templateIds?: string[]; categoryId?: string 
+  }
+) {
+  const body = {
+    ...(opts?.templateIds?.length ? { templateIds: opts.templateIds } : {}),
+    ...(opts?.templateId ? { templateId: opts.templateId } : {}),
+    ...(opts?.categoryId ? { categoryId: opts.categoryId } : {})
+  };
   const { data } = await axios.post<{ data: AiDraft }>(
     `/ai/drafts/${encodeURIComponent(caseId)}/generate`,
-    templateId ? { templateId } : {}
+    body
   );
   return data.data;
 }
@@ -268,6 +278,8 @@ export async function listCases(params?: {
   type?: string;
   customerId?: string;
   status?: string;
+  departmentId?: string;
+  categoryId?: string;
   page?: number;
   limit?: number;
 }) {
@@ -285,9 +297,19 @@ export async function getCase(caseId: string) {
   return data.data;
 }
 
-export async function createCase(payload: { type: string; requestText: string; customerId?: string | null }) {
-  const { data } = await axios.post<{ data: { id: string } }>(`/ai/cases`, payload);
-  return data.data;
+export async function createCase(payload: { 
+  type: string; 
+  requestText: string; 
+  customerId?: string | null;
+  categoryId?: string | null;     // NEW
+  templateIds?: string[];         // NEW
+}) {
+  // Backend responde: { message, data: AiCase }
+  const { data } = await axios.post<{ message: string; data: AiCase }>(
+    `/ai/cases`, 
+    payload
+  );
+  return data.data; // AiCase completo
 }
 
 export async function uploadCaseDoc(caseId: string, file: File) {

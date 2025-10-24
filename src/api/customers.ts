@@ -155,9 +155,52 @@ export async function linkAsBranch(parentId: string, childId: string) {
   return data.data;
 }
 
-export async function getCompanyPeople(companyId: string) {
+export type LinkedPerson = {
+  companyId: string;
+  personId: string;
+  role: string | null;
+  isPrimary: boolean;
+  isLegalRepresentative: boolean;
+  startedOn: string | null;
+  endedOn: string | null;
+  createdAt: string;
+  updatedAt: string;
+  person: {
+    id: string;
+    customerId: string;
+    fullName: string;
+    cpf: string | null;
+    rg: string | null;
+    birthDate: string | null;
+    email: string | null;
+    phone: string | null;
+    createdAt: string;
+    updatedAt: string;
+    customer: {
+      id: string;
+      kind: 'PERSON' | 'COMPANY';
+      displayName: string;
+      isActive: boolean;
+      createdAt: string;
+      updatedAt: string;
+    };
+  };
+};
+
+export async function getCompanyPeople(companyId: string): Promise<LinkedPerson[]> {
   const { data } = await axios.get(`/customers/${companyId}/people`);
-  return data.data || [];
+  return data;
+}
+
+export async function linkPersonToCompany(companyId: string, payload: {
+  personId: string;
+  role?: string;
+  isPrimary?: boolean;
+  isLegalRepresentative?: boolean;
+  startedOn?: string | null;
+}): Promise<LinkedPerson> {
+  const { data } = await axios.post(`/customers/${companyId}/people`, payload);
+  return data;
 }
 
 export async function upsertCompanyPerson(companyId: string, payload: any) {

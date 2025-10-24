@@ -58,7 +58,7 @@ type TemplateOption = {
   subCategoryName: string;
 };
 
-const steps = ['Departamento', 'Cliente', 'Peça', 'Tópico', 'Template'];
+const steps = ['Departamento', 'Cliente', 'Peça', 'Tópico', 'Templates'];
 
 export default function CreateCaseStep1() {
   const navigate = useNavigate();
@@ -90,7 +90,8 @@ export default function CreateCaseStep1() {
   const [tplLoading, setTplLoading] = useState(false);
   const [tplSearch, setTplSearch] = useState('');
   const [templates, setTemplates] = useState<AiTemplate[]>([]);
-  const [selected, setSelected] = useState<TemplateOption | null>(null);
+  const [selected, setSelected] = useState<TemplateOption[]>([]);
+  const [previewTpl, setPreviewTpl] = useState<TemplateOption | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -193,7 +194,7 @@ export default function CreateCaseStep1() {
       setCustomerRecordId(null);
       setCategoryId(null);
       setSubCategoryId(null);
-      setSelected(null);
+      setSelected([]);
       setTemplates([]);
       if (!deptId) { setCategories([]); setSubCategories([]); return; }
     })();
@@ -204,7 +205,7 @@ export default function CreateCaseStep1() {
     (async () => {
       setCategoryId(null);
       setSubCategoryId(null);
-      setSelected(null);
+      setSelected([]);
       setTemplates([]);
       if (!deptId) { setCategories([]); setSubCategories([]); return; }
       try {
@@ -213,7 +214,8 @@ export default function CreateCaseStep1() {
           page: 1,
           limit: 100,
           departmentId: deptId!,
-          customerId: customerRecordId || undefined
+          // usar sempre subjectId no filtro para consistência com o resto do app
+          customerId: customerSubjectId || undefined
         });
         setCategories(r.data || []);
       } catch (e: any) {
@@ -222,7 +224,7 @@ export default function CreateCaseStep1() {
         setCatLoading(false);
       }
     })();
-  }, [customerRecordId, deptId]);
+  }, [customerSubjectId, deptId]);
 
   // ao DIGITAR na peça, busca remota (sem limpar seleção/subníveis)
   useEffect(() => {
@@ -235,7 +237,8 @@ export default function CreateCaseStep1() {
           page: 1,
           limit: 100,
           departmentId: deptId!,
-          customerId: customerRecordId || undefined,
+          // usar sempre subjectId no filtro para consistência com o resto do app
+          customerId: customerSubjectId || undefined,
           ...(q.length >= 2 ? { search: q } : {}) // só aplica search com 2+ chars
         });
         setCategories(r.data || []);
@@ -245,13 +248,13 @@ export default function CreateCaseStep1() {
         setCatLoading(false);
       }
     })();
-  }, [debouncedCategorySearch, deptId, customerRecordId]);
+  }, [debouncedCategorySearch, deptId, customerSubjectId]);
 
   // quando peça muda, recarrega subcategorias e limpa níveis abaixo
   useEffect(() => {
     (async () => {
       setSubCategoryId(null);
-      setSelected(null);
+      setSelected([]);
       setTemplates([]);
       if (!categoryId) { setSubCategories([]); return; }
       try {
@@ -269,7 +272,7 @@ export default function CreateCaseStep1() {
   // quando subcategoria ou busca muda, carrega templates
   useEffect(() => {
     (async () => {
-      setSelected(null);
+      setSelected([]);
       setTemplates([]);
       if (!subCategoryId) return; // só libera template após subcategoria
       try {
@@ -309,11 +312,12 @@ export default function CreateCaseStep1() {
   // ===== calcular step atual
   const currentStep = !deptId ? 0 : !customerRecordId ? 1 : !categoryId ? 2 : !subCategoryId ? 3 : 4;
 
-  async function handlePreview() {
-    if (!selected?.fileId) return;
+  async function handlePreview(t?: TemplateOption) {
+    const target = t ?? previewTpl;
+    if (!target?.fileId) return;
     try {
       setPreviewLoading(true);
-      const { blob } = await getTemplateDocxBlob(selected.id, selected.fileId);
+      const { blob } = await getTemplateDocxBlob(target.id, target.fileId);
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -325,21 +329,30 @@ export default function CreateCaseStep1() {
   }
 
   async function createAndGo() {
-    if (!selected) {
-      openSnackbar({ open: true, message: 'Escolha um template para continuar.', variant: 'alert', alert: { color: 'warning' } } as any);
-      return;
-    }
     if (!pedidoText.trim()) {
       openSnackbar({ open: true, message: 'Descreva o pedido do caso.', variant: 'alert', alert: { color: 'warning' } } as any);
       return;
     }
     try {
       setCreating(true);
-      const c = await createCase({ type: selected.kind, requestText: pedidoText.trim(), customerId: customerRecordId ?? null });
+      // tipo do caso: se houver 1+ templates, classificar como 'from_templates'; senão 'free'
+      const inferredType = selected.length ? 'from_templates' : 'free';
+      const c = await createCase({
+        type: inferredType,
+        requestText: pedidoText.trim(),
+        customerId: customerRecordId ?? null,
+        categoryId: categoryId,                    // NEW
+        templateIds: selected.map(s => s.id)       // NEW
+      });
       if (files.length > 0) await uploadCaseDocs(c.id, files);
 
       // Gerar draft automaticamente
-      const draft = await generateDraft(c.id, selected.id);
+      // - com templates se houver
+      // - sempre enviando categoryId para aplicar estilo da Peça
+      const draft = await generateDraft(c.id, { 
+        ...(selected.length ? { templateIds: selected.map(s => s.id) } : {}),
+        categoryId: categoryId || undefined
+      });
 
       // limpar progresso do sessionStorage ao criar caso
       sessionStorage.removeItem('createCaseProgress');
@@ -501,7 +514,7 @@ export default function CreateCaseStep1() {
                         setCustomerRecordId(null);
                         setCategoryId(null);
                         setSubCategoryId(null);
-                        setSelected(null);
+                        setSelected([]);
                         setTemplates([]);
                       }}
                       deleteIcon={<CloseOutlined /> as any}
@@ -524,7 +537,7 @@ export default function CreateCaseStep1() {
                           setCustomerRecordId(null);
                           setCategoryId(null);
                           setSubCategoryId(null);
-                          setSelected(null);
+                          setSelected([]);
                           setTemplates([]);
                         }}
                         deleteIcon={<CloseOutlined /> as any}
@@ -539,7 +552,7 @@ export default function CreateCaseStep1() {
                       onDelete={() => {
                         setCategoryId(null);
                         setSubCategoryId(null);
-                        setSelected(null);
+                        setSelected([]);
                         setTemplates([]);
                       }}
                       deleteIcon={<CloseOutlined /> as any}
@@ -552,7 +565,7 @@ export default function CreateCaseStep1() {
                       label={`Tópico: ${subCategories.find(s => s.id === subCategoryId)?.name}`}
                       onDelete={() => {
                         setSubCategoryId(null);
-                        setSelected(null);
+                        setSelected([]);
                         setTemplates([]);
                       }}
                       deleteIcon={<CloseOutlined /> as any}
@@ -565,7 +578,7 @@ export default function CreateCaseStep1() {
             </Stack>
           </Paper>
 
-          {/* Templates em cartões */}
+          {/* Templates em cartões (multi-seleção) */}
           {subCategoryId && (
             <Paper variant="outlined" sx={{ p: 2, width: '100%', maxWidth: 860 }}>
               <Stack spacing={2}>
@@ -578,6 +591,10 @@ export default function CreateCaseStep1() {
                   }}
                   sx={{ minWidth: 320, flex: 1 }}
                 />
+
+                <Typography variant="caption" color="text.secondary">
+                  {selected.length ? `${selected.length} template(s) selecionado(s)` : 'Nenhum template selecionado'}
+                </Typography>
 
                 <Box sx={{ 
                   display: 'grid', 
@@ -597,23 +614,29 @@ export default function CreateCaseStep1() {
                       Nenhum template neste tópico.
                     </Typography>
                   ) : (
-                    options.map((opt) => (
+                    options.map((opt) => {
+                      const isSel = selected.some(s => s.id === opt.id);
+                      return (
                       <Paper
                         key={opt.id}
-                        variant={selected?.id === opt.id ? 'elevation' : 'outlined'}
-                        elevation={selected?.id === opt.id ? 2 : 0}
+                        variant={isSel ? 'elevation' : 'outlined'}
+                        elevation={isSel ? 2 : 0}
                         sx={{ 
                           p: 1.25, 
-                          cursor: 'pointer', 
-                          border: selected?.id === opt.id ? 2 : 1,
-                          borderColor: selected?.id === opt.id ? 'primary.main' : 'divider',
+                          cursor: 'pointer',
+                          border: isSel ? 2 : 1,
+                          borderColor: isSel ? 'primary.main' : 'divider',
                           '&:hover': { 
                             boxShadow: 2,
                             borderColor: 'primary.main'
                           },
                           transition: 'all 0.2s ease-in-out'
                         }}
-                        onClick={() => setSelected(opt)}
+                        onClick={() => {
+                          setSelected(prev => prev.some(p => p.id === opt.id) 
+                            ? prev.filter(p => p.id !== opt.id)
+                            : [...prev, opt]);
+                        }}
                       >
                         <Stack spacing={0.5}>
                           <Typography variant="subtitle2" noWrap title={opt.title}>
@@ -639,7 +662,6 @@ export default function CreateCaseStep1() {
                           )}
                           <Stack direction="row" spacing={0.5} flexWrap="wrap">
                             <Chip size="small" label={opt.subCategoryName} />
-                            <Chip size="small" label={opt.kind} variant="outlined" />
                           </Stack>
                           <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
                             <Button 
@@ -647,8 +669,8 @@ export default function CreateCaseStep1() {
                               variant="outlined" 
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                setSelected(opt);
-                                setPreviewOpen(true); 
+                                setPreviewTpl(opt);
+                                setPreviewOpen(true);
                               }}
                               disabled={!opt.fileId}
                             >
@@ -656,18 +678,20 @@ export default function CreateCaseStep1() {
                             </Button>
                             <Button 
                               size="small" 
-                              variant={selected?.id === opt.id ? 'contained' : 'text'}
+                              variant={isSel ? 'contained' : 'text'}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelected(opt);
+                                setSelected(prev => prev.some(p => p.id === opt.id) 
+                                  ? prev.filter(p => p.id !== opt.id)
+                                  : [...prev, opt]);
                               }}
                             >
-                              {selected?.id === opt.id ? 'Selecionado' : 'Selecionar'}
+                              {isSel ? 'Remover' : 'Selecionar'}
                             </Button>
                           </Stack>
                         </Stack>
                       </Paper>
-                    ))
+                    )})
                   )}
                 </Box>
               </Stack>
@@ -689,17 +713,17 @@ export default function CreateCaseStep1() {
                 </IconButton>
               </Stack>
               
-              {selected && (
+              {previewTpl && (
                 <>
                   <Stack spacing={1}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      {selected.title}
+                      {previewTpl.title}
                     </Typography>
                     
                     <Stack direction="row" spacing={1} flexWrap="wrap">
-                      <Chip size="small" label={selected.categoryName} color="primary" />
-                      <Chip size="small" label={selected.subCategoryName} />
-                      <Chip size="small" label={selected.kind} variant="outlined" />
+                      <Chip size="small" label={previewTpl.categoryName} color="primary" />
+                      <Chip size="small" label={previewTpl.subCategoryName} />
+                      <Chip size="small" label={previewTpl.kind} variant="outlined" />
                     </Stack>
                   </Stack>
 
@@ -710,7 +734,7 @@ export default function CreateCaseStep1() {
                       Descrição
                     </Typography>
                     <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                      {selected.description || 'Nenhuma descrição disponível.'}
+                      {previewTpl.description || 'Nenhuma descrição disponível.'}
                     </Typography>
                   </Stack>
 
@@ -726,8 +750,8 @@ export default function CreateCaseStep1() {
                     <Button
                       variant="contained"
                       startIcon={<EyeOutlined />}
-                      disabled={!selected?.fileId || previewLoading}
-                      onClick={handlePreview}
+                      disabled={!previewTpl?.fileId || previewLoading}
+                      onClick={() => handlePreview()}
                       fullWidth
                       size="large"
                     >
@@ -739,14 +763,14 @@ export default function CreateCaseStep1() {
             </Stack>
           </Drawer>
 
-          {/* Detalhes do caso (libera só após template escolhido) */}
-          {selected && (
+          {/* Detalhes do caso (libera após escolher a Peça ou o Tópico; templates são opcionais) */}
+          {(!!categoryId) && (
             <Paper variant="outlined" sx={{ p: 2, width: '100%', maxWidth: 860 }}>
               <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                Template selecionado: {selected.title}
+                {selected.length ? `${selected.length} template(s) selecionado(s)` : 'Nenhum template selecionado (opcional)'}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Agora descreva o pedido e anexe documentos (opcional)
+                Descreva o pedido e anexe documentos (opcional). Você pode prosseguir mesmo sem selecionar templates.
               </Typography>
               
               <TextField

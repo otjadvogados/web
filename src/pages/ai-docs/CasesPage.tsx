@@ -5,6 +5,8 @@ import { PlusOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
 import { listCases, getLatestDraftForCase, type AiCase } from 'api/aiDocs';
+import { listDepartments, type Department } from 'api/departments';
+import { listCategories, type AiCategory } from 'api/aiCategories';
 import { listCustomers, type Customer, subjectId, resolveSubjectId } from 'api/customers';
 import Autocomplete from '@mui/material/Autocomplete';
 
@@ -16,11 +18,24 @@ export default function CasesPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<AiCase[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [categories, setCategories] = useState<AiCategory[]>([]);
+  const [deptId, setDeptId] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [depsLoading, setDepsLoading] = useState(false);
+  const [catsLoading, setCatsLoading] = useState(false);
 
   async function fetch() {
     try {
       setLoading(true);
-      const res = await listCases({ search, customerId: customerSubjectId || undefined, page: 1, limit: 20 });
+      const res = await listCases({ 
+        search, 
+        customerId: customerSubjectId || undefined, 
+        departmentId: deptId || undefined,
+        categoryId: categoryId || undefined,
+        page: 1, 
+        limit: 20 
+      });
       setItems(res.data || []);
     } catch (e: any) {
       openSnackbar({ open: true, message: e?.response?.data?.message || e.message, variant: 'alert', alert: { color: 'error' } } as any);
@@ -29,7 +44,18 @@ export default function CasesPage() {
     }
   }
 
-  useEffect(() => { fetch(); /* eslint-disable-next-line */ }, [customerSubjectId]);
+  useEffect(() => { fetch(); /* eslint-disable-next-line */ }, [customerSubjectId, deptId, categoryId]);
+  useEffect(() => { (async () => { try { setDepsLoading(true); const r = await listDepartments({ page:1, limit:100 }); setDepartments(r.data);} finally { setDepsLoading(false); } })(); }, []);
+  useEffect(() => { 
+    (async () => { 
+      if (!deptId) { setCategories([]); setCategoryId(null); return; }
+      try { 
+        setCatsLoading(true); 
+        const r = await listCategories({ page:1, limit:200, departmentId: deptId });
+        setCategories(r.data);
+      } finally { setCatsLoading(false); }
+    })(); 
+  }, [deptId]);
   useEffect(() => { (async () => { try { const r = await listCustomers({ page:1, limit:200 }); setCustomers(r.data);} catch {} })(); }, []);
 
   return (
@@ -55,6 +81,25 @@ export default function CasesPage() {
             onChange={async (_, v) => setCustomerSubjectId((await resolveSubjectId(v)) ?? null)}
             renderInput={(p) => <TextField {...p} placeholder="Cliente (opcional)" size="small" />}
             sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 360 }}
+          />
+          <Autocomplete
+            options={departments}
+            loading={depsLoading}
+            getOptionLabel={(o) => o.name}
+            value={departments.find(d => d.id === deptId) || null}
+            onChange={(_, v) => { setDeptId(v?.id ?? null); setCategoryId(null); }}
+            renderInput={(p) => <TextField {...p} placeholder="Departamento (opcional)" size="small" />}
+            sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 300 }}
+          />
+          <Autocomplete
+            options={categories}
+            loading={catsLoading}
+            getOptionLabel={(o) => o.name}
+            value={categories.find(c => c.id === categoryId) || null}
+            onChange={(_, v) => setCategoryId(v?.id ?? null)}
+            disabled={!deptId}
+            renderInput={(p) => <TextField {...p} placeholder="Peça (opcional)" size="small" />}
+            sx={{ flex: '1 1 220px', minWidth: 220, maxWidth: 300 }}
           />
           <Stack direction="row" spacing={1}>
             <Button onClick={fetch} variant="outlined" disabled={loading}>

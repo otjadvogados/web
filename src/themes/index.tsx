@@ -98,7 +98,10 @@ export default function ThemeCustomization({ children }: ThemeCustomizationProps
         // para elevações comuns aplicamos um gradiente sutil
         elevation1: {
           backgroundImage: `${themes.customGradients.paperBg} !important`,
-          backgroundColor: 'transparent !important'
+          backgroundColor: `transparent !important`,
+          backdropFilter: 'blur(10px) saturate(120%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(120%)',
+          border: '1px solid rgba(255,255,255,0.15)',
         },
         elevation2: {
           backgroundImage: `${themes.customGradients.paperBg} !important`,
@@ -134,7 +137,7 @@ export default function ThemeCustomization({ children }: ThemeCustomizationProps
       styleOverrides: {
         paper: {
           backgroundImage: `${themes.customGradients.paperBg} !important`,
-          backgroundColor: 'transparent !important',
+          backgroundColor: `${themes.palette.background.paper} !important`,
           backdropFilter: 'blur(10px) saturate(120%)',
           WebkitBackdropFilter: 'blur(10px) saturate(120%)',
           border: '1px solid rgba(255,255,255,.08)'

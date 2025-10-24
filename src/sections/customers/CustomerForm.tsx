@@ -32,7 +32,9 @@ import {
   LoadingOutlined as LoadingIcon, PlusOutlined as AddIcon, LinkOutlined as LinkIcon
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Customer, CustomerKind, CreateCustomerPayload, CustomerWithDetails, ReceitaFederalData, UpdateCompanyPayload, CustomerBranch } from '../../types/customers';
+import { Customer, CustomerKind, CreateCustomerPayload, CustomerWithDetails, ReceitaFederalData, UpdateCompanyPayload, CustomerBranch, CompanyPersonLink } from '../../types/customers';
+import CompanyPeopleList from './CompanyPeopleList';
+import { linkPersonToCompany, LinkedPerson } from '../../api/customers';
 import {
   createCustomer, getCustomer, updateCustomer, updateCustomerCompany, extractDigits,
   getReceitaFederalData, formatCNPJ, formatCPF,
@@ -208,7 +210,7 @@ export default function CustomerForm() {
   const [peopleDraft, setPeopleDraft] = useState<DraftLink[]>([]);
 
   // Estado do EDIT (carregado por GET /customers/:id/people)
-  const [peopleLinks, setPeopleLinks] = useState<any[]>([]); // CompanyPersonLink[]
+  const [peopleLinks, setPeopleLinks] = useState<LinkedPerson[]>([]);
   const [peopleLoading, setPeopleLoading] = useState(false);
   const [peopleError, setPeopleError] = useState<string | null>(null);
 
@@ -219,6 +221,11 @@ export default function CustomerForm() {
   const [personOptions, setPersonOptions] = useState<Customer[]>([]);
   const [personLoading, setPersonLoading] = useState(false);
   const [selectedExistingPerson, setSelectedExistingPerson] = useState<Customer | null>(null);
+  
+  // Estados para o novo componente CompanyPeopleList
+  const [newlyLinked, setNewlyLinked] = useState<LinkedPerson | null>(null);
+  const [quickPersonId, setQuickPersonId] = useState('');
+  const [quickRole, setQuickRole] = useState('');
   const [newPerson, setNewPerson] = useState({ fullName: '', cpf: '', email: '', phone: '' });
   const [peopleRole, setPeopleRole] = useState('');
   const [peopleIsPrimary, setPeopleIsPrimary] = useState(false);
@@ -1813,8 +1820,63 @@ export default function CustomerForm() {
                 </Card>
               )}
 
-              {/* EDIT: lista atual com upsert/delete imediato */}
+              {/* EDIT: usar o novo componente CompanyPeopleList */}
               {isEdit && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="h6">Pessoas vinculadas</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Veja quem está associado a esta empresa (cargo, representante legal, etc.).
+                  </Typography>
+                  <CompanyPeopleList companyId={id!} newlyLinked={newlyLinked} />
+
+                  {/* Atalho simples para criar um vínculo e já refletir na UI */}
+                  <Stack direction="row" gap={1} alignItems="center" sx={{ mt: 2, flexWrap: 'wrap' }}>
+                    <TextField
+                      size="small"
+                      label="ID da Pessoa"
+                      placeholder="personId"
+                      value={quickPersonId}
+                      onChange={(e) => setQuickPersonId(e.target.value)}
+                    />
+                    <TextField
+                      size="small"
+                      label="Cargo (opcional)"
+                      placeholder="ex.: CEO"
+                      value={quickRole}
+                      onChange={(e) => setQuickRole(e.target.value)}
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={async () => {
+                        if (!id || !quickPersonId) return;
+                        try {
+                          // cria o vínculo e faz atualização imediata da lista
+                          const created = await linkPersonToCompany(id, { 
+                            personId: quickPersonId, 
+                            role: quickRole || undefined 
+                          });
+                          setNewlyLinked(created);     // empurra para a lista sem refetch
+                          setQuickPersonId('');
+                          setQuickRole('');
+                        } catch (e: any) {
+                          openSnackbar({ 
+                            open: true, 
+                            message: e?.response?.data?.message || 'Erro ao vincular pessoa', 
+                            variant: 'alert', 
+                            alert: { color: 'error' } 
+                          } as any);
+                        }
+                      }}
+                    >
+                      Vincular pessoa
+                    </Button>
+                  </Stack>
+                </>
+              )}
+
+              {/* EDIT: lista atual com upsert/delete imediato - MANTIDO PARA REFERÊNCIA */}
+              {false && isEdit && (
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Pessoas vinculadas</Typography>

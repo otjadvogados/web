@@ -22,7 +22,7 @@ import {
   DialogActions,
   Box
 } from '@mui/material';
-import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlusOutlined, PaperClipOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
@@ -32,6 +32,9 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  attachCategoryStyleDocx,
+  getCategoryStyles,
+  removeCategoryStyle,
   type AiCategory
 } from 'api/aiCategories';
 import { listDepartments, type Department } from 'api/departments';
@@ -44,6 +47,7 @@ import useDebounced from 'utils/useDebounced';
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<AiCategory[]>([]);
   const [loading, setLoading] = useState(false);
+  const [styleMap, setStyleMap] = useState<Record<string, { hasStyle: boolean; styleUpdatedAt: string | null }>>({});
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<AiCategory | null>(null);
@@ -81,6 +85,19 @@ export default function CategoriesPage() {
       } as any);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // carrega/atualiza status de estilo de uma categoria
+  const refreshCategoryStyle = async (categoryId: string) => {
+    try {
+      const s = await getCategoryStyles(categoryId);
+      setStyleMap(prev => ({ 
+        ...prev, 
+        [categoryId]: { hasStyle: !!s.hasStyle, styleUpdatedAt: s.styleUpdatedAt ?? null } 
+      }));
+    } catch {
+      // ignora falha individual
     }
   };
 
@@ -153,6 +170,18 @@ export default function CategoriesPage() {
   useEffect(() => {
     searchCustomers(debouncedCustomerSearch);
   }, [debouncedCustomerSearch]);
+
+  // após carregar categorias, buscar status de estilo
+  useEffect(() => {
+    if (!categories.length) { setStyleMap({}); return; }
+    (async () => {
+      const ids = categories.map(c => c.id);
+      await Promise.all(
+        ids.map(id => refreshCategoryStyle(id))
+      );
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories.map(c => c.id).join('|')]);
 
   // Handlers
   const handleOpenDialog = (category?: AiCategory) => {
@@ -326,19 +355,20 @@ export default function CategoriesPage() {
                   <TableCell>Nome</TableCell>
                   <TableCell>Slug</TableCell>
                   <TableCell>Departamento</TableCell>
+                  <TableCell>Estilo</TableCell>
                   <TableCell align="center">Ações</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={3} align="center">
+                    <TableCell colSpan={5} align="center">
                       <CircularProgress size={24} />
                     </TableCell>
                   </TableRow>
                 ) : categories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} align="center">
+                    <TableCell colSpan={5} align="center">
                       <Typography variant="body2" color="text.secondary">
                         Nenhuma peça encontrada
                       </Typography>
@@ -366,6 +396,20 @@ export default function CategoriesPage() {
                             <Typography variant="caption" color="text.secondary">—</Typography>
                           )}
                         </TableCell>
+                        <TableCell>
+                          {styleMap[category.id]?.hasStyle ? (
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Chip size="small" color="primary" label="Estilo configurado" />
+                              {styleMap[category.id]?.styleUpdatedAt && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {new Date(styleMap[category.id]!.styleUpdatedAt!).toLocaleString()}
+                                </Typography>
+                              )}
+                            </Stack>
+                          ) : (
+                            <Chip size="small" variant="outlined" label="Sem estilo" />
+                          )}
+                        </TableCell>
                         <TableCell align="center">
                           <Stack direction="row" spacing={1} justifyContent="center">
                             <IconButton
@@ -374,6 +418,52 @@ export default function CategoriesPage() {
                               color="primary"
                             >
                               <EditOutlined />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              component="label"
+                              color="info"
+                              title="Anexar estilo (.docx)"
+                              onChange={async (e: any) => {
+                                const file = e?.target?.files?.[0];
+                                if (!file) return;
+                                try {
+                                  await attachCategoryStyleDocx(category.id, file);
+                                  openSnackbar({ open: true, message: 'Estilo anexado à peça.', variant: 'alert', alert: { color: 'success' } } as any);
+                                  await refreshCategoryStyle(category.id);
+                                } catch (err:any) {
+                                  openSnackbar({ open: true, message: err?.response?.data?.message || 'Erro ao anexar estilo', variant: 'alert', alert: { color: 'error' } } as any);
+                                } finally {
+                                  // limpa o input para permitir re-upload do mesmo nome
+                                  e.target.value = '';
+                                }
+                              }}
+                            >
+                              <PaperClipOutlined />
+                              <input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              color="warning"
+                              title="Remover estilo da peça"
+                              onClick={async () => {
+                                if (!styleMap[category.id]?.hasStyle) {
+                                  openSnackbar({ open: true, message: 'Esta peça não possui estilo para remover.', variant: 'alert', alert: { color: 'warning' } } as any);
+                                  return;
+                                }
+                                const ok = window.confirm(`Remover o estilo (.docx) da peça "${category.name}"?`);
+                                if (!ok) return;
+                                try {
+                                  await removeCategoryStyle(category.id);
+                                  openSnackbar({ open: true, message: 'Estilo removido.', variant: 'alert', alert: { color: 'success' } } as any);
+                                  await refreshCategoryStyle(category.id);
+                                } catch (err:any) {
+                                  openSnackbar({ open: true, message: err?.response?.data?.message || 'Erro ao remover estilo', variant: 'alert', alert: { color: 'error' } } as any);
+                                }
+                              }}
+                            >
+                              {/* reutilizando ícone de edição como placeholder? Melhor manter Delete para remover estilo */}
+                              <DeleteOutlined />
                             </IconButton>
                             <IconButton
                               size="small"
