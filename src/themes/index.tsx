@@ -101,7 +101,6 @@ export default function ThemeCustomization({ children }: ThemeCustomizationProps
           backgroundColor: `transparent !important`,
           backdropFilter: 'blur(10px) saturate(120%)',
           WebkitBackdropFilter: 'blur(10px) saturate(120%)',
-          border: '1px solid rgba(255,255,255,0.15)',
         },
         elevation2: {
           backgroundImage: `${themes.customGradients.paperBg} !important`,

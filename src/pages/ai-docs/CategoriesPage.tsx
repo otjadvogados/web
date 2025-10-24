@@ -37,6 +37,7 @@ import {
   removeCategoryStyle,
   type AiCategory
 } from 'api/aiCategories';
+import { uploadCompanyBaseStyleDocx, removeCompanyBaseStyle, downloadCompanyBaseStyleBlob } from 'api/aiBaseStyle';
 import { listDepartments, type Department } from 'api/departments';
 import Autocomplete from '@mui/material/Autocomplete';
 import { listCustomers, type Customer, subjectId, resolveSubjectId } from 'api/customers';
@@ -346,6 +347,77 @@ export default function CategoriesPage() {
               Nova Peça
             </Button>
           </Stack>
+
+          {/* Card para gerenciar Documento Base da empresa */}
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} justifyContent="space-between">
+              <Stack spacing={0.5}>
+                <Typography variant="subtitle1">Documento Base (.docx) da empresa</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Caso a peça não tenha um documento base, o documento base da empresa será usado.
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Button component="label" variant="outlined">
+                  Enviar
+                  <input
+                    hidden
+                    type="file"
+                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    onChange={async (e: any) => {
+                      const file = e?.target?.files?.[0];
+                      if (!file) return;
+                      try {
+                        await uploadCompanyBaseStyleDocx(file);
+                        openSnackbar({ open: true, message: 'Documento Base enviado!', variant: 'alert', alert: { color: 'success' } } as any);
+                        // se quiser, recarregue um estado local com getCompanyBaseStyle()
+                      } catch (err: any) {
+                        openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao enviar o .docx', variant: 'alert', alert: { color: 'error' } } as any);
+                      } finally {
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={async () => {
+                    try {
+                      const blob = await downloadCompanyBaseStyleBlob();
+                      const url = URL.createObjectURL(blob);
+                      // abre em nova aba; ou use um <a download> se quiser forçar download
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                    } catch (e: any) {
+                      openSnackbar({
+                        open: true,
+                        message: e?.response?.data?.message || e.message || 'Falha ao baixar Documento Base',
+                        variant: 'alert',
+                        alert: { color: 'error' }
+                      } as any);
+                    }
+                  }}
+                >
+                  Baixar
+                </Button>
+                <Button
+                  color="warning"
+                  onClick={async () => {
+                    const ok = window.confirm('Remover o Documento Base da empresa?');
+                    if (!ok) return;
+                    try {
+                      await removeCompanyBaseStyle();
+                      openSnackbar({ open: true, message: 'Documento Base removido.', variant: 'alert', alert: { color: 'success' } } as any);
+                    } catch (err: any) {
+                      openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao remover', variant: 'alert', alert: { color: 'error' } } as any);
+                    }
+                  }}
+                >
+                  Remover
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
 
           {/* Tabela de peças */}
           <TableContainer component={Paper} variant="outlined">

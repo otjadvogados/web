@@ -33,9 +33,9 @@ import {
   getTemplateDocxBlob,
   createCase,
   uploadCaseDocs,
-  generateDraft,
   type AiTemplate
 } from 'api/aiDocs';
+import GenerateDraftDialog from 'components/GenerateDraftDialog';
 
 import {
   EyeOutlined,
@@ -99,6 +99,8 @@ export default function CreateCaseStep1() {
   const [pedidoText, setPedidoText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [creating, setCreating] = useState(false);
+  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+  const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
 
   // ===== debounce para busca
   const debouncedTplSearch = useDebounced(tplSearch, 350);
@@ -346,23 +348,16 @@ export default function CreateCaseStep1() {
       });
       if (files.length > 0) await uploadCaseDocs(c.id, files);
 
-      // Gerar draft automaticamente
-      // - com templates se houver
-      // - sempre enviando categoryId para aplicar estilo da Peça
-      const draft = await generateDraft(c.id, { 
-        ...(selected.length ? { templateIds: selected.map(s => s.id) } : {}),
-        categoryId: categoryId || undefined
-      });
-
       // limpar progresso do sessionStorage ao criar caso
       sessionStorage.removeItem('createCaseProgress');
 
-      // Redirecionar para o playground com o draft gerado
-      navigate(`/ai-docs/a4-playground/${draft.id}`);
+      // Abrir dialog de geração
+      setCreatedCaseId(c.id);
+      setGenerateDialogOpen(true);
       
       openSnackbar({ 
         open: true, 
-        message: 'Caso criado e documento gerado com sucesso!', 
+        message: 'Caso criado! Gerando documento...', 
         variant: 'alert', 
         alert: { color: 'success' } 
       } as any);
@@ -832,6 +827,22 @@ export default function CreateCaseStep1() {
           )}
         </Stack>
       </MainCard>
+
+      {/* Dialog de geração de rascunho */}
+      {createdCaseId && (
+        <GenerateDraftDialog
+          open={generateDialogOpen}
+          onClose={() => setGenerateDialogOpen(false)}
+          caseId={createdCaseId}
+          templateIds={selected.map(s => s.id)}
+          categoryId={categoryId}
+          onDone={(draft) => {
+            setGenerateDialogOpen(false);
+            // Redirecionar para o playground com o draft gerado
+            navigate(`/ai-docs/a4-playground/${draft.id}`);
+          }}
+        />
+      )}
     </Box>
   );
 }

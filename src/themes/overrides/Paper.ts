@@ -7,7 +7,6 @@ export default function Paper(theme: Theme) {
   const glass = {
     backdropFilter: 'blur(10px) saturate(120%)',
     WebkitBackdropFilter: 'blur(10px) saturate(120%)',
-    border: '1px solid rgba(255,255,255,0.15)',
   };
 
   return {
@@ -25,7 +24,6 @@ export default function Paper(theme: Theme) {
             backgroundColor: 'theme.palette.background.paper',
             backdropFilter: 'none',
             WebkitBackdropFilter: 'none',
-            border: `1px solid ${theme.palette.divider}`,
           },
         },
       },

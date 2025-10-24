@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
   Box, Alert, CircularProgress, Paper, Stack, Typography, 
-  TextField, Button, List, ListItem, ListItemIcon, ListItemText
+  TextField, Button, List, ListItem, ListItemIcon, ListItemText, Chip
 } from '@mui/material';
 import MainCard from 'components/MainCard';
 import A4Editor from 'components/A4Editor';
@@ -27,6 +27,7 @@ import {
 } from 'api/aiDocs';
 import { openSnackbar } from 'api/snackbar';
 import axios from 'utils/axios';
+import { applyBaselineToWDoc } from 'utils/wdocBaseline';
 import headerPng from 'assets/images/cases/header.png';
 import footerPng from 'assets/images/cases/footer.png';
 
@@ -117,7 +118,8 @@ export default function A4Playground() {
       // Atualiza o documento com o que veio do back
       const nextDoc = res?.data?.draft?.json ?? null;
       if (nextDoc) {
-        setDoc(nextDoc);
+        const merged = applyBaselineToWDoc(nextDoc);
+        setDoc(merged);
       }
       
       // Remove a sugestão aceita da lista local
@@ -187,7 +189,8 @@ export default function A4Playground() {
       // Atualiza o documento com o que veio do back
       const nextDoc = res?.data?.draft?.json ?? null;
       if (nextDoc) {
-        setDoc(nextDoc);
+        const merged = applyBaselineToWDoc(nextDoc);
+        setDoc(merged);
       }
       
       // Atualiza a sugestão com o novo status das ops
@@ -262,8 +265,9 @@ export default function A4Playground() {
         const data = response.data;
         
         if (data?.data?.json) {
-          // Usa apenas o conteúdo da prop json
-          setDoc(data.data.json);
+          // Aplica baseline antes de definir o documento
+          const merged = applyBaselineToWDoc(data.data.json);
+          setDoc(merged);
           setCaseId(data.data.caseId); // Salva o caseId para o chat
           setSessionId(data.data.sessionId); // Salva o sessionId para o WebSocket
         } else {
@@ -350,7 +354,8 @@ export default function A4Playground() {
       // 0) pegue o draft ATUAL antes de ancorar sugestões/findings
       try {
         const fresh = await getDraft(out.data.draftId); // retorna { data: AiDraft }
-        setDoc(fresh.json || fresh); // ajuste conforme seu shape
+        const merged = applyBaselineToWDoc(fresh.json || fresh);
+        setDoc(merged);
       } catch (e) {
         // se falhar, segue com o doc atual (anchors por snippet ainda podem salvar)
         console.warn('Falha ao buscar draft atual:', e);
@@ -413,9 +418,23 @@ export default function A4Playground() {
 
 
 
+  // Extrair informação sobre a origem do baseline
+  const baselineSource = (doc as any)?.__meta?.styleBaselineSource;
+
   return (
     <Box sx={{ p: { xs: 1, md: 3 }, pr: { md: '400px' } }}>
-      <MainCard title="Prévia do Documento">
+      <MainCard 
+        title="Prévia do Documento"
+        secondary={
+          baselineSource && (
+            <Chip 
+              size="small" 
+              label={`Estilo: ${baselineSource === 'category' ? 'Peça' : 'Empresa'}`}
+              color={baselineSource === 'category' ? 'primary' : 'secondary'}
+            />
+          )
+        }
+      >
         {apiError && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setApiError(null)}>
             {apiError}

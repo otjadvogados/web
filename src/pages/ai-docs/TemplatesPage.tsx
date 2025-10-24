@@ -450,7 +450,7 @@ export default function TemplatesPage() {
                                 size="small" 
                                 color="info" 
                                 onClick={() => viewTemplate(t)}
-                                title="Baixar DOCX"
+                                title="Baixar"
                               >
                                 <EyeOutlined />
                               </IconButton>
