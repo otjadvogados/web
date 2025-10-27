@@ -42,14 +42,6 @@ const EditClientPage = Loadable(lazy(() => import('pages/clients/[id]/edit')));
 // NOVO: Bloqueios de Conta
 const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
 
-const AiDocsTemplates = Loadable(lazy(() => import('pages/ai-docs/TemplatesPage')));
-const AiDocsCategories = Loadable(lazy(() => import('pages/ai-docs/CategoriesPage')));
-const AiDocsSubCategories = Loadable(lazy(() => import('pages/ai-docs/SubCategoriesPage')));
-const CreateCaseStep1 = Loadable(lazy(() => import('pages/ai-docs/CreateCaseStep1')));
-// (removido) WDocEditorPage não é mais utilizado
-const AiCasesPage = Loadable(lazy(() => import('pages/ai-docs/CasesPage')));
-const A4Playground = Loadable(lazy(() => import('pages/ai-docs/A4Playground')));
-
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -108,30 +100,6 @@ const MainRoutes = {
           path: 'sensitive-fields',
           element: <SensitiveFieldsPage />
         },
-        {
-          path: 'ai-docs/templates',
-          element: <AiDocsTemplates />
-        },
-        {
-          path: 'ai-docs/categories',
-          element: <AiDocsCategories />
-        },
-        {
-          path: 'ai-docs/subcategories',
-          element: <AiDocsSubCategories />
-        },
-        {
-          path: 'ai-docs/create',
-          element: <CreateCaseStep1 />
-        },
-        {
-          path: 'ai-docs/cases',
-          element: <AiCasesPage />
-        },
-        {
-          path: 'ai-docs/a4-playground/:id',
-          element: <A4Playground />
-        }
       ]
     },
     {

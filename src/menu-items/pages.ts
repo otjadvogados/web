@@ -63,40 +63,6 @@ const pages: NavItemType = {
       icon: icons.UserOutlined,
       url: '/clients'
     },
-    // 👇 AI Docs
-    {
-      id: 'ai-docs',
-      title: 'Inteligência Artificial',
-      type: 'collapse',
-      icon: icons.AIIcon,
-      isDropdown: true,
-      children: [
-        {
-          id: 'ai-docs-cases',
-          title: 'Meus Casos',
-          type: 'item',
-          url: '/ai-docs/cases'
-        },
-        {
-          id: 'ai-docs-categories',
-          title: 'Peças',
-          type: 'item',
-          url: '/ai-docs/categories'
-        },
-        {
-          id: 'ai-docs-subcategories',
-          title: 'Tópicos',
-          type: 'item',
-          url: '/ai-docs/subcategories'
-        },
-        {
-          id: 'ai-docs-templates',
-          title: 'Tópicos específicos',
-          type: 'item',
-          url: '/ai-docs/templates'
-        }
-      ]
-    },
   ]
 };
 
