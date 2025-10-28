@@ -30,7 +30,7 @@ export default function CustomGradients(theme: Theme): CustomGradientProps {
   const toolbarDiag = `
     linear-gradient(
       165deg,
-      ${alpha("#0F0B37  ", 0.85)} 0%,
+      ${alpha("#0F0B37", 0.85)} 0%,
       ${alpha("#110D3F", 0.70)} 55%,
       ${alpha("#131047", 0.28)} 100%
     )`;

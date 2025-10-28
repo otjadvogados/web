@@ -39,6 +39,7 @@ import {
   deleteCompanyBranch
 } from '../../../api/customers';
 import { openSnackbar } from '../../../api/snackbar';
+import CompanyPeoplePanel from '../../../sections/customers/CompanyPeoplePanel';
 
 // ==============================|| CLIENT DETAILS PAGE ||============================== //
 
@@ -59,7 +60,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`client-tab-${index}`}
       {...other}
     >
-      {value === index && <Box>{children}</Box>}
+      {value === index && <Box sx={{ p: 2 }}>{children}</Box>}
     </div>
   );
 }
@@ -764,9 +765,8 @@ export default function ClientDetailsPage() {
             <Typography variant="h6" gutterBottom>
               Pessoas Vinculadas
             </Typography>
-            <Typography color="text.secondary">
-              Funcionalidade de pessoas vinculadas será implementada em breve.
-            </Typography>
+            {/* 👇 Render read-only com dados vindos da API */}
+            <CompanyPeoplePanel customerId={id!} />
           </TabPanel>
         )}
       </Card>

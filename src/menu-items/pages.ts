@@ -58,7 +58,7 @@ const pages: NavItemType = {
     // 👇 Clientes
     {
       id: 'clients',
-      title: 'Clientes',
+      title: 'customer',
       type: 'item',
       icon: icons.UserOutlined,
       url: '/clients'

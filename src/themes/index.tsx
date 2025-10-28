@@ -175,6 +175,34 @@ export default function ThemeCustomization({ children }: ThemeCustomizationProps
           backgroundColor: 'rgba(0,0,0,.35)'
         }
       }
+    },
+    MuiSnackbar: {
+      styleOverrides: {
+        root: {
+          '& .MuiSnackbarContent-root': {
+            backgroundColor: `${themes.palette.background.paper} !important`,
+            backgroundImage: 'none !important',
+            color: `${themes.palette.text.primary} !important`,
+            backdropFilter: 'blur(10px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(10px) saturate(120%)',
+            border: '1px solid rgba(255,255,255,.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+          }
+        }
+      }
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          backgroundColor: `${themes.palette.background.paper} !important`,
+          backgroundImage: 'none !important',
+          color: `${themes.palette.text.primary} !important`,
+          backdropFilter: 'blur(10px) saturate(120%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(120%)',
+          border: '1px solid rgba(255,255,255,.08)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+        }
+      }
     }
   };
 

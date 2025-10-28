@@ -50,11 +50,11 @@ export function openSnackbar(snackbar: SnackbarProps) {
   mutate(
     endpoints.key,
     (currentSnackbar: any) => {
-      return {
+      const newSnackbar = {
         ...currentSnackbar,
-        action: action || initialState.action,
-        open: open || initialState.open,
-        message: message || initialState.message,
+        action: action !== undefined ? action : initialState.action,
+        open: open !== undefined ? open : initialState.open,
+        message: message !== undefined ? message : initialState.message,
         anchorOrigin: anchorOrigin || initialState.anchorOrigin,
         variant: variant || initialState.variant,
         alert: {
@@ -62,9 +62,10 @@ export function openSnackbar(snackbar: SnackbarProps) {
           variant: alert?.variant || initialState.alert.variant
         },
         transition: transition || initialState.transition,
-        close: close || initialState.close,
-        actionButton: actionButton || initialState.actionButton
+        close: close !== undefined ? close : initialState.close,
+        actionButton: actionButton !== undefined ? actionButton : initialState.actionButton
       };
+      return newSnackbar;
     },
     false
   );

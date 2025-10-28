@@ -31,12 +31,12 @@ const unwrapUser = (resp: any) => resp?.data?.data ?? resp?.data?.user ?? resp?.
 // Validação de CPF
 const validateCPF = (cpf: string) => {
   const cleanCPF = cpf.replace(/\D/g, '');
-  
+
   if (cleanCPF.length !== 11) return false;
-  
+
   // Verifica se todos os dígitos são iguais
   if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
-  
+
   // Validação do primeiro dígito verificador
   let sum = 0;
   for (let i = 0; i < 9; i++) {
@@ -45,7 +45,7 @@ const validateCPF = (cpf: string) => {
   let remainder = (sum * 10) % 11;
   if (remainder === 10 || remainder === 11) remainder = 0;
   if (remainder !== parseInt(cleanCPF.charAt(9))) return false;
-  
+
   // Validação do segundo dígito verificador
   sum = 0;
   for (let i = 0; i < 10; i++) {
@@ -54,7 +54,7 @@ const validateCPF = (cpf: string) => {
   remainder = (sum * 10) % 11;
   if (remainder === 10 || remainder === 11) remainder = 0;
   if (remainder !== parseInt(cleanCPF.charAt(10))) return false;
-  
+
   return true;
 };
 
@@ -114,10 +114,10 @@ export default function PersonalForm() {
       enableReinitialize
       initialValues={{ name: '', email: '', cpf: '', oab: '', birthdate: '', phone: '', currentPassword: '' }}
       validationSchema={schema}
-                    onSubmit={async (values, { setSubmitting, setErrors }) => {
+      onSubmit={async (values, { setSubmitting, setErrors }) => {
         try {
           // prepara payload base
-          const payload: any = { 
+          const payload: any = {
             ...values
           };
 
@@ -146,8 +146,8 @@ export default function PersonalForm() {
 
           // não envie currentPassword vazia
           if (!payload.currentPassword) delete payload.currentPassword;
-          
-          await axios.put('/auth/me', payload);
+
+          const resp = await axios.put('/auth/me', payload);
 
           // Atualiza o contexto com os novos dados do usuário
           const updatedUser: UserProfile = {
@@ -156,7 +156,7 @@ export default function PersonalForm() {
             oab: values.oab || undefined,
             phone: values.phone ? digitsOnly(values.phone) : undefined
           };
-          
+
           // Busca os dados atualizados do servidor para garantir consistência
           try {
             const resp = await axios.get('/auth/me');
@@ -170,14 +170,14 @@ export default function PersonalForm() {
           // Atualiza o email original para manter a consistência
           emailOriginal.current = values.email;
 
+          setSubmitting(false);
+
           openSnackbar({
             open: true,
-            message: 'Dados atualizados com sucesso!',
+            message: resp.data.message,
             variant: 'alert',
             alert: { color: 'success' }
           } as any);
-
-          setSubmitting(false);
         } catch (err: any) {
           setSubmitting(false);
           setErrors({ email: err?.response?.data?.message || 'Erro ao atualizar perfil' });
@@ -185,7 +185,7 @@ export default function PersonalForm() {
       }}
     >
       {({ values, errors, touched, handleBlur, handleChange, handleSubmit, isSubmitting, setValues, setFieldValue }) => {
-                // carrega /auth/me ao montar
+        // carrega /auth/me ao montar
         useEffect(() => {
           (async () => {
             try {

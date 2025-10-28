@@ -43,6 +43,7 @@ import {
   linkAsBranch, createCompanyAsBranch, deleteCompanyBranch, getCompanyBranches,
   getCompanyPeople, upsertCompanyPerson, deleteCompanyPerson
 } from '../../api/customers';
+import { listPeople as apiListPeople, resolveSubjectId } from '../../api/customers';
 import { openSnackbar } from '../../api/snackbar';
 import type { CreateAddressPayload, AddressType, UpdateAddressPayload } from '../../types/customers';
 
@@ -57,10 +58,11 @@ interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
   value: number;
+  noPadding?: boolean;
 }
 
 function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
+  const { children, value, index, noPadding = false, ...other } = props;
 
   return (
     <div
@@ -70,7 +72,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`customer-form-tab-${index}`}
       {...other}
     >
-      {value === index && <Box>{children}</Box>}
+      {value === index && <Box sx={noPadding ? {} : { p: 2 }}>{children}</Box>}
     </div>
   );
 }
@@ -224,7 +226,6 @@ export default function CustomerForm() {
   
   // Estados para o novo componente CompanyPeopleList
   const [newlyLinked, setNewlyLinked] = useState<LinkedPerson | null>(null);
-  const [quickPersonId, setQuickPersonId] = useState('');
   const [quickRole, setQuickRole] = useState('');
   const [newPerson, setNewPerson] = useState({ fullName: '', cpf: '', email: '', phone: '' });
   const [peopleRole, setPeopleRole] = useState('');
@@ -232,6 +233,12 @@ export default function CustomerForm() {
   const [peopleIsLegalRep, setPeopleIsLegalRep] = useState(false);
   const [peopleActionLoading, setPeopleActionLoading] = useState(false);
   const [peopleActionError, setPeopleActionError] = useState<string | null>(null);
+
+  // --- Quick link (autocomplete) para "Vincular pessoa" no EDIT ---
+  const [quickPersonInput, setQuickPersonInput] = useState('');
+  const [quickPersonOptions, setQuickPersonOptions] = useState<Customer[]>([]);
+  const [quickPersonLoading, setQuickPersonLoading] = useState(false);
+  const [quickSelectedPerson, setQuickSelectedPerson] = useState<Customer | null>(null);
 
   // Carregar dados do cliente se estiver editando
   useEffect(() => {
@@ -319,6 +326,29 @@ export default function CustomerForm() {
     }, 300);
     return () => { alive = false; clearTimeout(t); };
   }, [peopleOpen, peopleTab, searchPerson]);
+
+  // ---- Autocomplete rápido (aba Pessoas Vinculadas no EDIT) ----
+  useEffect(() => {
+    let alive = true;
+    const q = quickPersonInput.trim();
+    if (!isEdit || !id) return;
+    if (q.length < 2) {
+      setQuickPersonOptions([]);
+      setQuickPersonLoading(false);
+      return;
+    }
+    setQuickPersonLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiListPeople(q);
+        if (!alive) return;
+        setQuickPersonOptions((res || []).filter((c: any) => c.kind === 'PERSON'));
+      } finally {
+        if (alive) setQuickPersonLoading(false);
+      }
+    }, 300);
+    return () => { alive = false; clearTimeout(t); };
+  }, [quickPersonInput, isEdit, id]);
 
   // Helpers de exibição
   const branchDisplayName = (b: CustomerBranch) => {
@@ -1558,7 +1588,7 @@ export default function CustomerForm() {
 
         {/* Matriz / Filiais (somente COMPANY) */}
         {formData.kind === 'COMPANY' && (
-          <TabPanel value={tabValue} index={2}>
+          <TabPanel value={tabValue} index={2} noPadding>
             <Stack spacing={3}>
               {/* Status atual + lista + ações (somente no EDIT) */}
               {isEdit && (
@@ -1830,14 +1860,36 @@ export default function CustomerForm() {
                   </Typography>
                   <CompanyPeopleList companyId={id!} newlyLinked={newlyLinked} />
 
-                  {/* Atalho simples para criar um vínculo e já refletir na UI */}
+                  {/* Atalho com AUTOCOMPLETE para criar vínculo e refletir na UI */}
                   <Stack direction="row" gap={1} alignItems="center" sx={{ mt: 2, flexWrap: 'wrap' }}>
-                    <TextField
-                      size="small"
-                      label="ID da Pessoa"
-                      placeholder="personId"
-                      value={quickPersonId}
-                      onChange={(e) => setQuickPersonId(e.target.value)}
+                    <Autocomplete
+                      sx={{ minWidth: 320 }}
+                      loading={quickPersonLoading}
+                      options={quickPersonOptions}
+                      value={quickSelectedPerson}
+                      getOptionLabel={(opt) => opt.displayName || (opt as any)?.person?.fullName || ''}
+                      onInputChange={(_, v) => setQuickPersonInput(v)}
+                      onChange={(_, v) => setQuickSelectedPerson(v)}
+                      noOptionsText={quickPersonInput.length < 2 ? 'Digite ao menos 2 caracteres' : 'Nenhuma pessoa encontrada'}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          label="Buscar pessoa (nome, CPF...)"
+                          placeholder="Ex.: Maria, 123.456.789-00"
+                        />
+                      )}
+                      renderOption={(props, opt) => {
+                        const cpf = (opt as any)?.person?.cpf;
+                        return (
+                          <li {...props} key={(opt as any).id}>
+                            <Stack>
+                              <Typography variant="body2">{opt.displayName}</Typography>
+                              {cpf && <Typography variant="caption" color="text.secondary">{cpf}</Typography>}
+                            </Stack>
+                          </li>
+                        );
+                      }}
                     />
                     <TextField
                       size="small"
@@ -1849,15 +1901,28 @@ export default function CustomerForm() {
                     <Button
                       variant="contained"
                       onClick={async () => {
-                        if (!id || !quickPersonId) return;
+                        if (!id) return;
+                        if (!quickSelectedPerson) {
+                          openSnackbar({
+                            open: true,
+                            message: 'Selecione uma pessoa para vincular.',
+                            variant: 'alert',
+                            alert: { color: 'warning' }
+                          } as any);
+                          return;
+                        }
                         try {
+                          // resolve o personId real (pode exigir um GET /customers/:id?tree=true por baixo)
+                          const resolvedPersonId = await resolveSubjectId(quickSelectedPerson as any);
+                          if (!resolvedPersonId) throw new Error('Não foi possível obter o ID da pessoa.');
                           // cria o vínculo e faz atualização imediata da lista
-                          const created = await linkPersonToCompany(id, { 
-                            personId: quickPersonId, 
-                            role: quickRole || undefined 
+                          const created = await linkPersonToCompany(id, {
+                            personId: resolvedPersonId,
+                            role: quickRole || undefined
                           });
                           setNewlyLinked(created);     // empurra para a lista sem refetch
-                          setQuickPersonId('');
+                          setQuickSelectedPerson(null);
+                          setQuickPersonInput('');
                           setQuickRole('');
                         } catch (e: any) {
                           openSnackbar({ 
