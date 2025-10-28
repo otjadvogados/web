@@ -19,6 +19,8 @@ const MaintenanceComingSoon = Loadable(lazy(() => import('pages/maintenance/comi
 // NOVO: Central de Dispositivos
 const DevicesCenter = Loadable(lazy(() => import('pages/security/devices-center')));
 
+// NOVO: AI > Peças
+const AIPiecesPage = Loadable(lazy(() => import('pages/ai/pieces')));
 // NOVO: Configurações da Conta
 const AccountSettings = Loadable(lazy(() => import('pages/account')));
 
@@ -99,6 +101,11 @@ const MainRoutes = {
         {
           path: 'sensitive-fields',
           element: <SensitiveFieldsPage />
+        },
+        // Inteligência Artificial
+        {
+          path: 'ai/pieces',
+          element: <AIPiecesPage />
         },
       ]
     },

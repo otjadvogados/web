@@ -47,6 +47,22 @@ const pages: NavItemType = {
           }
         ]
       },
+    // 👇 Inteligência Artificial
+    {
+      id: 'ai',
+      title: 'Inteligência Artificial',
+      type: 'collapse',
+      icon: icons.AIIcon,
+      isDropdown: true,
+      children: [
+        {
+          id: 'ai-pieces',
+          title: 'Peças',
+          type: 'item',
+          url: '/ai/pieces'
+        }
+      ]
+    },
     // 👇 submenu "Colaboradores"
     {
       id: 'collaborators',

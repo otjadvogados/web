@@ -136,10 +136,33 @@ export default function ThemeCustomization({ children }: ThemeCustomizationProps
       styleOverrides: {
         paper: {
           backgroundImage: `${themes.customGradients.paperBg} !important`,
-          backgroundColor: `${themes.palette.background.paper} !important`,
+          // Garante contraste adequado no dropdown (não usar branco do user-agent)
+          backgroundColor: `${themes.palette.mode === 'dark' ? 'rgba(10,10,26,0.92)' : themes.palette.background.paper} !important`,
           backdropFilter: 'blur(10px) saturate(120%)',
           WebkitBackdropFilter: 'blur(10px) saturate(120%)',
-          border: '1px solid rgba(255,255,255,.08)'
+          border: '1px solid rgba(255,255,255,.08)',
+          color: `${themes.palette.text.primary} !important`,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+          // força cor da lista interna
+          '& .MuiList-root': {
+            color: `${themes.palette.text.primary} !important`,
+            background: 'transparent'
+          }
+        }
+      }
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          color: `${themes.palette.text.primary} !important`,
+          backgroundColor: 'transparent',
+          '&:hover': {
+            backgroundColor: themes.palette.action.hover
+          },
+          '&.Mui-selected': {
+            backgroundColor: themes.palette.action.selected
+          },
+          '&.Mui-selected:hover': { backgroundColor: themes.palette.action.selected }
         }
       }
     },
