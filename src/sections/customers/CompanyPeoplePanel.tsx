@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Avatar,
   Box,
   Button,
   Chip,
@@ -12,6 +11,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import Avatar from 'components/@extended/Avatar';
 import { ReloadOutlined as RefreshIcon, LinkOutlined as OpenInNewIcon } from '@ant-design/icons';
 import { getCompanyPeople, LinkedPerson } from '../../api/customers';
 import { useNavigate } from 'react-router-dom';
@@ -114,7 +114,7 @@ export default function CompanyPeoplePanel({ customerId }: { customerId: string 
           '&:hover': { backgroundColor: 'action.hover' },
         }}
       >
-        <Avatar sx={{ width: 36, height: 36 }}>{initials(p.fullName || '?')}</Avatar>
+        <Avatar size="sm" color="primary">{initials(p.fullName || '?')}</Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle2" noWrap title={p.fullName}>

@@ -42,8 +42,8 @@ function getColorStyle({ theme, color, type }: AvatarStyleProps) {
       };
     default:
       return {
-        color: main,
-        background: lighter
+        color: contrastText,
+        background: main
       };
   }
 }

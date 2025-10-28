@@ -8,7 +8,7 @@ import Button from '@mui/material/Button';
 import InputLabel from '@mui/material/InputLabel';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import FormHelperText from '@mui/material/FormHelperText';
-import Avatar from '@mui/material/Avatar';
+import Avatar from 'components/@extended/Avatar';
 import IconButton from '@mui/material/IconButton';
 
 // third-party
@@ -219,7 +219,8 @@ export default function PersonalForm() {
                   <Avatar
                     src={avatarUrl ?? undefined}
                     alt={values.name || 'avatar'}
-                    sx={{ width: 72, height: 72, fontSize: 28 }}
+                    size="lg"
+                    color="primary"
                   >
                     {(values.name || 'U').charAt(0)}
                   </Avatar>

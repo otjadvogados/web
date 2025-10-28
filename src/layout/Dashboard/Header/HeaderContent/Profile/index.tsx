@@ -126,6 +126,7 @@ export default function Profile() {
             alt="profile user" 
             src={avatarUrl ?? undefined} 
             size="sm"
+            color="primary"
           >
             {(user?.name || 'U').charAt(0)}
           </Avatar>
@@ -168,7 +169,8 @@ export default function Profile() {
                           <Avatar 
                             alt="profile user" 
                             src={avatarUrl ?? undefined} 
-                            sx={{ width: 32, height: 32 }}
+                            size="sm"
+                            color="primary"
                           >
                             {(user?.name || 'U').charAt(0)}
                           </Avatar>

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 
 // material-ui
 import useMediaQuery from '@mui/material/useMediaQuery';
-import Avatar from '@mui/material/Avatar';
+import Avatar from 'components/@extended/Avatar';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
@@ -126,7 +126,7 @@ export default function Message() {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar alt="usuário" src={avatar2} />
+                        <Avatar alt="usuário" src={avatar2} size="sm" color="primary" />
                       </ListItemAvatar>
                       <ListItemText
                         primary={
@@ -151,7 +151,7 @@ export default function Message() {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar alt="usuário" src={avatar3} />
+                        <Avatar alt="usuário" src={avatar3} size="sm" color="primary" />
                       </ListItemAvatar>
                       <ListItemText
                         primary={
@@ -175,7 +175,7 @@ export default function Message() {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar alt="usuário" src={avatar4} />
+                        <Avatar alt="usuário" src={avatar4} size="sm" color="primary" />
                       </ListItemAvatar>
                       <ListItemText
                         primary={
@@ -196,7 +196,7 @@ export default function Message() {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar alt="usuário" src={avatar5} />
+                        <Avatar alt="usuário" src={avatar5} size="sm" color="primary" />
                       </ListItemAvatar>
                       <ListItemText
                         primary={

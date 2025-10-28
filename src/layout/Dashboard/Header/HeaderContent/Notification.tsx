@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 
 // material-ui
 import useMediaQuery from '@mui/material/useMediaQuery';
-import Avatar from '@mui/material/Avatar';
+import Avatar from 'components/@extended/Avatar';
 import Badge from '@mui/material/Badge';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import List from '@mui/material/List';
@@ -138,7 +138,7 @@ export default function Notification() {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar sx={{ color: 'success.main', bgcolor: 'success.lighter' }}>
+                        <Avatar color="success" type="filled">
                           <GiftOutlined />
                         </Avatar>
                       </ListItemAvatar>
@@ -165,7 +165,7 @@ export default function Notification() {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar sx={{ color: 'primary.main', bgcolor: 'primary.lighter' }}>
+                        <Avatar color="primary" type="filled">
                           <MessageOutlined />
                         </Avatar>
                       </ListItemAvatar>
@@ -192,7 +192,7 @@ export default function Notification() {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar sx={{ color: 'error.main', bgcolor: 'error.lighter' }}>
+                        <Avatar color="error" type="filled">
                           <SettingOutlined />
                         </Avatar>
                       </ListItemAvatar>
@@ -218,7 +218,7 @@ export default function Notification() {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar sx={{ color: 'primary.main', bgcolor: 'primary.lighter' }}>C</Avatar>
+                        <Avatar color="primary" type="filled">C</Avatar>
                       </ListItemAvatar>
                       <ListItemText
                         primary={

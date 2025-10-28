@@ -2,7 +2,7 @@ import { Link, useLocation, matchPath } from 'react-router-dom';
 
 // material-ui
 import useMediaQuery from '@mui/material/useMediaQuery';
-import Avatar from '@mui/material/Avatar';
+import Avatar from 'components/@extended/Avatar';
 import Chip from '@mui/material/Chip';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -142,7 +142,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
                 variant={item.chip.variant}
                 size={item.chip.size}
                 label={item.chip.label}
-                avatar={item.chip.avatar && <Avatar>{item.chip.avatar}</Avatar>}
+                avatar={item.chip.avatar && <Avatar size="xs" color="primary">{item.chip.avatar}</Avatar>}
               />
             )}
           </ListItemButton>
@@ -247,7 +247,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
               variant={item.chip.variant}
               size={item.chip.size}
               label={item.chip.label}
-              avatar={item.chip.avatar && <Avatar>{item.chip.avatar}</Avatar>}
+              avatar={item.chip.avatar && <Avatar size="xs" color="primary">{item.chip.avatar}</Avatar>}
             />
           )}
         </ListItemButton>

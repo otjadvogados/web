@@ -15,7 +15,7 @@ import TablePagination from '@mui/material/TablePagination';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
-import Avatar from '@mui/material/Avatar';
+import Avatar from 'components/@extended/Avatar';
 import MainCard from 'components/MainCard';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -49,7 +49,8 @@ function UserAvatar({ id, name, size = 36, avatarFileId }: { id: string; name: s
     <Avatar
       src={url ?? undefined}
       alt={name}
-      sx={{ width: size, height: size, fontSize: size * 0.45 }}
+      size="sm"
+      color="primary"
     >
       {name?.charAt(0) || 'U'}
     </Avatar>
