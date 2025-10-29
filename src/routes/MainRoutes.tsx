@@ -23,6 +23,8 @@ const DevicesCenter = Loadable(lazy(() => import('pages/security/devices-center'
 const AIPiecesPage = Loadable(lazy(() => import('pages/ai/pieces')));
 // NOVO: AI > Regras
 const AIRulesPage = Loadable(lazy(() => import('pages/ai/rules')));
+// NOVO: AI > Tópicos
+const AITopicsPage = Loadable(lazy(() => import('pages/ai/topics')));
 // NOVO: Configurações da Conta
 const AccountSettings = Loadable(lazy(() => import('pages/account')));
 
@@ -112,6 +114,10 @@ const MainRoutes = {
         {
           path: 'ai/rules',
           element: <AIRulesPage />
+        },
+        {
+          path: 'ai/topics',
+          element: <AITopicsPage />
         },
       ]
     },

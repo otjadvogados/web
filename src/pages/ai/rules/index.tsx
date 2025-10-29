@@ -195,7 +195,7 @@ export default function AIRulebooksPage() {
   const titleNode = useMemo(() => (
     <Stack direction="row" spacing={1} alignItems="center">
       <AIIcon />
-      <Typography variant="h6" fontWeight={700}>Regras e tipografia (IA)</Typography>
+      <Typography variant="h6" fontWeight={700}>Regras e tipografia</Typography>
     </Stack>
   ), []);
 

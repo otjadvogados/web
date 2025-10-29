@@ -66,6 +66,12 @@ const pages: NavItemType = {
           title: 'Regras e tipografia',
           type: 'item',
           url: '/ai/rules'
+        },
+        {
+          id: 'ai-topics',
+          title: 'Tópicos',
+          type: 'item',
+          url: '/ai/topics'
         }
       ]
     },
