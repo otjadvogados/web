@@ -60,6 +60,12 @@ const pages: NavItemType = {
           title: 'Peças',
           type: 'item',
           url: '/ai/pieces'
+        },
+        {
+          id: 'ai-rules',
+          title: 'Regras e tipografia',
+          type: 'item',
+          url: '/ai/rules'
         }
       ]
     },
