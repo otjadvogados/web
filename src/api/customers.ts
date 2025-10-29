@@ -32,29 +32,41 @@ export async function listCustomers(params?: { search?: string; page?: number; l
   return data;
 }
 
-export async function listPeople(params?: { search?: string; page?: number; limit?: number }) {
+// Aceita string (busca) ou objeto { search, page, limit } e sempre retorna o ARRAY de customers.
+export async function listPeople(params?: { search?: string; page?: number; limit?: number } | string) {
+  const isStr = typeof params === 'string';
   const q = {
-    page: params?.page ?? 1,
-    limit: params?.limit ?? 20,
-    search: params?.search || undefined
+    page: !isStr ? params?.page ?? 1 : 1,
+    limit: !isStr ? params?.limit ?? 20 : 20,
+    search: isStr ? (params as string) : params?.search || undefined
   };
   const { data } = await axios.get<CustomersListResponse>('/customers/people', { params: q });
-  return data;
+  // backend pode vir como {message,data,pagination} ou diretamente como array
+  // padroniza para array
+  // @ts-ignore
+  return Array.isArray(data) ? (data as unknown as Customer[]) : (data?.data ?? []);
 }
 
-export async function listCompanies(params?: { search?: string; page?: number; limit?: number }) {
+export async function listCompanies(params?: { search?: string; page?: number; limit?: number } | string) {
+  const isStr = typeof params === 'string';
   const q = {
-    page: params?.page ?? 1,
-    limit: params?.limit ?? 20,
-    search: params?.search || undefined
+    page: !isStr ? params?.page ?? 1 : 1,
+    limit: !isStr ? params?.limit ?? 20 : 20,
+    search: isStr ? (params as string) : params?.search || undefined
   };
   const { data } = await axios.get<CustomersListResponse>('/customers/companies', { params: q });
-  return data;
+  // padroniza para array
+  // @ts-ignore
+  return Array.isArray(data) ? (data as unknown as Customer[]) : (data?.data ?? []);
 }
 
 export async function getCompanyPeople(companyId: string) {
-  const { data } = await axios.get<{ message: string; data: LinkedPerson[] }>(`/customers/${companyId}/people`);
-  return data.data;
+  const { data } = await axios.get<{ message?: string; data?: LinkedPerson[] } | LinkedPerson[]>(
+    `/customers/${companyId}/people`
+  );
+  // aceita wrapper ou payload cru
+  // @ts-ignore
+  return Array.isArray(data) ? (data as LinkedPerson[]) : (data?.data ?? []);
 }
 
 export async function linkPersonToCompany(companyId: string, personId: string, role?: string) {
@@ -83,9 +95,13 @@ export async function createCustomer(payload: any) {
   return data.data;
 }
 
-export async function getCustomer(id: string) {
-  const { data } = await axios.get<{ message: string; data: any }>(`/customers/${id}`);
-  return data.data;
+// Aceita flag 'tree' (true/false) para pedir expansões no backend
+// e lida tanto com {message,data} quanto com objeto cru.
+export async function getCustomer(id: string, tree?: boolean) {
+  const { data } = await axios.get<{ message?: string; data?: any } | any>(`/customers/${id}`, {
+    params: tree ? { tree: true } : undefined
+  });
+  return (data && typeof data === 'object' && 'data' in data) ? (data as any).data : data;
 }
 
 export async function updateCustomer(id: string, payload: any) {
@@ -115,6 +131,11 @@ export function formatCNPJ(cnpj: string): string {
 export function formatCPF(cpf: string): string {
   const digits = extractDigits(cpf);
   return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+
+export function formatCEP(cep: string): string {
+  const digits = extractDigits(cep);
+  return digits.replace(/(\d{5})(\d{3})/, '$1-$2');
 }
 
 // Funções de endereços
@@ -153,8 +174,12 @@ export async function deleteCompanyBranch(parentId: string, branchId: string) {
 }
 
 export async function getCompanyBranches(companyId: string) {
-  const { data } = await axios.get<{ message: string; data: any[] }>(`/customers/${companyId}/branches`);
-  return data.data;
+  const { data } = await axios.get<{ message?: string; data?: any[] } | any[]>(
+    `/customers/${companyId}/branches`
+  );
+  // aceita wrapper ou array cru
+  // @ts-ignore
+  return Array.isArray(data) ? (data as any[]) : (data?.data ?? []);
 }
 
 // Funções de pessoas da empresa

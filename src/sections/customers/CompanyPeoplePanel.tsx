@@ -99,7 +99,7 @@ export default function CompanyPeoplePanel({ customerId }: { customerId: string 
   const CardRow = ({ link }: { link: LinkedPerson }) => {
     const p = link.person;
     const canOpen = !!p?.customerId;
-    const go = () => canOpen && nav(`/customers/${p.customerId}`);
+    const go = () => canOpen && nav(`/clients/${p.customerId}`);
 
     return (
       <Stack

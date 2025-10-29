@@ -62,12 +62,6 @@ const pages: NavItemType = {
           url: '/ai/pieces'
         },
         {
-          id: 'ai-rules',
-          title: 'Regras e tipografia',
-          type: 'item',
-          url: '/ai/rules'
-        },
-        {
           id: 'ai-topics',
           title: 'Tópicos',
           type: 'item',
@@ -78,7 +72,13 @@ const pages: NavItemType = {
           title: 'Tópicos específicos',
           type: 'item',
           url: '/ai/topic-specifics'
-        }
+        },
+        {
+          id: 'ai-rules',
+          title: 'Regras e tipografia',
+          type: 'item',
+          url: '/ai/rules'
+        },
       ]
     },
     // 👇 submenu "Colaboradores"
