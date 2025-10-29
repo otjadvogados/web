@@ -72,6 +72,12 @@ const pages: NavItemType = {
           title: 'Tópicos',
           type: 'item',
           url: '/ai/topics'
+        },
+        {
+          id: 'ai-topic-specifics',
+          title: 'Tópicos específicos',
+          type: 'item',
+          url: '/ai/topic-specifics'
         }
       ]
     },

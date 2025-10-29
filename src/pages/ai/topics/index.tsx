@@ -115,7 +115,7 @@ export default function AITopicsPage() {
           title={
             <Stack direction="row" spacing={1} alignItems="center">
               <AIIcon />
-              <Typography variant="h6" fontWeight={700}>Tópicos (IA)</Typography>
+              <Typography variant="h6" fontWeight={700}>Tópicos</Typography>
             </Stack>
           }
           contentSX={{ p: 0 }}
