@@ -41,7 +41,7 @@ const schemaCreate = Yup.object({
 
 const schemaEdit = Yup.object({
   name: Yup.string().min(2, 'Mínimo 2 caracteres').optional(),
-  pieceId: Yup.string().optional(), // mover de peça (opcional)
+  pieceId: Yup.string().required('Peça é obrigatória'),
   description: Yup.string().nullable().optional()
 });
 
@@ -103,7 +103,7 @@ export default function TopicFormDialog({ open, onClose, editingId, initial, onS
             if (isEdit && editingId) {
               const payload: UpdateTopicDTO = {
                 name: values.name?.trim() || initial?.name,
-                pieceId: values.pieceId || initial?.pieceId,
+                pieceId: values.pieceId,
                 description: typeof values.description === 'string' ? (values.description?.trim() || null) : values.description ?? undefined
               };
               await updateTopic(editingId, payload);
@@ -146,7 +146,7 @@ export default function TopicFormDialog({ open, onClose, editingId, initial, onS
                 </Stack>
 
                 <Stack gap={1}>
-                  <InputLabel htmlFor="pieceId">Peça {isEdit ? '(opcional para mover)' : '*'}</InputLabel>
+                  <InputLabel htmlFor="pieceId">Peça *</InputLabel>
                   <TextField
                     id="pieceId"
                     name="pieceId"
@@ -156,7 +156,7 @@ export default function TopicFormDialog({ open, onClose, editingId, initial, onS
                     onBlur={handleBlur}
                     error={Boolean(touched.pieceId && errors.pieceId)}
                   >
-                    <MenuItem value="">{isEdit ? '(não alterar)' : 'Selecione…'}</MenuItem>
+                    <MenuItem value="">Selecione…</MenuItem>
                     {pieceCatalog.map((p) => (
                       <MenuItem key={p.id} value={p.id}>
                         {p.name}
