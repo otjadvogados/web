@@ -27,6 +27,8 @@ const AIRulesPage = Loadable(lazy(() => import('pages/ai/rules')));
 const AITopicsPage = Loadable(lazy(() => import('pages/ai/topics')));
 // NOVO: AI > Tópicos Específicos
 const AITopicSpecificsPage = Loadable(lazy(() => import('pages/ai/topic-specifics')));
+// NOVO: AI > Criar Caso
+const CreateCasePage = Loadable(lazy(() => import('pages/ai/cases/create')));
 // NOVO: Configurações da Conta
 const AccountSettings = Loadable(lazy(() => import('pages/account')));
 
@@ -124,6 +126,10 @@ const MainRoutes = {
         {
           path: 'ai/topic-specifics',
           element: <AITopicSpecificsPage />
+        },
+        {
+          path: 'ai/cases/create',
+          element: <CreateCasePage />
         },
       ]
     },

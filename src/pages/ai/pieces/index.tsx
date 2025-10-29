@@ -187,7 +187,7 @@ export default function AIPiecesPage() {
           title={
             <Stack direction="row" spacing={1} alignItems="center">
               <AIIcon />
-              <Typography variant="h6" fontWeight={700}>Peças (IA)</Typography>
+              <Typography variant="h6" fontWeight={700}>Peças</Typography>
             </Stack>
           }
           contentSX={{ p: 0 }}

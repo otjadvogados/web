@@ -1,0 +1,148 @@
+import { createContext, useContext, useMemo, useState, useEffect, useRef } from 'react';
+import { Department } from 'api/departments';
+import { Customer } from 'api/customers';
+import { AiPiece, fetchPieceDocx } from 'api/aiPieces';
+import { AiTopic } from 'api/aiTopics';
+import { AiTopicSpecific, fetchTopicSpecificDocx } from 'api/aiTopicSpecifics';
+import { openSnackbar } from 'api/snackbar';
+
+export type OptionDept = Pick<Department, 'id'|'name'>;
+export type OptionCust = Pick<Customer, 'id'|'displayName'|'name'>;
+export type OptionPiece = AiPiece;
+export type OptionTopic = AiTopic;
+export type OptionSpec = AiTopicSpecific;
+
+type Ctx = {
+  step: number;
+  setStep: (n: number) => void;
+  // selections
+  dept: OptionDept | null; setDept: (v: OptionDept|null) => void;
+  customer: OptionCust | null; setCustomer: (v: OptionCust|null) => void;
+  piece: OptionPiece | null; setPiece: (v: OptionPiece|null) => void;
+  topic: OptionTopic | null; setTopic: (v: OptionTopic|null) => void;
+  specs: OptionSpec[]; setSpecs: (v: OptionSpec[]) => void;
+  // details (preview)
+  pieceDetail: OptionPiece | null; setPieceDetail: (v: OptionPiece|null) => void;
+  topicDetail: OptionTopic | null; setTopicDetail: (v: OptionTopic|null) => void;
+  specDetails: Record<string, OptionSpec>;
+  setSpecDetails: (m: Record<string, OptionSpec>) => void;
+  // instructions + attachments
+  instruction: string; setInstruction: (t: string) => void;
+  files: File[]; setFiles: (f: File[]) => void;
+  // helpers
+  canNext: (s: number) => boolean;
+  maxStep: number;
+  payloadPreview: any;
+  // downloads
+  downloadPieceDocx: () => Promise<void>;
+  downloadSpecDocx: (id: string) => Promise<void>;
+};
+
+const CaseWizardContext = createContext<Ctx | null>(null);
+export const useCaseWizard = () => {
+  const ctx = useContext(CaseWizardContext);
+  if (!ctx) throw new Error('useCaseWizard must be used within CaseWizardProvider');
+  return ctx;
+};
+
+export function CaseWizardProvider({ children }: { children: React.ReactNode }) {
+  const [step, setStep] = useState(0);
+  const maxStep = 5; // 0..5
+
+  const [dept, setDept] = useState<OptionDept | null>(null);
+  const [customer, setCustomer] = useState<OptionCust | null>(null);
+  const [piece, setPiece] = useState<OptionPiece | null>(null);
+  const [topic, setTopic] = useState<OptionTopic | null>(null);
+  const [specs, setSpecs] = useState<OptionSpec[]>([]);
+
+  const [pieceDetail, setPieceDetail] = useState<OptionPiece | null>(null);
+  const [topicDetail, setTopicDetail] = useState<OptionTopic | null>(null);
+  const [specDetails, setSpecDetails] = useState<Record<string, OptionSpec>>({});
+
+  const [instruction, setInstruction] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+
+  // encadeamento de resets
+  useEffect(() => { setPiece(null); setTopic(null); setSpecs([]); }, [dept?.id, customer?.id]);
+  useEffect(() => { setTopic(null); setSpecs([]); }, [piece?.id]);
+  useEffect(() => { setSpecs([]); }, [topic?.id]);
+
+  // validate step gating
+  const canNext = (s: number) => {
+    switch (s) {
+      case 0: return !!dept?.id; // departamento
+      case 1: return true;       // cliente é opcional
+      case 2: return !!piece?.id;
+      case 3: return !!topic?.id;
+      case 4: return specs.length > 0;
+      case 5: return true;       // anexos/instruções sempre ok
+      default: return false;
+    }
+  };
+
+  const payloadPreview = useMemo(() => ({
+    departmentId: dept?.id ?? null,
+    customerId: customer?.id ?? null,
+    pieceId: piece?.id ?? null,
+    topicId: topic?.id ?? null,
+    topicSpecificIds: specs.map(s => s.id),
+    instruction: instruction.trim() || null,
+    attachmentsCount: files.length
+  }), [dept, customer, piece, topic, specs, instruction, files.length]);
+
+  const downloading = useRef(false);
+  const downloadPieceDocx = async () => {
+    if (!pieceDetail?.id || !pieceDetail.docxFileId || downloading.current) return;
+    try {
+      downloading.current = true;
+      const { blob, filename } = await fetchPieceDocx(pieceDetail.id, pieceDetail.docxFileId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || `${(pieceDetail.name || 'documento').replace(/[\\/:*?"<>|]/g, '_')}.docx`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (err: any) {
+      openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao baixar DOCX da peça', variant: 'alert', alert: { color: 'error' } } as any);
+    } finally {
+      downloading.current = false;
+    }
+  };
+
+  const downloadSpecDocx = async (id: string) => {
+    const s = specDetails[id];
+    if (!s?.id || !s.docxFileId || downloading.current) return;
+    try {
+      downloading.current = true;
+      const { blob, filename } = await fetchTopicSpecificDocx(s.id, s.docxFileId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || `${(s.name || 'documento').replace(/[\\/:*?"<>|]/g, '_')}.docx`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (err: any) {
+      openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao baixar DOCX do tópico específico', variant: 'alert', alert: { color: 'error' } } as any);
+    } finally {
+      downloading.current = false;
+    }
+  };
+
+  return (
+    <CaseWizardContext.Provider value={{
+      step, setStep,
+      dept, setDept,
+      customer, setCustomer,
+      piece, setPiece,
+      topic, setTopic,
+      specs, setSpecs,
+      pieceDetail, setPieceDetail,
+      topicDetail, setTopicDetail,
+      specDetails, setSpecDetails,
+      instruction, setInstruction,
+      files, setFiles,
+      canNext, maxStep, payloadPreview,
+      downloadPieceDocx, downloadSpecDocx
+    }}>
+      {children}
+    </CaseWizardContext.Provider>
+  );
+}

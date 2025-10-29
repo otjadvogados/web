@@ -79,6 +79,12 @@ const pages: NavItemType = {
           type: 'item',
           url: '/ai/rules'
         },
+        {
+          id: 'ai-cases-create',
+          title: 'Criar Caso',
+          type: 'item',
+          url: '/ai/cases/create'
+        },
       ]
     },
     // 👇 submenu "Colaboradores"
