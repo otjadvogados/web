@@ -19,34 +19,34 @@ const pages: NavItemType = {
   title: 'pages',
   type: 'group',
   children: [
-           // 👇 Menu "Administração"
-      {
-        id: 'administration',
-        title: 'administration',
-        type: 'collapse',
-        icon: icons.SettingOutlined,
-        isDropdown: true,
-        children: [
-          {
-            id: 'company',
-            title: 'company',
-            type: 'item',
-            url: '/company'
-          },
-          {
-            id: 'departments',
-            title: 'departments',
-            type: 'item',
-            url: '/departments'
-          },
-          {
-            id: 'roles',
-            title: 'roles',
-            type: 'item',
-            url: '/roles'
-          }
-        ]
-      },
+    // 👇 Menu "Administração"
+    {
+      id: 'administration',
+      title: 'administration',
+      type: 'collapse',
+      icon: icons.SettingOutlined,
+      isDropdown: true,
+      children: [
+        {
+          id: 'company',
+          title: 'company',
+          type: 'item',
+          url: '/company'
+        },
+        {
+          id: 'departments',
+          title: 'departments',
+          type: 'item',
+          url: '/departments'
+        },
+        {
+          id: 'roles',
+          title: 'roles',
+          type: 'item',
+          url: '/roles'
+        }
+      ]
+    },
     // 👇 Inteligência Artificial
     {
       id: 'ai',
@@ -55,6 +55,12 @@ const pages: NavItemType = {
       icon: icons.AIIcon,
       isDropdown: true,
       children: [
+        {
+          id: 'ai-cases-create',
+          title: 'Criar Caso',
+          type: 'item',
+          url: '/ai/cases/create'
+        },
         {
           id: 'ai-pieces',
           title: 'Peças',
@@ -79,12 +85,7 @@ const pages: NavItemType = {
           type: 'item',
           url: '/ai/rules'
         },
-        {
-          id: 'ai-cases-create',
-          title: 'Criar Caso',
-          type: 'item',
-          url: '/ai/cases/create'
-        },
+
       ]
     },
     // 👇 submenu "Colaboradores"
