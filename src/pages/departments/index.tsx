@@ -29,6 +29,7 @@ import TeamOutlined from '@ant-design/icons/TeamOutlined';
 
 import { listDepartments, deleteDepartment, getDepartment } from '../../api/departments';
 import { DepartmentRow } from '../../types/departments';
+import type { Department } from '../../api/departments';
 import { openSnackbar } from '../../api/snackbar';
 import DepartmentFormDialog from '../../sections/departments/DepartmentFormDialog';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
@@ -87,7 +88,13 @@ export default function DepartmentsPage() {
     try {
       setEditId(id);
       const r = await getDepartment(id);
-      setEditInitial({ name: r.name, description: '' });
+      const dept = r as Department;
+      setEditInitial({
+        name: dept.name,
+        description: dept.description ?? '',
+        signatureUserId: dept.signatureUserId ?? null,
+        signatureUser: dept.signatureUser ?? null
+      });
       setFormOpen(true);
     } catch (err: any) {
       openSnackbar({ open: true, message: err?.response?.data?.message || 'Não foi possível carregar o departamento', variant: 'alert', alert: { color: 'error' } } as any);
@@ -107,6 +114,9 @@ export default function DepartmentsPage() {
             <AppstoreOutlined />
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{dept.name}</Typography>
           </Stack>
+          {dept.signatureUser?.name && (
+            <Chip size="small" label={`Resp.: ${dept.signatureUser.name}`} />
+          )}
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="Cargos">
               <IconButton color="primary" onClick={() => openRoles(dept)}><TeamOutlined /></IconButton>
@@ -164,6 +174,7 @@ export default function DepartmentsPage() {
                    <TableRow>
                      <TableCell onClick={() => { setSortBy('name'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} sx={{ cursor: 'pointer' }}>Nome</TableCell>
                      <TableCell>Descrição</TableCell>
+                     <TableCell>Responsável</TableCell>
                      <TableCell align="right">Ações</TableCell>
                    </TableRow>
                  </TableHead>
@@ -179,6 +190,9 @@ export default function DepartmentsPage() {
                                              <TableCell sx={{ maxWidth: 420 }}>
                          <Typography variant="body2" color="text.secondary">{d.description || '—'}</Typography>
                        </TableCell>
+                       <TableCell>
+                         {d.signatureUser?.name ?? '—'}
+                       </TableCell>
                        <TableCell align="right">
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                           <Tooltip title="Cargos">
@@ -192,7 +206,7 @@ export default function DepartmentsPage() {
                   ))}
                                      {!items.length && (
                      <TableRow>
-                       <TableCell colSpan={3}>
+                       <TableCell colSpan={4}>
                          <Stack alignItems="center" sx={{ py: 6 }}>
                            <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhum departamento encontrado.'}</Typography>
                          </Stack>

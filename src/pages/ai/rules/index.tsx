@@ -14,6 +14,7 @@ import TableBody from '@mui/material/TableBody';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 import Chip from '@mui/material/Chip';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { Theme } from '@mui/material/styles';
@@ -243,6 +244,14 @@ export default function AIRulebooksPage() {
                           {r.description}
                         </Typography>
                       )}
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" color="text.secondary">Responsável:</Typography>
+                        {r.signatureUser ? (
+                          <Chip size="small" icon={<Avatar sx={{ width: 16, height: 16 }}>{r.signatureUser.name?.[0] ?? 'R'}</Avatar>} label={r.signatureUser.name} />
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">—</Typography>
+                        )}
+                      </Stack>
                       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                         {r.createdAt && (
                           <Typography variant="caption" color="text.secondary">
@@ -302,6 +311,7 @@ export default function AIRulebooksPage() {
                         Nome
                       </TableCell>
                       <TableCell>Descrição</TableCell>
+                      <TableCell>Responsável</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Arquivo</TableCell>
                       <TableCell>Criada em</TableCell>
@@ -316,6 +326,13 @@ export default function AIRulebooksPage() {
                           <Typography variant="body2" color="text.secondary" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {r.description || '—'}
                           </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {r.signatureUser ? (
+                            <Chip size="small" label={r.signatureUser.name} />
+                          ) : (
+                            '—'
+                          )}
                         </TableCell>
                         <TableCell>
                           <Chip size="small" label={r.isActive ? 'ativa' : 'inativa'} color={r.isActive ? 'success' : 'default'} variant="outlined" />
@@ -361,7 +378,7 @@ export default function AIRulebooksPage() {
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={6}>
+                        <TableCell colSpan={7}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhuma regra e tipografia encontrada.'}

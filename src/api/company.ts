@@ -1,4 +1,5 @@
 import api from '../utils/axios';
+import type { UserBasic } from './users';
 
 export type Company = {
   id: string;
@@ -7,6 +8,9 @@ export type Company = {
   website?: string | null;
   phone?: string | null;
   cnpj?: string | null;
+  // responsável pela assinatura
+  signatureUserId?: string | null;
+  signatureUser?: UserBasic | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -20,7 +24,9 @@ export async function getCompany() {
   return res.data.data;
 }
 
-export type UpdateCompanyDTO = Partial<Pick<Company, 'name' | 'tradeName' | 'website' | 'phone' | 'cnpj'>>;
+export type UpdateCompanyDTO = Partial<
+  Pick<Company, 'name' | 'tradeName' | 'website' | 'phone' | 'cnpj' | 'signatureUserId'>
+>;
 
 export async function updateCompany(payload: UpdateCompanyDTO) {
   const res = await api.patch<{ message: string; data: Company }>('/company', payload, {

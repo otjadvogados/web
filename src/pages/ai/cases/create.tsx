@@ -48,7 +48,7 @@ function CreateCaseWizardInner() {
     step, setStep, maxStep, canNext,
     dept, customer, piece, topic, specs,
     pieceDetail, topicDetail, payloadPreview,
-    downloadPieceDocx
+    downloadPieceDocx, buildFormData, formPreview
   } = useCaseWizard();
 
   const [openPreview, setOpenPreview] = useState(false);
@@ -74,8 +74,8 @@ function CreateCaseWizardInner() {
         <MainCard
           title={
             <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-              <Stack direction="row" spacing={1} alignItems="center">
-                <AIIcon />
+            <Stack direction="row" spacing={1} alignItems="center">
+              <AIIcon />
                 <Typography variant="h6" fontWeight={700}>Criar Caso</Typography>
               </Stack>
               <Button
@@ -116,13 +116,21 @@ function CreateCaseWizardInner() {
                       Próximo
                     </Button>
                   ) : (
-                    <Tooltip title="Ainda não implementado no backend">
-                      <span>
-                        <Button variant="contained" disabled>
+                  <Tooltip title="Ainda não implementado no backend">
+                    <span>
+                        <Button
+                          variant="contained"
+                          disabled
+                          // Exemplo de uso quando o backend estiver pronto:
+                          // onClick={async () => {
+                          //   const fd = buildFormData();
+                          //   await axios.post('/ai/cases', fd, { headers: { 'Content-Type': 'multipart/form-data' }});
+                          // }}
+                        >
                           Criar Caso
                         </Button>
-                      </span>
-                    </Tooltip>
+                    </span>
+                  </Tooltip>
                   )}
                 </Stack>
               </Stack>
@@ -144,45 +152,45 @@ function CreateCaseWizardInner() {
                 </IconButton>
               </Stack>
 
-              <Paper variant="outlined" sx={{ p: 1.5 }}>
-                <Stack spacing={1}>
+                <Paper variant="outlined" sx={{ p: 1.5 }}>
+                  <Stack spacing={1}>
                   <StepRow active={step===0} label="Departamento" value={dept?.name} />
                   <StepRow active={step===1} label="Cliente" value={labelCustomer(customer)} secondary="opcional" />
                   <StepRow active={step===2} label="Peça" value={piece?.name} />
-                  {pieceDetail?.instruction && (
-                    <Minor label="Instrução da peça" value={pieceDetail.instruction} />
-                  )}
-                  {!!pieceDetail?.docxFileId && (
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <Chip size="small" label="DOCX da peça" />
+                    {pieceDetail?.instruction && (
+                      <Minor label="Instrução da peça" value={pieceDetail.instruction} />
+                    )}
+                    {!!pieceDetail?.docxFileId && (
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Chip size="small" label="DOCX da peça" />
                       <Button size="small" variant="text" startIcon={<DownloadOutlined />} onClick={downloadPieceDocx}>
                         Baixar
                       </Button>
-                    </Stack>
-                  )}
-                  <Divider />
+                      </Stack>
+                    )}
+                    <Divider />
                   <StepRow active={step===3} label="Tópico" value={topic?.name} />
-                  {topicDetail?.description && (
-                    <Minor label="Descrição do tópico" value={topicDetail.description} />
-                  )}
-                  <Divider />
+                    {topicDetail?.description && (
+                      <Minor label="Descrição do tópico" value={topicDetail.description} />
+                    )}
+                    <Divider />
                   <Typography variant="subtitle2">Tópicos específicos - {specs.length}</Typography>
-                  {!specs.length && <Typography variant="body2" color="text.secondary">—</Typography>}
-                  {!!specs.length && (
+                    {!specs.length && <Typography variant="body2" color="text.secondary">—</Typography>}
+                    {!!specs.length && (
                     <Stack spacing={0.5}>
                       {specs.map((s) => (
                         <Chip key={s.id} size="small" variant="outlined" label={s.name} />
                       ))}
-                    </Stack>
-                  )}
-                </Stack>
-              </Paper>
+                      </Stack>
+                    )}
+                  </Stack>
+                </Paper>
 
-              <Typography fontWeight={700}>Payload (preview)</Typography>
+              <Typography fontWeight={700}>FormData (preview)</Typography>
               <Paper variant="outlined" sx={{ p: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12, whiteSpace: 'pre-wrap' }}>
-                {JSON.stringify(payloadPreview, null, 2)}
+                {JSON.stringify(formPreview, null, 2)}
               </Paper>
-            </Stack>
+              </Stack>
           </Drawer>
         </MainCard>
       </Grid>

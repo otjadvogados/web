@@ -24,6 +24,8 @@ import IconButton from '@mui/material/IconButton';
 import AIIcon from 'components/icons/AIIcon';
 
 import { AiRulebook, createRulebook, updateRulebook, UpdateRulebookDTO } from 'api/aiRulebooks';
+import UserSelect from 'components/inputs/UserSelect';
+import type { UserBasic } from 'api/users';
 import { openSnackbar } from 'api/snackbar';
 
 type Props = {
@@ -49,8 +51,24 @@ const schemaEdit = Yup.object({
 export default function RulebookFormDialog({ open, onClose, editingId, initial, onSaved }: Props) {
   const isEdit = Boolean(editingId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // novo: responsável pela assinatura
+  const [resp, setResp] = useState<UserBasic | null>(null);
+  const [clearResp, setClearResp] = useState(false);
 
-  useEffect(() => { if (!open) setIsSubmitting(false); }, [open]);
+  useEffect(() => { 
+    if (!open) {
+      setIsSubmitting(false);
+    } else {
+      // pré-preenche o responsável quando abrir o dialog
+      if (initial?.signatureUser) {
+        setResp(initial.signatureUser);
+      } else {
+        setResp(null);
+      }
+      setClearResp(false);
+    }
+  }, [open, initial]);
+  
   const handleClose = () => { if (!isSubmitting) onClose(); };
 
   const titleNode = useMemo(() => (
@@ -91,7 +109,8 @@ export default function RulebookFormDialog({ open, onClose, editingId, initial, 
               const payload: UpdateRulebookDTO = {
                 name: values.name?.trim() || initial?.name,
                 description: typeof values.description === 'string' ? (values.description?.trim() || null) : values.description ?? undefined,
-                isActive: typeof values.isActive === 'boolean' ? values.isActive : initial?.isActive
+                isActive: typeof values.isActive === 'boolean' ? values.isActive : initial?.isActive,
+                ...(clearResp ? { signatureUserId: null } : (resp ? { signatureUserId: resp.id } : {}))
               };
               await updateRulebook(editingId, payload);
               openSnackbar({ open: true, message: 'Regra e tipografia atualizada!', variant: 'alert', alert: { color: 'success' } } as any);
@@ -99,7 +118,8 @@ export default function RulebookFormDialog({ open, onClose, editingId, initial, 
               const payload = {
                 name: values.name.trim(),
                 description: values.description?.trim() || null,
-                isActive: !!values.isActive
+                isActive: !!values.isActive,
+                ...(resp ? { signatureUserId: resp.id } : {})
               };
               await createRulebook(payload);
               openSnackbar({ open: true, message: 'Regra e tipografia criada!', variant: 'alert', alert: { color: 'success' } } as any);
@@ -146,6 +166,31 @@ export default function RulebookFormDialog({ open, onClose, editingId, initial, 
                     minRows={2}
                     placeholder="Normas de margem, fonte, numeração..."
                   />
+                </Stack>
+
+                {/* Responsável pela assinatura */}
+                <Stack gap={1}>
+                  <InputLabel>Responsável pela assinatura</InputLabel>
+                  {isEdit && (initial?.signatureUser || initial?.signatureUserId) && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                      Atual: <b>{initial?.signatureUser?.name || initial?.signatureUserId}</b>
+                    </Typography>
+                  )}
+                  <UserSelect
+                    value={resp}
+                    onChange={(u) => { setResp(u); setClearResp(false); }}
+                    placeholder="Digite para buscar usuários…"
+                  />
+                  {isEdit && (
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Button size="small" color={clearResp ? 'success' : 'inherit'} onClick={() => { setResp(null); setClearResp((v) => !v); }}>
+                        {clearResp ? 'Remoção marcada' : 'Limpar responsável'}
+                      </Button>
+                      <Typography variant="caption" color="text.secondary">
+                        {clearResp ? 'Ao salvar, o responsável será removido.' : 'Opcional: defina um novo responsável ou limpe.'}
+                      </Typography>
+                    </Stack>
+                  )}
                 </Stack>
 
                 <FormControlLabel

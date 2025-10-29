@@ -25,6 +25,8 @@ import { Formik } from 'formik';
 
 import { Company, getCompany, updateCompany } from '../../api/company';
 import { openSnackbar } from '../../api/snackbar';
+import UserSelect from '../../components/inputs/UserSelect';
+import type { UserBasic } from '../../api/users';
 import { formatPhoneBR, formatCNPJ, bindMask, digitsOnly } from '../../utils/mask';
 
 const schema = Yup.object({
@@ -65,11 +67,22 @@ export default function CompanyPage() {
   const phoneRef = useRef<HTMLInputElement | null>(null);
   const cnpjRef = useRef<HTMLInputElement | null>(null);
 
+  // novo: responsável pela assinatura
+  const [resp, setResp] = useState<UserBasic | null>(null);
+  const [clearResp, setClearResp] = useState(false);
+
   const fetchData = async () => {
     try {
       setLoading(true);
       const data = await getCompany();
       setInitial(data);
+      // pré-preenche o responsável se existir
+      if (data.signatureUser) {
+        setResp(data.signatureUser);
+      } else {
+        setResp(null);
+      }
+      setClearResp(false);
     } catch (err: any) {
       openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao carregar empresa', variant: 'alert', alert: { color: 'error' } } as any);
     } finally {
@@ -125,6 +138,8 @@ export default function CompanyPage() {
                       website: values.website?.trim() || undefined,
                       phone: values.phone?.trim() ?? '',
                       cnpj: values.cnpj?.trim() ?? ''
+                      // responsável
+                      , ...(clearResp ? { signatureUserId: null } : (resp ? { signatureUserId: resp.id } : {}))
                     };
 
                     const res = await updateCompany(payload);
@@ -198,6 +213,31 @@ export default function CompanyPage() {
                      </Stack>
 
                     <Divider sx={{ my: 1 }} />
+
+                    {/* Responsável pela assinatura */}
+                    <Stack gap={1}>
+                      <InputLabel>Responsável pela assinatura</InputLabel>
+                 
+
+                      <UserSelect
+                        value={resp}
+                        onChange={(u) => { setResp(u); setClearResp(false); }}
+                        placeholder="Digite para buscar usuários…"
+                      />
+
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Button
+                          size="small"
+                          color={clearResp ? 'success' : 'inherit'}
+                          onClick={() => { setResp(null); setClearResp((v) => !v); }}
+                        >
+                          {clearResp ? 'Remoção marcada' : 'Limpar responsável'}
+                        </Button>
+                        <Typography variant="caption" color="text.secondary">
+                          {clearResp ? 'Ao salvar, o responsável será removido.' : 'Opcional: escolha um novo responsável ou limpe.'}
+                        </Typography>
+                      </Stack>
+                    </Stack>
 
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
                       <Button variant="contained" startIcon={<SaveOutlined />} onClick={() => handleSubmit()} disabled={isSubmitting || submitting}>Salvar</Button>

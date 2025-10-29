@@ -20,14 +20,21 @@ import EditOutlined from '@ant-design/icons/EditOutlined';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import IconButton from '@mui/material/IconButton';
 
-import { createDepartment, updateDepartment } from '../../api/departments';
+import { createDepartment, updateDepartment, type UpdateDepartmentDTO } from '../../api/departments';
+import UserSelect from '../../components/inputs/UserSelect';
+import type { UserBasic } from '../../api/users';
 import { openSnackbar } from '../../api/snackbar';
 
 type Props = {
   open: boolean;
   onClose: () => void;
   editingId?: string | null;
-  initial?: { name?: string; description?: string | null };
+  initial?: {
+    name?: string;
+    description?: string | null;
+    signatureUserId?: string | null;
+    signatureUser?: UserBasic | null;
+  };
   onSaved: () => void;
 };
 
@@ -39,8 +46,23 @@ const schema = Yup.object({
 export default function DepartmentFormDialog({ open, onClose, editingId, initial, onSaved }: Props) {
   const isEdit = Boolean(editingId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resp, setResp] = useState<UserBasic | null>(null);
+  const [clearResp, setClearResp] = useState(false);
 
-  useEffect(() => { if (!open) setIsSubmitting(false); }, [open]);
+  useEffect(() => { 
+    if (!open) {
+      setIsSubmitting(false);
+    } else {
+      // pré-preenche o responsável quando abrir o dialog
+      if (initial?.signatureUser) {
+        setResp(initial.signatureUser);
+      } else {
+        setResp(null);
+      }
+      setClearResp(false);
+    }
+  }, [open, initial]);
+  
   const handleClose = () => { if (!isSubmitting) onClose(); };
 
   return (
@@ -69,12 +91,19 @@ export default function DepartmentFormDialog({ open, onClose, editingId, initial
         onSubmit={async (values, { setSubmitting, setErrors }) => {
           try {
             setIsSubmitting(true);
-            const payload = { name: values.name.trim(), description: values.description?.trim() || null };
+            const base = { name: values.name.trim(), description: values.description?.trim() || null };
             if (isEdit && editingId) {
+              const payload: UpdateDepartmentDTO = {
+                ...base,
+                ...(clearResp ? { signatureUserId: null } : (resp ? { signatureUserId: resp.id } : {}))
+              };
               await updateDepartment(editingId, payload);
               openSnackbar({ open: true, message: 'Departamento atualizado!', variant: 'alert', alert: { color: 'success' } } as any);
             } else {
-              await createDepartment(payload);
+              await createDepartment({
+                ...base,
+                ...(resp ? { signatureUserId: resp.id } : {})
+              });
               openSnackbar({ open: true, message: 'Departamento criado!', variant: 'alert', alert: { color: 'success' } } as any);
             }
             onSaved();
@@ -105,6 +134,22 @@ export default function DepartmentFormDialog({ open, onClose, editingId, initial
                   <TextField id="description" name="description" value={values.description ?? ''} onChange={handleChange} onBlur={handleBlur}
                              multiline minRows={2} />
                   {touched.description && errors.description && <FormHelperText error>{errors.description as string}</FormHelperText>}
+                </Stack>
+
+                {/* Responsável pela assinatura */}
+                <Stack gap={1}>
+                  <InputLabel>Responsável pela assinatura</InputLabel>
+                  {isEdit && (initial?.signatureUser || initial?.signatureUserId) && (
+                    <Typography variant="caption" color="text.secondary">
+                      Atual: <b>{initial?.signatureUser?.name || initial?.signatureUserId}</b>
+                    </Typography>
+                  )}
+                  <UserSelect value={resp} onChange={(u) => { setResp(u); setClearResp(false); }} />
+                  {isEdit && (
+                    <Button size="small" onClick={() => { setResp(null); setClearResp((v) => !v); }}>
+                      {clearResp ? 'Remoção marcada' : 'Limpar responsável'}
+                    </Button>
+                  )}
                 </Stack>
 
                 {values.name && (

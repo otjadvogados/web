@@ -1,4 +1,5 @@
 import axios from 'utils/axios';
+import type { UserBasic } from './users';
 
 export type AiRulebook = {
   id: string;
@@ -6,6 +7,9 @@ export type AiRulebook = {
   name: string;
   description?: string | null;
   isActive: boolean;
+  // responsável pela assinatura
+  signatureUserId?: string | null;
+  signatureUser?: UserBasic | null;
   fileId?: string | null;
   fileMime?: string | null;
   originalName?: string | null;
@@ -57,6 +61,7 @@ export type CreateRulebookDTO = {
   name: string;
   description?: string | null;
   isActive?: boolean;
+  signatureUserId?: string | null;
 };
 
 export async function createRulebook(payload: CreateRulebookDTO) {
@@ -68,6 +73,7 @@ export type UpdateRulebookDTO = Partial<{
   name: string;
   description: string | null;
   isActive: boolean;
+  signatureUserId: string | null; // null para limpar
 }>;
 
 export async function updateRulebook(id: string, payload: UpdateRulebookDTO) {

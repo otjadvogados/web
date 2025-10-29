@@ -32,10 +32,24 @@ type Ctx = {
   // helpers
   canNext: (s: number) => boolean;
   maxStep: number;
-  payloadPreview: any;
+  payloadPreview: any; // mantido para compat, mas agora usamos formPreview para exibir no UI
   // downloads
   downloadPieceDocx: () => Promise<void>;
   downloadSpecDocx: (id: string) => Promise<void>;
+  // envio
+  buildFormData: () => FormData;
+  formPreview: {
+    contentType: 'multipart/form-data';
+    fields: {
+      departmentId: string | null;
+      customerId: string | null;
+      pieceId: string | null;
+      topicId: string | null;
+      topicSpecificIds: string[];
+      instruction: string | null;
+    };
+    attachments: { name: string; type: string; size: number }[];
+  };
 };
 
 const CaseWizardContext = createContext<Ctx | null>(null);
@@ -90,6 +104,40 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     attachmentsCount: files.length
   }), [dept, customer, piece, topic, specs, instruction, files.length]);
 
+  // --- multipart/form-data builder ---
+  const buildFormData = () => {
+    const fd = new FormData();
+    if (dept?.id) fd.append('departmentId', dept.id);
+    if (customer?.id) fd.append('customerId', customer.id);
+    if (piece?.id) fd.append('pieceId', piece.id);
+    if (topic?.id) fd.append('topicId', topic.id);
+    for (const id of specs.map(s => s.id)) {
+      fd.append('topicSpecificIds[]', id);
+    }
+    if (instruction.trim()) {
+      fd.append('instruction', instruction.trim());
+    }
+    files.forEach((f) => {
+      // nome do campo: attachments[]  (compatível com Nest + multer)
+      fd.append('attachments[]', f, f.name);
+    });
+    return fd;
+  };
+
+  // Pré-visualização amigável para o Drawer
+  const formPreview = useMemo(() => ({
+    contentType: 'multipart/form-data' as const,
+    fields: {
+      departmentId: dept?.id ?? null,
+      customerId: customer?.id ?? null,
+      pieceId: piece?.id ?? null,
+      topicId: topic?.id ?? null,
+      topicSpecificIds: specs.map(s => s.id),
+      instruction: instruction.trim() || null
+    },
+    attachments: files.map(f => ({ name: f.name, type: f.type, size: f.size }))
+  }), [dept?.id, customer?.id, piece?.id, topic?.id, specs, instruction, files]);
+
   const downloading = useRef(false);
   const downloadPieceDocx = async () => {
     if (!pieceDetail?.id || !pieceDetail.docxFileId || downloading.current) return;
@@ -140,7 +188,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       instruction, setInstruction,
       files, setFiles,
       canNext, maxStep, payloadPreview,
-      downloadPieceDocx, downloadSpecDocx
+      downloadPieceDocx, downloadSpecDocx,
+      buildFormData, formPreview
     }}>
       {children}
     </CaseWizardContext.Provider>
