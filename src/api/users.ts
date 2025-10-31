@@ -119,3 +119,15 @@ export async function setUserRole(userId: string, roleId: string) {
   const { data } = await axios.put<{ message: string }>(`/users/${userId}/role`, { roleId });
   return data;
 }
+
+/**
+ * Atualiza o avatar de um usuário
+ */
+export async function updateUserAvatar(userId: string, file: File) {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  const { data } = await axios.put<{ message: string; data: any }>(`/users/${userId}/avatar`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return data;
+}
