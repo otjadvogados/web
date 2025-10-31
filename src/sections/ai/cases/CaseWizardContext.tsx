@@ -5,6 +5,7 @@ import { AiPiece, fetchPieceDocx } from 'api/aiPieces';
 import { AiTopic } from 'api/aiTopics';
 import { AiTopicSpecific, fetchTopicSpecificDocx } from 'api/aiTopicSpecifics';
 import { openSnackbar } from 'api/snackbar';
+import type { CaseContextFields } from 'api/aiCases';
 
 export type OptionDept = Pick<Department, 'id'|'name'>;
 export type OptionCust = Pick<Customer, 'id'|'displayName'|'name'>;
@@ -38,6 +39,7 @@ type Ctx = {
   downloadSpecDocx: (id: string) => Promise<void>;
   // envio
   buildFormData: () => FormData;
+  buildCaseContextFormData: () => FormData;
   formPreview: {
     contentType: 'multipart/form-data';
     fields: {
@@ -124,6 +126,33 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     return fd;
   };
 
+  /**
+   * Builder específico para o endpoint POST /ai/cases/context
+   * - Envia um único campo "fields" (string JSON) com o payload consolidado
+   * - Anexa arquivos no campo "attachments" (sem []), múltiplas ocorrências
+   */
+  const buildCaseContextFormData = () => {
+    if (!dept?.id || !piece?.id) {
+      throw new Error('Departamento e Peça são obrigatórios para criar o caso.');
+    }
+    const fields: CaseContextFields = {
+      departmentId: dept.id,
+      pieceId: piece.id,
+    };
+    if (customer?.id) fields.customerId = customer.id;
+    if (topic?.id) fields.topicId = topic.id;
+    const ts = specs.map((s) => s.id);
+    if (ts.length) fields.topicSpecificIds = ts;
+    if (instruction.trim()) fields.instruction = instruction.trim();
+
+    const fd = new FormData();
+    fd.append('fields', JSON.stringify(fields));
+    files.forEach((f) => {
+      fd.append('attachments', f, f.name);
+    });
+    return fd;
+  };
+
   // Pré-visualização amigável para o Drawer
   const formPreview = useMemo(() => ({
     contentType: 'multipart/form-data' as const,
@@ -189,7 +218,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       files, setFiles,
       canNext, maxStep, payloadPreview,
       downloadPieceDocx, downloadSpecDocx,
-      buildFormData, formPreview
+      buildFormData, buildCaseContextFormData, formPreview
     }}>
       {children}
     </CaseWizardContext.Provider>
