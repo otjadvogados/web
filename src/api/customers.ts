@@ -119,7 +119,8 @@ export function extractDigits(value: string): string {
 }
 
 export async function getReceitaFederalData(cnpj: string) {
-  const { data } = await axios.get<{ message: string; data: any }>(`/customers/receita-federal/${cnpj}`);
+  const cnpjClean = extractDigits(cnpj);
+  const { data } = await axios.get<{ message: string; data: any }>(`/customers/receita-federal/${cnpjClean}`);
   return data.data;
 }
 

@@ -170,7 +170,7 @@ export default function RulebookFormDialog({ open, onClose, editingId, initial, 
 
                 {/* Responsável pela assinatura */}
                 <Stack gap={1}>
-                  <InputLabel>Responsável pela assinatura</InputLabel>
+                  <InputLabel>Responsável</InputLabel>
                   {isEdit && (initial?.signatureUser || initial?.signatureUserId) && (
                     <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
                       Atual: <b>{initial?.signatureUser?.name || initial?.signatureUserId}</b>
