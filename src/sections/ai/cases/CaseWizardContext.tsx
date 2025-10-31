@@ -88,7 +88,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     switch (s) {
       case 0: return !!dept?.id; // departamento
       case 1: return true;       // cliente é opcional
-      case 2: return !!piece?.id;
+      case 2: return !!piece?.id && !!piece?.docxFileId; // peça com DOCX obrigatório
       case 3: return !!topic?.id;
       case 4: return specs.length > 0;
       case 5: return true;       // anexos/instruções sempre ok
@@ -132,8 +132,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
    * - Anexa arquivos no campo "attachments" (sem []), múltiplas ocorrências
    */
   const buildCaseContextFormData = () => {
-    if (!dept?.id || !piece?.id) {
-      throw new Error('Departamento e Peça são obrigatórios para criar o caso.');
+    if (!dept?.id || !piece?.id || !piece?.docxFileId) {
+      throw new Error('Departamento e Peça com DOCX são obrigatórios para criar o caso.');
     }
     const fields: CaseContextFields = {
       departmentId: dept.id,
