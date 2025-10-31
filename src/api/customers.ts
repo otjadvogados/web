@@ -120,8 +120,10 @@ export function extractDigits(value: string): string {
 
 export async function getReceitaFederalData(cnpj: string) {
   const cnpjClean = extractDigits(cnpj);
-  const { data } = await axios.get<{ message: string; data: any }>(`/customers/receita-federal/${cnpjClean}`);
-  return data.data;
+  // backend pode retornar {message,data} OU o objeto cru
+  const { data } = await axios.get<{ message?: string; data?: any } | any>(`/customers/receita-federal/${cnpjClean}`);
+  if (data && typeof data === 'object' && 'data' in data) return (data as any).data;
+  return data; // objeto cru
 }
 
 export function formatCNPJ(cnpj: string): string {

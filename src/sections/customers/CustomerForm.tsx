@@ -212,7 +212,7 @@ export default function CustomerForm() {
   const [peopleDraft, setPeopleDraft] = useState<DraftLink[]>([]);
 
   // Estado do EDIT (carregado por GET /customers/:id/people)
-  const [peopleLinks, setPeopleLinks] = useState<LinkedPerson[]>([]);
+  const [peopleLinks, setPeopleLinks] = useState<CompanyPersonLink[]>([]);
   const [peopleLoading, setPeopleLoading] = useState(false);
   const [peopleError, setPeopleError] = useState<string | null>(null);
 
@@ -267,7 +267,7 @@ export default function CustomerForm() {
       setParentLoading(true);
       try {
         const res = await listCompanies(q);
-        if (alive) setParentOptions(res);
+        if (alive) setParentOptions(res as import('../../types/customers').Customer[]);
       } finally {
         if (alive) setParentLoading(false);
       }
@@ -295,7 +295,7 @@ export default function CustomerForm() {
           id || '',
           ...(branches || []).map(b => b.childId)
         ]);
-        setExistingBranchOptions(res.filter((c: Customer) => !avoidIds.has(c.id)));
+        setExistingBranchOptions((res as Customer[]).filter((c) => !avoidIds.has(c.id)));
       } finally {
         if (alive) setExistingBranchLoading(false);
       }
@@ -319,7 +319,7 @@ export default function CustomerForm() {
         const res = await listPeople(q);
         if (!alive) return;
         // apenas pessoas (defensivo)
-        setPersonOptions(res.filter((c: { kind: string; }) => c.kind === 'PERSON'));
+        setPersonOptions((res as Customer[]).filter((c) => c.kind === 'PERSON'));
       } finally {
         if (alive) setPersonLoading(false);
       }
@@ -342,7 +342,7 @@ export default function CustomerForm() {
       try {
         const res = await apiListPeople(q);
         if (!alive) return;
-        setQuickPersonOptions((res || []).filter((c: any) => c.kind === 'PERSON'));
+        setQuickPersonOptions(((res || []) as Customer[]).filter((c: any) => c.kind === 'PERSON'));
       } finally {
         if (alive) setQuickPersonLoading(false);
       }
@@ -400,7 +400,7 @@ export default function CustomerForm() {
     setPeopleError(null);
     try {
       const list = await getCompanyPeople(customerId);
-      setPeopleLinks(list);
+      setPeopleLinks(list as unknown as CompanyPersonLink[]);
     } catch (e: any) {
       setPeopleError(friendlyError(e, 'Erro ao carregar pessoas vinculadas'));
     } finally {
@@ -574,20 +574,26 @@ export default function CustomerForm() {
   };
 
   // mapeia dados da Receita para o payload dos endereços
-  const receitaToAddress = (data: any): FormAddressPayload => ({
-    addressType: 'C',
-    label: 'Comercial (Receita)',
-    isPrimary: companyAddresses.length === 0 || !companyAddresses.some(a => a.isPrimary),
-    street: data.endereco.logradouro,
-    number: data.endereco.numero,
-    complement: data.endereco.complemento || undefined,
-    district: data.endereco.bairro,
-    city: data.endereco.municipio,
-    state: data.endereco.uf,
-    postalCode: extractDigits(data.endereco.cep),
-    country: data.endereco.pais || 'Brasil',
-    reference: undefined
-  });
+  // Constrói endereço a partir da Receita; retorna null se não houver dados suficientes
+  const receitaToAddress = (data: any): FormAddressPayload | null => {
+    const e = data?.endereco;
+    if (!e) return null;
+    return {
+      addressType: 'C',
+      label: 'Comercial (Receita)',
+      // decidimos o primário dentro do setState (com base no array atual)
+      isPrimary: false,
+      street: e.logradouro || '',
+      number: e.numero || '',
+      complement: e.complemento || '',
+      district: e.bairro || '',
+      city: e.municipio || '',
+      state: (e.uf || '').toUpperCase().slice(0, 2),
+      postalCode: extractDigits(e.cep || ''),
+      country: e.pais || 'Brasil',
+      reference: ''
+    };
+  };
 
   // ========= Helpers de endereço (funcionam para PERSON e COMPANY) =========
   const getCurrentAddresses = () =>
@@ -662,10 +668,11 @@ export default function CustomerForm() {
   };
 
   const handleCnpjSearch = async () => {
-    if (!formData.cnpj || formData.cnpj.length < 14) {
+    const clean = extractDigits(formData.cnpj);
+    if (clean.length !== 14) {
       openSnackbar({ 
         open: true, 
-        message: 'Digite um CNPJ válido', 
+        message: 'Digite um CNPJ válido (14 dígitos)', 
         variant: 'alert', 
         alert: { color: 'warning' } 
       } as any);
@@ -677,6 +684,9 @@ export default function CustomerForm() {
 
     try {
       const data = await getReceitaFederalData(formData.cnpj);
+      if (!data || typeof data !== 'object') {
+        throw new Error('Resposta inesperada da Receita Federal');
+      }
       setReceitaData(data);
       
       // Preencher automaticamente os campos com validação
@@ -699,12 +709,17 @@ export default function CustomerForm() {
       // acrescenta o endereço da Receita como Comercial (C) se ainda não existir
       setCompanyAddresses(prev => {
         const addr = receitaToAddress(data);
+        if (!addr) return prev; // nada para adicionar
+        // define primário: se não houver nenhum primário atual
+        const shouldBePrimary = prev.length === 0 || !prev.some(a => a.isPrimary);
+        const candidate = { ...addr, isPrimary: shouldBePrimary };
+        // evita duplicidade "mesmo CEP + rua + número"
         const dup = prev.find(
-          p => p.postalCode === addr.postalCode && p.street === addr.street && p.number === addr.number
+          p => p.postalCode === candidate.postalCode && p.street === candidate.street && (p.number || '') === (candidate.number || '')
         );
         if (dup) return prev;
-        const list = addr.isPrimary ? prev.map(p => ({ ...p, isPrimary: false })) : prev.slice();
-        return [...list, addr];
+        const list = shouldBePrimary ? prev.map(p => ({ ...p, isPrimary: false })) : prev.slice();
+        return [...list, candidate];
       });
     } catch (err: any) {
       console.error('Erro ao buscar CNPJ:', err);
@@ -1281,7 +1296,7 @@ export default function CustomerForm() {
                       <Button
                         variant="contained"
                         onClick={handleCnpjSearch}
-                        disabled={cnpjSearching || !formData.cnpj || formData.cnpj.length < 14}
+                        disabled={cnpjSearching || extractDigits(formData.cnpj).length !== 14}
                         sx={{ minWidth: 'auto', px: 3, height: '40px' }}
                       >
                         {cnpjSearching ? <LoadingIcon /> : <SearchIcon />}
@@ -1913,13 +1928,10 @@ export default function CustomerForm() {
                         }
                         try {
                           // resolve o personId real (pode exigir um GET /customers/:id?tree=true por baixo)
-                          const resolvedPersonId = await resolveSubjectId(quickSelectedPerson as any);
-                          if (!resolvedPersonId) throw new Error('Não foi possível obter o ID da pessoa.');
+                          const resolvedPerson = await resolveSubjectId((quickSelectedPerson as any).id);
+                          if (!resolvedPerson?.id) throw new Error('Não foi possível obter o ID da pessoa.');
                           // cria o vínculo e faz atualização imediata da lista
-                          const created = await linkPersonToCompany(id, {
-                            personId: resolvedPersonId,
-                            role: quickRole || undefined
-                          });
+                          const created = await linkPersonToCompany(id, resolvedPerson.id, quickRole || undefined);
                           setNewlyLinked(created);     // empurra para a lista sem refetch
                           setQuickSelectedPerson(null);
                           setQuickPersonInput('');
