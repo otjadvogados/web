@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
+import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import MainCard from 'components/MainCard';
 import Typography from '@mui/material/Typography';
@@ -55,15 +56,16 @@ function CreateCaseWizardInner() {
 
   const [openPreview, setOpenPreview] = useState(false);
   const [openResult, setOpenResult] = useState(false);
+  const [openHtml, setOpenHtml] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [resultJson, setResultJson] = useState<CaseContextResponse | null>(null);
+  const [result, setResult] = useState<CaseContextResponse | null>(null);
 
   const doSubmit = async () => {
     try {
       setSubmitting(true);
       const fd = buildCaseContextFormData();
       const res = await postCaseContext(fd);
-      setResultJson(res);
+      setResult(res);
       setOpenResult(true);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Falha ao criar caso';
@@ -216,11 +218,23 @@ function CreateCaseWizardInner() {
             <Stack spacing={1.5} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Typography variant="h6" fontWeight={700}>Resposta (JSON)</Typography>
-                <IconButton onClick={() => setOpenResult(false)}>
-                  <CloseOutlined />
-                </IconButton>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<EyeOutlined />}
+                    onClick={() => setOpenHtml(true)}
+                    disabled={!result?.data?.html}
+                    title={result?.data?.html ? 'Visualizar HTML' : 'Sem HTML'}
+                  >
+                    Ver HTML
+                  </Button>
+                  <IconButton onClick={() => setOpenResult(false)}>
+                    <CloseOutlined />
+                  </IconButton>
+                </Stack>
               </Stack>
-              {!resultJson ? (
+              {!result ? (
                 <Paper variant="outlined" sx={{ p: 2, color: 'text.secondary' }}>
                   Nenhum resultado para exibir.
                 </Paper>
@@ -229,9 +243,77 @@ function CreateCaseWizardInner() {
                   variant="outlined"
                   sx={{ p: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12, whiteSpace: 'pre-wrap' }}
                 >
-                  {JSON.stringify(resultJson, null, 2)}
+                  {JSON.stringify(result, null, 2)}
                 </Paper>
               )}
+            </Stack>
+          </Drawer>
+
+          {/* Drawer de visualização do HTML retornado */}
+          <Drawer
+            anchor="right"
+            open={openHtml}
+            onClose={() => setOpenHtml(false)}
+            PaperProps={{ sx: { width: { xs: '100%', sm: 720, md: 900 } } }}
+          >
+            <Stack spacing={1} sx={{ p: 2, height: '100%' }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Typography variant="h6" fontWeight={700}>
+                  Visualizar HTML da Peça
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      if (!result?.data?.html) return;
+                      const src = `<!doctype html><html><head><meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Preview</title>
+  <style>
+    html,body{margin:0;padding:0}
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
+    h1,h2,h3{margin:1em 0 .5em}
+    p{margin:.5em 0}
+    ul,ol{padding-left:1.25em}
+  </style>
+</head><body>${result.data.html}</body></html>`;
+                      const blob = new Blob([src], { type: 'text/html;charset=utf-8' });
+                      const url = URL.createObjectURL(blob);
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                      // não revoga imediatamente para não quebrar a aba; navegador cuidará depois
+                    }}
+                    disabled={!result?.data?.html}
+                  >
+                    Abrir em nova aba
+                  </Button>
+                  <IconButton onClick={() => setOpenHtml(false)}>
+                    <CloseOutlined />
+                  </IconButton>
+                </Stack>
+              </Stack>
+              <Box sx={{ flex: 1, minHeight: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                {result?.data?.html ? (
+                  <iframe
+                    title="HTML Preview"
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    // sandbox vazio = sem JS/mesmo-origem; srcDoc = conteúdo isolado
+                    sandbox=""
+                    srcDoc={`<!doctype html><html><head><meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html,body{margin:0;padding:0}
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
+    h1,h2,h3{margin:1em 0 .5em}
+    p{margin:.5em 0}
+    ul,ol{padding-left:1.25em}
+  </style>
+</head><body>${result.data.html}</body></html>`}
+                  />
+                ) : (
+                  <Stack sx={{ p: 2, color: 'text.secondary' }}>Sem HTML para visualizar.</Stack>
+                )}
+              </Box>
             </Stack>
           </Drawer>
         </MainCard>
