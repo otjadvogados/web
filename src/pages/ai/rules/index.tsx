@@ -38,6 +38,7 @@ import {
   activateRulebook
 } from 'api/aiRulebooks';
 import RulebookFormDialog from 'sections/ai/rules/RulebookFormDialog';
+import TextCarouselOverlay from 'components/loaders/TextCarouselOverlay';
 
 export default function AIRulebooksPage() {
   const [items, setItems] = useState<AiRulebook[]>([]);
@@ -60,6 +61,13 @@ export default function AIRulebooksPage() {
   // file upload
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingUploadId, setPendingUploadId] = useState<string | null>(null);
+
+  // overlay loading IA
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const overlayTexts = useMemo(
+    () => ['Lendo .docx…', 'Extraindo texto…', 'Montando prompt…', 'Chamando IA…', 'Gerando checklist (JSON)…', 'Validando resposta…', 'Salvando…', 'Enviando arquivo…'],
+    []
+  );
 
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
@@ -132,6 +140,7 @@ export default function AIRulebooksPage() {
     e.target.value = '';
     if (!file || !pendingUploadId) return;
     try {
+      setOverlayOpen(true);
       await uploadRulebookFile(pendingUploadId, file);
       openSnackbar({
         open: true,
@@ -143,11 +152,15 @@ export default function AIRulebooksPage() {
     } catch (err: any) {
       openSnackbar({
         open: true,
-        message: err?.response?.data?.message || 'Falha no upload do arquivo',
+        message:
+          err?.response?.data?.reason
+            ? `${err?.response?.data?.message || 'Falha no upload/análise'} — ${err?.response?.data?.reason}`
+            : err?.response?.data?.message || 'Falha no upload do arquivo',
         variant: 'alert',
         alert: { color: 'error' }
       } as any);
     } finally {
+      setOverlayOpen(false);
       setPendingUploadId(null);
     }
   };
@@ -456,6 +469,16 @@ export default function AIRulebooksPage() {
         type="file"
         accept=".docx,.pdf,.md,.txt,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         style={{ display: 'none' }}
+      />
+
+      {/* Overlay de processamento (reutilizável) */}
+      <TextCarouselOverlay
+        open={overlayOpen}
+        texts={overlayTexts}
+        stepMs={1000}
+        holdMs={1000}
+        startAt="Lendo .docx"
+        introReveal
       />
     </Grid>
   );
