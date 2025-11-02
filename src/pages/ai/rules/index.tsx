@@ -65,7 +65,19 @@ export default function AIRulebooksPage() {
   // overlay loading IA
   const [overlayOpen, setOverlayOpen] = useState(false);
   const overlayTexts = useMemo(
-    () => ['Lendo .docx…', 'Extraindo texto…', 'Montando prompt…', 'Chamando IA…', 'Gerando checklist (JSON)…', 'Validando resposta…', 'Salvando…', 'Enviando arquivo…'],
+    () => [
+      'Analisando arquivo…',
+      'Detectando contencioso/consultivo…',
+      'Normalizando formatação…',
+      'Detectando estilos/tamanhos…',
+      'Identificando regras ABNT…',
+      'Validando estrutura…',
+      'Citações/jurisprudência com autos, relator, data e link…',
+      'Assinaturas centralizadas…',
+      'Persistindo resultado…',
+      'Salvando…',
+      'Só mais um pouco…'
+    ],
     []
   );
 
@@ -476,9 +488,8 @@ export default function AIRulebooksPage() {
         open={overlayOpen}
         texts={overlayTexts}
         stepMs={1000}
-        holdMs={1000}
-        startAt="Lendo .docx"
-        introReveal
+        holdMs={5000}
+        startAt="Analisando arquivo…"
       />
     </Grid>
   );

@@ -1,9 +1,7 @@
 import * as React from 'react';
 import Backdrop from '@mui/material/Backdrop';
 import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import CircularProgress from '@mui/material/CircularProgress';
 
 type Props = {
   open: boolean;
@@ -29,15 +27,16 @@ type Props = {
 };
 
 const defaultTexts = [
-  'Lendo .docx…',
-  'Enfileirando upload…',
-  'Enviando arquivo…',
-  'Extraindo texto do documento…',
-  'Preparando prompt…',
-  'Consultando IA…',
-  'Gerando checklist em JSON…',
+  'Analisando arquivo…',
+  'Detectando contencioso/consultivo…',
+  'Normalizando formatação…',
+  'Detectando estilos/tamanhos…',
+  'Identificando regras ABNT…',
   'Validando estrutura…',
-  'Persistindo resultado…'
+  'Citações/jurisprudência com autos, relator, data e link…',
+  'Assinaturas centralizadas…',
+  'Persistindo resultado…',
+  'Salvando…'
 ];
 
 /**
@@ -54,8 +53,8 @@ export default function TextCarouselOverlay({
   texts = defaultTexts,
   stepMs = 1200,
   itemHeight = 32,
-  title = 'Analisando o documento…',
-  subtitle = 'Isso pode levar alguns instantes.',
+  // removidos: título/subtítulo/loader — overlay minimalista
+  title,
   easing = 'cubic-bezier(0.25, 0.9, 0.3, 1.0)',
   paused = false,
   holdMs = 1000,
@@ -220,61 +219,42 @@ export default function TextCarouselOverlay({
       open={open}
       sx={{
         zIndex: (t) => t.zIndex.modal + 10,
-        bgcolor: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(1px)'
+        // fundo mais escuro, sem "caixa"
+        bgcolor: 'rgba(0,0,0,0.68)',
+        backdropFilter: 'blur(1px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}
     >
-      <Paper
-        elevation={6}
+      {/* VIEWPORT DE 3 CONTENTS — sem moldura/caixa, apenas texto */}
+      <Box
         sx={{
-          width: { xs: '88%', sm: 520 },
-          maxWidth: '92%',
-          borderRadius: 2,
-          p: 3,
-          bgcolor: 'background.paper',
+          position: 'relative',
+          height: viewportH,
+          width: 'min(92vw, 560px)',
+          overflow: 'hidden',
+          // sem borda/fundo: "invisível"
+          border: 'none',
+          bgcolor: 'transparent',
+          // centralizar texto horizontalmente
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'stretch',
-          gap: 1.5
+          justifyContent: 'center'
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CircularProgress size={22} />
-          <Typography variant="subtitle1" fontWeight={700}>
-            {title}
-          </Typography>
-        </Box>
-        {subtitle && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: -0.5 }}>
-            {subtitle}
-          </Typography>
-        )}
-
-        {/* VIEWPORT DE 3 CONTENTS */}
+        {/* Faixa com 4 itens (top, mid, bottom, buffer) */}
         <Box
           sx={{
-            position: 'relative',
-            mt: 1,
-            borderRadius: 1.5,
-            border: '1px solid',
-            borderColor: 'divider',
-            bgcolor: (t) => (t.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'grey.50'),
-            overflow: 'hidden',
-            height: viewportH
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: 0,
+            willChange: 'transform',
+            transform: `translateY(${trackY}px)`,
+            transition: trans
           }}
         >
-          {/* Faixa com 4 itens (top, mid, bottom, buffer) – buffer fica abaixo e entra no passo */}
-          <Box
-            sx={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: 0,
-              willChange: 'transform',
-              transform: `translateY(${trackY}px)`,
-              transition: trans
-            }}
-          >
             {[0, 1, 2, 3].map((pos) => {
               const text = visualTexts[pos];
               const style = styleForPos(pos);
@@ -287,6 +267,7 @@ export default function TextCarouselOverlay({
                     height: itemHeight,
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     px: 2,
                     ...style
                   }}
@@ -297,7 +278,8 @@ export default function TextCarouselOverlay({
                       fontWeight: weight,
                       whiteSpace: 'nowrap',
                       textOverflow: 'ellipsis',
-                      overflow: 'hidden'
+                      overflow: 'hidden',
+                      textAlign: 'center'
                     }}
                   >
                     {text}
@@ -305,25 +287,8 @@ export default function TextCarouselOverlay({
                 </Box>
               );
             })}
-          </Box>
-
-          {/* guia do SLOT INFERIOR (apenas referência visual) */}
-          <Box
-            aria-hidden
-            sx={{
-              position: 'absolute',
-              left: 8,
-              right: 8,
-              bottom: itemHeight / 2,
-              transform: 'translateY(50%)',
-              borderTop: '1px dashed',
-              borderColor: 'divider',
-              opacity: 0.35,
-              pointerEvents: 'none'
-            }}
-          />
         </Box>
-      </Paper>
+      </Box>
     </Backdrop>
   );
 }
