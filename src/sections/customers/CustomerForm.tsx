@@ -197,6 +197,7 @@ export default function CustomerForm() {
   const [existingBranchLoading, setExistingBranchLoading] = useState(false);
   const [existingBranchOptions, setExistingBranchOptions] = useState<Customer[]>([]);
   const [selectedExistingBranch, setSelectedExistingBranch] = useState<Customer | null>(null);
+  const [branchCnpjSearching, setBranchCnpjSearching] = useState(false);
   const [creatingBranch, setCreatingBranch] = useState(false);
   const [newBranch, setNewBranch] = useState({
     displayName: '',
@@ -206,6 +207,8 @@ export default function CustomerForm() {
     email: '',
     phone: ''
   });
+  // evita buscas repetidas no blur
+  const [lastBranchCnpjLooked, setLastBranchCnpjLooked] = useState<string>('');
 
   // ---- Pessoas (create & edit) ----
   // Draft a ser enviado em company.people[] (apenas no CREATE)
@@ -800,7 +803,49 @@ export default function CustomerForm() {
       email: '',
       phone: ''
     });
+    setLastBranchCnpjLooked('');
     setAddOpen(true);
+  };
+
+  // ==== Receita Federal (dialog de "Criar nova" filial) ====
+  const handleBranchCnpjSearch = async () => {
+    const clean = extractDigits(newBranch.cnpj);
+    if (clean.length !== 14) {
+      openSnackbar({
+        open: true,
+        message: 'Digite um CNPJ válido (14 dígitos) para buscar na Receita.',
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+      return;
+    }
+    if (clean === lastBranchCnpjLooked) return; // já buscamos este CNPJ
+
+    setBranchCnpjSearching(true);
+    try {
+      const data = await getReceitaFederalData(clean);
+      // Preenche campos básicos da filial a criar
+      setNewBranch((prev) => ({
+        ...prev,
+        legalName: data?.razaoSocial || prev.legalName || '',
+        // displayName: usa razão social por padrão (mantém se usuário já digitou)
+        displayName: prev.displayName || data?.razaoSocial || data?.nomeFantasia || '',
+        tradeName: data?.nomeFantasia || prev.tradeName || '',
+        email: data?.contato?.email || prev.email || '',
+        phone: data?.contato?.telefone || prev.phone || ''
+      }));
+      setLastBranchCnpjLooked(clean);
+      openSnackbar({
+        open: true,
+        message: 'Dados preenchidos a partir da Receita Federal.',
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+    } catch (err: any) {
+      openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao consultar Receita Federal', variant: 'alert', alert: { color: 'error' } } as any);
+    } finally {
+      setBranchCnpjSearching(false);
+    }
   };
 
   const confirmAddBranch = async () => {
@@ -1744,6 +1789,38 @@ export default function CustomerForm() {
                 )}
                 {addTab === 1 && (
                   <Box sx={{ display: 'grid', gap: 2 }}>
+                    {/* CNPJ primeiro + busca Receita */}
+                    <Box>
+                      <Typography variant="subtitle2" gutterBottom color="text.secondary">
+                        CNPJ da filial *
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                        <TextField
+                          label="CNPJ *"
+                          value={newBranch.cnpj}
+                          onChange={(e) => {
+                            setNewBranch({ ...newBranch, cnpj: formatCNPJ(e.target.value) });
+                          }}
+                          onBlur={() => {
+                            const d = extractDigits(newBranch.cnpj);
+                            if (d.length === 14) handleBranchCnpjSearch();
+                          }}
+                          placeholder="00.000.000/0000-00"
+                          fullWidth
+                          required
+                          helperText="Preencha o CNPJ e saia do campo ou clique no botão para buscar na Receita"
+                        />
+                        <Button
+                          variant="contained"
+                          onClick={handleBranchCnpjSearch}
+                          disabled={branchCnpjSearching || extractDigits(newBranch.cnpj).length !== 14}
+                          sx={{ minWidth: 'auto', px: 3, height: '40px' }}
+                        >
+                          {branchCnpjSearching ? <><LoadingIcon /></> : <SearchIcon />}
+                        </Button>
+                      </Box>
+                    </Box>
+
                     <TextField
                       label="Razão Social *"
                       value={newBranch.legalName}
@@ -1757,13 +1834,12 @@ export default function CustomerForm() {
                       onChange={(e) => setNewBranch({ ...newBranch, tradeName: e.target.value })}
                       fullWidth
                     />
+                    {/* Opcionalmente já sugere o displayName com a razão social */}
                     <TextField
-                      label="CNPJ *"
-                      value={newBranch.cnpj}
-                      onChange={(e) => setNewBranch({ ...newBranch, cnpj: e.target.value })}
-                      placeholder="00.000.000/0000-00"
+                      label="Nome de Exibição (opcional)"
+                      value={newBranch.displayName}
+                      onChange={(e) => setNewBranch({ ...newBranch, displayName: e.target.value })}
                       fullWidth
-                      required
                     />
                     <TextField
                       label="E-mail"

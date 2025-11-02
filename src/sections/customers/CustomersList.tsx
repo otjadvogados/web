@@ -5,9 +5,13 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Grid,
   IconButton,
   InputAdornment,
+  Link,
+  Stack,
+  Tooltip,
   Table,
   TableBody,
   TableCell,
@@ -37,11 +41,151 @@ import {
   BankOutlined as BusinessIcon
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { Customer, CustomerKind } from '../../types/customers';
-import { listPeople, listCompanies, deleteCustomer } from '../../api/customers';
+import { Customer, CustomerKind, CustomerBranch } from '../../types/customers';
+import {
+  listPeople,
+  listCompanies,
+  deleteCustomer,
+  getCustomer,
+  getCompanyBranches
+} from '../../api/customers';
 import { openSnackbar } from '../../api/snackbar';
 
 // ==============================|| CUSTOMERS LIST ||============================== //
+
+// ---------- Utils para exibir nomes/id de filiais ----------
+const branchDisplayName = (b: CustomerBranch) => {
+  const ch: any = (b as any).child;
+  return (
+    ch?.displayName ||
+    ch?.customer?.displayName ||
+    ch?.company?.legalName ||
+    ch?.legalName ||
+    b.childId
+  );
+};
+const branchTargetId = (b: CustomerBranch) => {
+  const ch: any = (b as any).child;
+  return b.childId || ch?.customer?.id || ch?.id;
+};
+
+// Hidrata filhos que vierem só com childId (para mostrar nomes no tooltip)
+async function hydrateChildren(list: CustomerBranch[]): Promise<CustomerBranch[]> {
+  const needs = list.some((b) => !b.child && b.childId);
+  if (!needs) return list;
+  const filled = await Promise.all(
+    list.map(async (b) => {
+      if (b.child || !b.childId) return b;
+      try {
+        const child = await getCustomer(b.childId, false);
+        return { ...b, child };
+      } catch {
+        return b;
+      }
+    })
+  );
+  return filled;
+}
+
+// ---------- Componente da flag + tooltip ----------
+function StructureFlag({ customer }: { customer: Customer }) {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [isBranch, setIsBranch] = useState<boolean | null>(null);
+  const [parent, setParent] = useState<{ id: string; displayName: string } | null>(null);
+  const [branches, setBranches] = useState<CustomerBranch[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    // Só para empresas: já carregamos na montagem para que a flag apareça de cara.
+    if (customer.kind !== 'COMPANY') return;
+    setLoading(true);
+    (async () => {
+      try {
+        const data: any = await getCustomer(customer.id, true);
+        const parentCustomer = data?.company?.parent?.customer || null;
+        const branch = Boolean(parentCustomer);
+        const baseId = branch ? parentCustomer.id : data.id;
+        let list = await getCompanyBranches(baseId);
+        if (branch) list = list.filter((b: any) => b.childId !== data.id);
+        list = await hydrateChildren(list);
+        if (!alive) return;
+        setIsBranch(branch);
+        setParent(parentCustomer ? { id: parentCustomer.id, displayName: parentCustomer.displayName } : null);
+        setBranches(list);
+      } catch (e: any) {
+        if (!alive) return;
+        setError(e?.response?.data?.message || e?.message || 'Falha ao carregar estrutura');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [customer.id, customer.kind]);
+
+  if (customer.kind !== 'COMPANY') return <Typography variant="body2" color="text.secondary">—</Typography>;
+
+  const label = isBranch === null ? '...' : isBranch ? 'FILIAL' : 'MATRIZ';
+  const color: any = isBranch ? 'info' : 'default';
+
+  const content = (
+    <Box sx={{ maxWidth: 420 }}>
+      {loading && <Stack direction="row" gap={1} alignItems="center"><CircularProgress size={16} /> <Typography variant="body2">Carregando…</Typography></Stack>}
+      {!!error && <Typography color="error" variant="body2">{error}</Typography>}
+      {!loading && !error && (
+        <Stack gap={1}>
+          {isBranch && parent && (
+            <Typography variant="body2">
+              <b>Matriz:</b>{' '}
+              <Link component="button" onClick={() => navigate(`/clients/${parent.id}`)}>
+                {parent.displayName}
+              </Link>
+            </Typography>
+          )}
+          {branches && (
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: .5 }}>Filiais</Typography>
+              {branches.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  {isBranch ? 'Nenhuma outra filial vinculada à matriz.' : 'Nenhuma filial vinculada.'}
+                </Typography>
+              ) : (
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                  {branches.slice(0, 10).map((b) => {
+                    const nm = branchDisplayName(b);
+                    const cid = branchTargetId(b);
+                    return (
+                      <Chip
+                        key={b.id}
+                        size="small"
+                        label={nm}
+                        clickable
+                        onClick={() => cid && navigate(`/clients/${cid}`)}
+                        sx={{ mb: 0.5 }}
+                      />
+                    );
+                  })}
+                  {branches.length > 10 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ ml: .5 }}>
+                      e outras {branches.length - 10} filiais
+                    </Typography>
+                  )}
+                </Stack>
+              )}
+            </Box>
+          )}
+        </Stack>
+      )}
+    </Box>
+  );
+
+  return (
+    <Tooltip title={content} arrow enterDelay={400} placement="top">
+      <Chip size="small" color={color} label={label} />
+    </Tooltip>
+  );
+}
 
 export default function CustomersList() {
   const navigate = useNavigate();
@@ -230,6 +374,7 @@ export default function CustomersList() {
                 <TableCell>Tipo</TableCell>
                 <TableCell>Nome</TableCell>
                 <TableCell>Status</TableCell>
+                <TableCell>Estrutura</TableCell>
                 <TableCell>Criado em</TableCell>
                 <TableCell align="right">Ações</TableCell>
               </TableRow>
@@ -237,13 +382,13 @@ export default function CustomersList() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={6} align="center">
                     <Typography>Carregando...</Typography>
                   </TableCell>
                 </TableRow>
               ) : customers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={6} align="center">
                     <Typography color="text.secondary">
                       Nenhum cliente encontrado
                     </Typography>
@@ -271,6 +416,10 @@ export default function CustomersList() {
                         color={customer.isActive ? 'success' : 'default'}
                         size="small"
                       />
+                    </TableCell>
+                    <TableCell>
+                      {/* Flag Matriz/Filial + tooltip */}
+                      <StructureFlag customer={customer} />
                     </TableCell>
                     <TableCell>
                       {new Date(customer.createdAt).toLocaleDateString('pt-BR')}

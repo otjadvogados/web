@@ -167,7 +167,7 @@ export async function linkAsBranch(parentId: string, childId: string, payload?: 
 }
 
 export async function createCompanyAsBranch(parentId: string, payload: any) {
-  const { data } = await axios.post<{ message: string; data: any }>(`/customers/${parentId}/branches/company`, payload);
+  const { data } = await axios.post<{ message: string; data: any }>(`/customers/${parentId}/branches`, payload);
   return data.data;
 }
 
