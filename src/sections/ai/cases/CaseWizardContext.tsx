@@ -18,7 +18,7 @@ type Ctx = {
   setStep: (n: number) => void;
   // selections
   dept: OptionDept | null; setDept: (v: OptionDept|null) => void;
-  customer: OptionCust | null; setCustomer: (v: OptionCust|null) => void;
+  customers: OptionCust[]; setCustomers: (v: OptionCust[]) => void;
   piece: OptionPiece | null; setPiece: (v: OptionPiece|null) => void;
   topic: OptionTopic | null; setTopic: (v: OptionTopic|null) => void;
   specs: OptionSpec[]; setSpecs: (v: OptionSpec[]) => void;
@@ -44,7 +44,7 @@ type Ctx = {
     contentType: 'multipart/form-data';
     fields: {
       departmentId: string | null;
-      customerId: string | null;
+      customerIds: string[];
       pieceId: string | null;
       topicId: string | null;
       topicSpecificIds: string[];
@@ -66,7 +66,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const maxStep = 5; // 0..5
 
   const [dept, setDept] = useState<OptionDept | null>(null);
-  const [customer, setCustomer] = useState<OptionCust | null>(null);
+  const [customers, setCustomers] = useState<OptionCust[]>([]);
   const [piece, setPiece] = useState<OptionPiece | null>(null);
   const [topic, setTopic] = useState<OptionTopic | null>(null);
   const [specs, setSpecs] = useState<OptionSpec[]>([]);
@@ -79,7 +79,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const [files, setFiles] = useState<File[]>([]);
 
   // encadeamento de resets
-  useEffect(() => { setPiece(null); setTopic(null); setSpecs([]); }, [dept?.id, customer?.id]);
+  useEffect(() => { setPiece(null); setTopic(null); setSpecs([]); }, [dept?.id, customers.map(c=>c.id).join('|')]);
   useEffect(() => { setTopic(null); setSpecs([]); }, [piece?.id]);
   useEffect(() => { setSpecs([]); }, [topic?.id]);
 
@@ -98,19 +98,23 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
 
   const payloadPreview = useMemo(() => ({
     departmentId: dept?.id ?? null,
-    customerId: customer?.id ?? null,
+    customerIds: customers.map(c => c.id),
     pieceId: piece?.id ?? null,
     topicId: topic?.id ?? null,
     topicSpecificIds: specs.map(s => s.id),
     instruction: instruction.trim() || null,
     attachmentsCount: files.length
-  }), [dept, customer, piece, topic, specs, instruction, files.length]);
+  }), [dept, customers, piece, topic, specs, instruction, files.length]);
 
   // --- multipart/form-data builder ---
   const buildFormData = () => {
     const fd = new FormData();
     if (dept?.id) fd.append('departmentId', dept.id);
-    if (customer?.id) fd.append('customerId', customer.id);
+    if (customers.length) {
+      for (const id of customers.map(c => c.id)) {
+        fd.append('customerIds[]', id);
+      }
+    }
     if (piece?.id) fd.append('pieceId', piece.id);
     if (topic?.id) fd.append('topicId', topic.id);
     for (const id of specs.map(s => s.id)) {
@@ -139,8 +143,11 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       departmentId: dept.id,
       pieceId: piece.id,
     };
-    if (customer?.id) fields.customerId = customer.id;
+    if (customers.length) {
+      fields.customerIds = customers.map(c => c.id);
+    }
     if (topic?.id) fields.topicId = topic.id;
+
     const ts = specs.map((s) => s.id);
     if (ts.length) fields.topicSpecificIds = ts;
     if (instruction.trim()) fields.instruction = instruction.trim();
@@ -158,14 +165,14 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     contentType: 'multipart/form-data' as const,
     fields: {
       departmentId: dept?.id ?? null,
-      customerId: customer?.id ?? null,
+      customerIds: customers.map(c => c.id),
       pieceId: piece?.id ?? null,
       topicId: topic?.id ?? null,
       topicSpecificIds: specs.map(s => s.id),
       instruction: instruction.trim() || null
     },
     attachments: files.map(f => ({ name: f.name, type: f.type, size: f.size }))
-  }), [dept?.id, customer?.id, piece?.id, topic?.id, specs, instruction, files]);
+  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, specs, instruction, files]);
 
   const downloading = useRef(false);
   const downloadPieceDocx = async () => {
@@ -207,7 +214,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     <CaseWizardContext.Provider value={{
       step, setStep,
       dept, setDept,
-      customer, setCustomer,
+      customers, setCustomers,
       piece, setPiece,
       topic, setTopic,
       specs, setSpecs,

@@ -4,6 +4,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
+import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import Button from '@mui/material/Button';
 import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
@@ -16,7 +17,7 @@ type OptionCust = Pick<Customer, 'id'|'displayName'|'name'>;
 const labelCustomer = (c?: OptionCust | null) => (c?.displayName ?? c?.name ?? '');
 
 export default function StepCustomer() {
-  const { customer, setCustomer } = useCaseWizard();
+  const { customers, setCustomers } = useCaseWizard();
   const [term, setTerm] = useState('');
   const dTerm = useDebounced(term);
   const [loading, setLoading] = useState(false);
@@ -38,25 +39,32 @@ export default function StepCustomer() {
   return (
     <Stack spacing={0.5}>
       <Stack direction="row" alignItems="center" spacing={0.75}>
-        <Typography fontWeight={700}>2. Cliente (opcional)</Typography>
-        <Tooltip title="Se escolher um cliente, só aparecem as peças vinculadas a ele e ao departamento.">
+        <Typography fontWeight={700}>2. Clientes (opcional)</Typography>
+        <Tooltip title="Selecione um ou mais clientes. As peças serão filtradas por todos os clientes selecionados.">
           <InfoCircleOutlined />
         </Tooltip>
-        {customer && (
-          <Button size="small" onClick={() => setCustomer(null)} sx={{ ml: 1 }}>
+        {!!customers.length && (
+          <Button size="small" onClick={() => setCustomers([])} sx={{ ml: 1 }}>
             Limpar
           </Button>
         )}
       </Stack>
-      <Autocomplete
+      <Autocomplete<OptionCust, true, false, false>
+        multiple
         options={opts}
         loading={loading}
-        value={customer}
-        onChange={(_, v) => setCustomer(v)}
+        value={customers}
+        onChange={(_, v) => setCustomers(v)}
         inputValue={term}
         onInputChange={(_, v) => setTerm(v)}
         getOptionLabel={labelCustomer}
+        isOptionEqualToValue={(o, v) => o.id === v.id}
         filterOptions={(x) => x}
+        renderTags={(value, getTagProps) =>
+          value.map((option, index) => (
+            <Chip {...getTagProps({ index })} key={option.id} label={labelCustomer(option)} variant="outlined" />
+          ))
+        }
         renderInput={(params) => (
           <TextField
             {...params}

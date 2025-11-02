@@ -39,22 +39,49 @@ export type ListPiecesQuery = {
   limit?: number;
   search?: string;
   deptId?: string;
-  customerId?: string;
+  /** Aceita string única (compatibilidade) ou array de IDs para múltiplos clientes */
+  customerId?: string | string[];
   sortBy?: 'createdAt' | 'name';
   sortOrder?: 'asc' | 'desc';
 };
 
 export async function listPieces(q: ListPiecesQuery) {
-  const params = {
+  const params: Record<string, any> = {
     page: q.page ?? 1,
     limit: q.limit ?? 10,
     search: q.search || undefined,
     deptId: q.deptId || undefined,
-    customerId: q.customerId || undefined,
     sortBy: q.sortBy || 'createdAt',
     sortOrder: q.sortOrder || 'desc'
   };
-  const { data } = await axios.get<PiecesListResponse>('/ai/pieces', { params });
+
+  // Suporte para múltiplos customerId na query string: customerId=id1&customerId=id2
+  if (q.customerId) {
+    if (Array.isArray(q.customerId)) {
+      // Para arrays, adiciona cada ID como um parâmetro separado com o mesmo nome
+      params.customerId = q.customerId;
+    } else {
+      params.customerId = q.customerId;
+    }
+  }
+
+  const { data } = await axios.get<PiecesListResponse>('/ai/pieces', {
+    params,
+    paramsSerializer: (params) => {
+      const searchParams = new URLSearchParams();
+      Object.keys(params).forEach((key) => {
+        const value = params[key];
+        if (value === undefined || value === null) return;
+        if (Array.isArray(value)) {
+          // Repete o parâmetro para cada valor do array
+          value.forEach((v) => searchParams.append(key, String(v)));
+        } else {
+          searchParams.append(key, String(value));
+        }
+      });
+      return searchParams.toString();
+    }
+  });
   return data;
 }
 

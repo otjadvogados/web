@@ -13,7 +13,7 @@ import { useCaseWizard } from '../CaseWizardContext';
 import Tooltip from 'components/@extended/Tooltip';
 
 export default function StepPiece() {
-  const { dept, customer, piece, setPiece, setPieceDetail } = useCaseWizard();
+  const { dept, customers, piece, setPiece, setPieceDetail } = useCaseWizard();
   const [term, setTerm] = useState('');
   const dTerm = useDebounced(term);
   const [loading, setLoading] = useState(false);
@@ -24,9 +24,12 @@ export default function StepPiece() {
     (async () => {
       try {
         setLoading(true);
+        // Usa todos os clientes selecionados para buscar as peças
+        const customerIds = customers.length > 0 ? customers.map(c => c.id) : undefined;
         const res = await listPieces({
           page: 1, limit: 20, search: dTerm || undefined,
-          deptId: dept.id, customerId: customer?.id || undefined,
+          deptId: dept.id,
+          customerId: customerIds,
           sortBy: 'name', sortOrder: 'asc'
         });
         setOpts(res.data || []);
@@ -34,7 +37,7 @@ export default function StepPiece() {
         openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao buscar peças', variant: 'alert', alert: { color: 'error' } } as any);
       } finally { setLoading(false); }
     })();
-  }, [dept?.id, customer?.id, dTerm]);
+  }, [dept?.id, customers.map(c=>c.id).join('|'), dTerm]);
 
   useEffect(() => {
     (async () => {

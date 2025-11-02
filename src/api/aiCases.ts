@@ -2,7 +2,7 @@ import axios from 'utils/axios';
 
 export type CaseContextFields = {
   departmentId: string;
-  customerId?: string | null;
+  customerIds?: string[]; // múltiplos clientes
   pieceId: string;
   topicId?: string | null;
   topicSpecificIds?: string[];

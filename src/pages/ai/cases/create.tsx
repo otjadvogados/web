@@ -31,7 +31,7 @@ import StepAttachments from 'sections/ai/cases/steps/StepAttachments';
 
 const steps = [
   { key: 'dept', label: 'Departamento' },
-  { key: 'customer', label: 'Cliente (opcional)' },
+  { key: 'customer', label: 'Clientes (opcional)' },
   { key: 'piece', label: 'Peça' },
   { key: 'topic', label: 'Tópico' },
   { key: 'specs', label: 'Tópicos específicos' },
@@ -49,7 +49,7 @@ export default function CreateCaseWizardPage() {
 function CreateCaseWizardInner() {
   const {
     step, setStep, maxStep, canNext,
-    dept, customer, piece, topic, specs,
+    dept, customers, piece, topic, specs,
     pieceDetail, topicDetail, payloadPreview,
     downloadPieceDocx, buildFormData, buildCaseContextFormData, formPreview
   } = useCaseWizard();
@@ -170,7 +170,7 @@ function CreateCaseWizardInner() {
                 <Paper variant="outlined" sx={{ p: 1.5 }}>
                   <Stack spacing={1}>
                   <StepRow active={step===0} label="Departamento" value={dept?.name} />
-                  <StepRow active={step===1} label="Cliente" value={labelCustomer(customer)} secondary="opcional" />
+                  <StepRow active={step===1} label="Clientes" value={labelCustomers(customers)} secondary="opcional" />
                   <StepRow active={step===2} label="Peça" value={piece?.name} />
                     {pieceDetail?.instruction && (
                       <Minor label="Instrução da peça" value={pieceDetail.instruction} />
@@ -322,8 +322,12 @@ function CreateCaseWizardInner() {
   );
 }
 
-function labelCustomer(c?: { displayName?: string; name?: string } | null) {
-  return c?.displayName ?? c?.name ?? '—';
+function labelCustomers(arr: Array<{ displayName?: string; name?: string }> = []) {
+  if (!arr?.length) return '—';
+  const names = arr.map((c) => c.displayName ?? c.name).filter(Boolean) as string[];
+  if (!names.length) return '—';
+  if (names.length <= 2) return names.join(', ');
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
 }
 
 function StepRow({ active, label, value, secondary }: { active?: boolean; label: string; value?: string | null; secondary?: string }) {
