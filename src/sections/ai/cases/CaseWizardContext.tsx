@@ -8,7 +8,7 @@ import { openSnackbar } from 'api/snackbar';
 import type { CaseContextFields } from 'api/aiCases';
 
 export type OptionDept = Pick<Department, 'id'|'name'>;
-export type OptionCust = Pick<Customer, 'id'|'displayName'|'name'>;
+export type OptionCust = Pick<Customer, 'id'|'displayName'|'name'|'kind'|'isMatriz'|'isFilial'|'parentCustomerId'>;
 export type OptionPiece = AiPiece;
 export type OptionTopic = AiTopic;
 export type OptionSpec = AiTopicSpecific;

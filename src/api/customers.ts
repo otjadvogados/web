@@ -1,15 +1,31 @@
 import axios from 'utils/axios';
 
+export type CustomerKind = 'PERSON' | 'COMPANY';
+
 export type Customer = {
   id: string;
   displayName?: string;
   name?: string;
+  // SUGESTÃO: o backend passar esses campos quando includeHierarchy=true
+  kind?: CustomerKind;                 // 'PERSON' | 'COMPANY'
+  isMatriz?: boolean;                  // true para empresa não-filial (raiz ou sem vínculo)
+  isFilial?: boolean;                  // true se for filial
+  parentCustomerId?: string | null;    // se filial, id da matriz (customer)
 };
 
 export type CustomersListResponse = {
   message: string;
   data: Customer[];
   pagination: { page: number; limit: number; total: number };
+};
+
+export type ListCustomersParams = {
+  search?: string;
+  page?: number;
+  limit?: number;
+  kind?: 'ANY' | CustomerKind;         // ANY (padrão), PERSON, COMPANY
+  branch?: 'any' | 'matrix' | 'branch';// só se kind=COMPANY: matrix (matriz), branch (filial)
+  includeHierarchy?: boolean;          // pede isMatriz/isFilial/parentCustomerId no payload
 };
 
 export type LinkedPerson = {
@@ -21,6 +37,36 @@ export type LinkedPerson = {
   createdAt: string;
   updatedAt: string;
 };
+
+/**
+ * NOVO: listagem com filtros por tipo e hierarquia (se o backend suportar).
+ * Caso o backend ainda não suporte, você pode temporariamente ignorar as flags
+ * (o front continua funcionando para busca 'Todos').
+ */
+export async function listCustomersAdvanced(params?: ListCustomersParams) {
+  const q: any = {
+    page: params?.page ?? 1,
+    limit: params?.limit ?? 20,
+    search: params?.search || undefined,
+    kind: params?.kind && params.kind !== 'ANY' ? params.kind : undefined,
+    branch: params?.branch && params.branch !== 'any' ? params.branch : undefined,
+    includeHierarchy: params?.includeHierarchy ? 1 : undefined
+  };
+  const { data } = await axios.get<CustomersListResponse>('/customers', { params: q });
+  return data;
+}
+
+// Helper para ranking e ordenação consistente no cliente
+export function sortCustomersMatrizFilialPF(list: Customer[]) {
+  const rank = (c: Customer) => (c.kind === 'COMPANY' ? (c.isFilial ? 1 : 0) : 2);
+  return [...(list || [])].sort((a, b) => {
+    const r = rank(a) - rank(b);
+    if (r !== 0) return r;
+    const an = (a.displayName ?? a.name ?? '').toString();
+    const bn = (b.displayName ?? b.name ?? '').toString();
+    return an.localeCompare(bn, 'pt-BR', { sensitivity: 'base', ignorePunctuation: true, numeric: true });
+  });
+}
 
 export async function listCustomers(params?: { search?: string; page?: number; limit?: number }) {
   const q = {
@@ -183,6 +229,17 @@ export async function getCompanyBranches(companyId: string) {
   // aceita wrapper ou array cru
   // @ts-ignore
   return Array.isArray(data) ? (data as any[]) : (data?.data ?? []);
+}
+
+// Opcional: árvore leve (matriz + filiais). Mantém compat com back atual.
+export async function getCompanyTree(companyId: string) {
+  // tenta endpoint de árvore via ?tree=true (se existir)
+  try {
+    const root = await getCustomer(companyId, true);
+    return root;
+  } catch {
+    return { branches: await getCompanyBranches(companyId) };
+  }
 }
 
 // Funções de pessoas da empresa
