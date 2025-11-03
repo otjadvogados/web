@@ -14,24 +14,31 @@ import useDebounced from 'utils/useDebounced';
 import { useCaseWizard } from '../CaseWizardContext';
 
 export default function StepSpecs() {
-  const { topic, specs, setSpecs, specDetails, setSpecDetails, downloadSpecDocx } = useCaseWizard();
+  const { topics, specs, setSpecs, specDetails, setSpecDetails, downloadSpecDocx } = useCaseWizard();
   const [term, setTerm] = useState('');
   const dTerm = useDebounced(term);
   const [loading, setLoading] = useState(false);
   const [opts, setOpts] = useState<AiTopicSpecific[]>([]);
 
   useEffect(() => {
-    if (!topic?.id) { setOpts([]); return; }
+    if (!topics.length) { setOpts([]); return; }
     (async () => {
       try {
         setLoading(true);
-        const res = await listTopicSpecifics({ page: 1, limit: 20, search: dTerm || undefined, topicId: topic.id, sortBy: 'name', sortOrder: 'asc' });
+        const res = await listTopicSpecifics({
+          page: 1,
+          limit: 20,
+          search: dTerm || undefined,
+          topicIds: topics.map(t => t.id),
+          sortBy: 'name',
+          sortOrder: 'asc'
+        });
         setOpts(res.data || []);
       } catch (err: any) {
         openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao buscar tópicos específicos', variant: 'alert', alert: { color: 'error' } } as any);
       } finally { setLoading(false); }
     })();
-  }, [topic?.id, dTerm]);
+  }, [topics.map(t => t.id).join('|'), dTerm]);
 
   useEffect(() => {
     (async () => {
@@ -49,7 +56,7 @@ export default function StepSpecs() {
       <Typography fontWeight={700}>5. Tópicos Específicos</Typography>
       <Autocomplete
         multiple
-        disabled={!topic?.id}
+        disabled={!topics.length}
         options={opts}
         loading={loading}
         value={specs}
@@ -66,15 +73,18 @@ export default function StepSpecs() {
         renderOption={(props, option) => (
           <li {...props} key={option.id}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%', justifyContent: 'space-between' }}>
-              <span>{option.name}</span>
-              {option.docxFileId && <Chip size="small" label="DOCX" />}
+              <span style={{ flex: 1 }}>{option.name}</span>
+              <Stack direction="row" spacing={1} alignItems="center">
+                {option.topic && <Chip size="small" label={option.topic.name} color="primary" variant="outlined" />}
+                {option.docxFileId && <Chip size="small" label="DOCX" />}
+              </Stack>
             </Stack>
           </li>
         )}
         renderInput={(params) => (
           <TextField
             {...params}
-            placeholder={topic?.id ? 'Pesquisar tópicos específicos…' : 'Selecione um tópico primeiro'}
+            placeholder={topics.length ? 'Pesquisar tópicos específicos…' : 'Selecione ao menos 1 tópico'}
             InputProps={{ ...params.InputProps, endAdornment: (<>{loading ? <CircularProgress size={18} /> : null}{params.InputProps.endAdornment}</>) }}
           />
         )}

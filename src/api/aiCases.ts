@@ -4,7 +4,10 @@ export type CaseContextFields = {
   departmentId: string;
   customerIds?: string[]; // múltiplos clientes
   pieceId: string;
+  /** legado (um único tópico) */
   topicId?: string | null;
+  /** NOVO: múltiplos tópicos */
+  topicIds?: string[];
   topicSpecificIds?: string[];
   instruction?: string | null;
 };

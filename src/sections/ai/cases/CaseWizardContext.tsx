@@ -20,7 +20,10 @@ type Ctx = {
   dept: OptionDept | null; setDept: (v: OptionDept|null) => void;
   customers: OptionCust[]; setCustomers: (v: OptionCust[]) => void;
   piece: OptionPiece | null; setPiece: (v: OptionPiece|null) => void;
+  /** Tópico principal (derivado do primeiro da lista `topics`) para telas que ainda esperam 1 */
   topic: OptionTopic | null; setTopic: (v: OptionTopic|null) => void;
+  /** NOVO: múltiplos tópicos selecionados */
+  topics: OptionTopic[]; setTopics: (v: OptionTopic[]) => void;
   specs: OptionSpec[]; setSpecs: (v: OptionSpec[]) => void;
   // details (preview)
   pieceDetail: OptionPiece | null; setPieceDetail: (v: OptionPiece|null) => void;
@@ -47,6 +50,7 @@ type Ctx = {
       customerIds: string[];
       pieceId: string | null;
       topicId: string | null;
+      topicIds: string[];
       topicSpecificIds: string[];
       instruction: string | null;
     };
@@ -68,7 +72,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const [dept, setDept] = useState<OptionDept | null>(null);
   const [customers, setCustomers] = useState<OptionCust[]>([]);
   const [piece, setPiece] = useState<OptionPiece | null>(null);
-  const [topic, setTopic] = useState<OptionTopic | null>(null);
+  const [topic, setTopic] = useState<OptionTopic | null>(null); // principal (primeiro)
+  const [topics, setTopics] = useState<OptionTopic[]>([]);      // NOVO: múltiplos
   const [specs, setSpecs] = useState<OptionSpec[]>([]);
 
   const [pieceDetail, setPieceDetail] = useState<OptionPiece | null>(null);
@@ -79,9 +84,16 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const [files, setFiles] = useState<File[]>([]);
 
   // encadeamento de resets
-  useEffect(() => { setPiece(null); setTopic(null); setSpecs([]); }, [dept?.id, customers.map(c=>c.id).join('|')]);
-  useEffect(() => { setTopic(null); setSpecs([]); }, [piece?.id]);
+  useEffect(() => { setPiece(null); setTopic(null); setTopics([]); setSpecs([]); }, [dept?.id, customers.map(c=>c.id).join('|')]);
+  useEffect(() => { setTopic(null); setTopics([]); setSpecs([]); }, [piece?.id]);
   useEffect(() => { setSpecs([]); }, [topic?.id]);
+  // NOVO: se a lista de tópicos mudar (mesmo que o primeiro permaneça igual), limpar specs
+  useEffect(() => { setSpecs([]); }, [topics.map(t => t.id).join('|')]);
+
+  // Deriva `topic` (principal) do primeiro item de `topics`
+  useEffect(() => {
+    setTopic(topics[0] ?? null);
+  }, [topics]);
 
   // validate step gating
   const canNext = (s: number) => {
@@ -89,7 +101,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       case 0: return !!dept?.id; // departamento
       case 1: return true;       // cliente é opcional
       case 2: return !!piece?.id && !!piece?.docxFileId; // peça com DOCX obrigatório
-      case 3: return !!topic?.id;
+      case 3: return topics.length > 0; // agora exige >=1 tópico
       case 4: return specs.length > 0;
       case 5: return true;       // anexos/instruções sempre ok
       default: return false;
@@ -100,11 +112,12 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     departmentId: dept?.id ?? null,
     customerIds: customers.map(c => c.id),
     pieceId: piece?.id ?? null,
-    topicId: topic?.id ?? null,
+    topicId: topic?.id ?? null,          // legado
+    topicIds: topics.map(t => t.id),     // NOVO
     topicSpecificIds: specs.map(s => s.id),
     instruction: instruction.trim() || null,
     attachmentsCount: files.length
-  }), [dept, customers, piece, topic, specs, instruction, files.length]);
+  }), [dept, customers, piece, topic, topics, specs, instruction, files.length]);
 
   // --- multipart/form-data builder ---
   const buildFormData = () => {
@@ -116,7 +129,14 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       }
     }
     if (piece?.id) fd.append('pieceId', piece.id);
+    // Retrocompat: ainda envia topicId (principal)
     if (topic?.id) fd.append('topicId', topic.id);
+    // NOVO: envia topicIds[] (múltiplos) quando houver
+    if (topics.length) {
+      for (const id of topics.map(t => t.id)) {
+        fd.append('topicIds[]', id);
+      }
+    }
     for (const id of specs.map(s => s.id)) {
       fd.append('topicSpecificIds[]', id);
     }
@@ -146,7 +166,12 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     if (customers.length) {
       fields.customerIds = customers.map(c => c.id);
     }
+    // Retrocompat: topicId (principal)
     if (topic?.id) fields.topicId = topic.id;
+    // NOVO: topicIds (múltiplos)
+    if (topics.length) {
+      fields.topicIds = topics.map(t => t.id);
+    }
 
     const ts = specs.map((s) => s.id);
     if (ts.length) fields.topicSpecificIds = ts;
@@ -168,11 +193,12 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       customerIds: customers.map(c => c.id),
       pieceId: piece?.id ?? null,
       topicId: topic?.id ?? null,
+      topicIds: topics.map(t => t.id),
       topicSpecificIds: specs.map(s => s.id),
       instruction: instruction.trim() || null
     },
     attachments: files.map(f => ({ name: f.name, type: f.type, size: f.size }))
-  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, specs, instruction, files]);
+  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, topics.map(t=>t.id).join('|'), specs, instruction, files]);
 
   const downloading = useRef(false);
   const downloadPieceDocx = async () => {
@@ -217,6 +243,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       customers, setCustomers,
       piece, setPiece,
       topic, setTopic,
+      topics, setTopics,
       specs, setSpecs,
       pieceDetail, setPieceDetail,
       topicDetail, setTopicDetail,

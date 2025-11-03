@@ -33,20 +33,29 @@ export type ListTopicSpecificsQuery = {
   page?: number;
   limit?: number;
   search?: string;
+  /** legado: um único tópico */
   topicId?: string;
+  /** NOVO: múltiplos tópicos */
+  topicIds?: string[];
   sortBy?: 'createdAt' | 'name';
   sortOrder?: 'asc' | 'desc';
 };
 
 export async function listTopicSpecifics(q: ListTopicSpecificsQuery = {}) {
-  const params = {
+  const params: Record<string, any> = {
     page: q.page ?? 1,
     limit: q.limit ?? 10,
     search: q.search || undefined,
-    topicId: q.topicId || undefined,
     sortBy: q.sortBy || 'createdAt',
     sortOrder: q.sortOrder || 'desc'
   };
+  // Preferir topicIds; cai para topicId (retrocompat) se não vier lista
+  if (Array.isArray(q.topicIds) && q.topicIds.length > 0) {
+    // Envia como CSV para compatibilidade total com o preprocess do backend
+    params.topicIds = q.topicIds.join(',');
+  } else if (q.topicId) {
+    params.topicId = q.topicId;
+  }
   const { data } = await axios.get<TopicSpecificsListResponse>('/ai/topic-specifics', { params });
   return data;
 }

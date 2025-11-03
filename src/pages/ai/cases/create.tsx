@@ -33,7 +33,7 @@ const steps = [
   { key: 'dept', label: 'Departamento' },
   { key: 'customer', label: 'Clientes (opcional)' },
   { key: 'piece', label: 'Peça' },
-  { key: 'topic', label: 'Tópico' },
+  { key: 'topic', label: 'Tópicos' },
   { key: 'specs', label: 'Tópicos específicos' },
   { key: 'attachments', label: 'Instruções & anexos' }
 ];
@@ -49,7 +49,7 @@ export default function CreateCaseWizardPage() {
 function CreateCaseWizardInner() {
   const {
     step, setStep, maxStep, canNext,
-    dept, customers, piece, topic, specs,
+    dept, customers, piece, topic, topics, specs,
     pieceDetail, topicDetail, payloadPreview,
     downloadPieceDocx, buildFormData, buildCaseContextFormData, formPreview
   } = useCaseWizard();
@@ -184,7 +184,7 @@ function CreateCaseWizardInner() {
                       </Stack>
                     )}
                     <Divider />
-                  <StepRow active={step===3} label="Tópico" value={topic?.name} />
+                  <StepRow active={step===3} label="Tópicos" value={labelTopics(topics)} />
                     {topicDetail?.description && (
                       <Minor label="Descrição do tópico" value={topicDetail.description} />
                     )}
@@ -325,6 +325,14 @@ function CreateCaseWizardInner() {
 function labelCustomers(arr: Array<{ displayName?: string; name?: string }> = []) {
   if (!arr?.length) return '—';
   const names = arr.map((c) => c.displayName ?? c.name).filter(Boolean) as string[];
+  if (!names.length) return '—';
+  if (names.length <= 2) return names.join(', ');
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+}
+
+function labelTopics(arr: Array<{ name?: string }> = []) {
+  if (!arr?.length) return '—';
+  const names = arr.map((t) => t.name).filter(Boolean) as string[];
   if (!names.length) return '—';
   if (names.length <= 2) return names.join(', ');
   return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;

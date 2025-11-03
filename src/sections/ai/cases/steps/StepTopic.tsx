@@ -10,7 +10,7 @@ import useDebounced from 'utils/useDebounced';
 import { useCaseWizard } from '../CaseWizardContext';
 
 export default function StepTopic() {
-  const { piece, topic, setTopic, setTopicDetail } = useCaseWizard();
+  const { piece, topic, setTopic, topics, setTopics, setTopicDetail } = useCaseWizard();
   const [term, setTerm] = useState('');
   const dTerm = useDebounced(term);
   const [loading, setLoading] = useState(false);
@@ -38,21 +38,28 @@ export default function StepTopic() {
 
   return (
     <Stack spacing={0.5}>
-      <Typography fontWeight={700}>4. Tópico</Typography>
+      <Typography fontWeight={700}>4. Tópicos</Typography>
       <Autocomplete
+        multiple
         disabled={!piece?.id}
         options={opts}
         loading={loading}
-        value={topic}
-        onChange={(_, v) => setTopic(v)}
+        value={topics}
+        onChange={(_, v) => {
+          // define lista completa
+          setTopics(v);
+          // mantém compat: primeiro vira "topic" principal
+          setTopic(v[0] ?? null);
+        }}
         inputValue={term}
         onInputChange={(_, v) => setTerm(v)}
         getOptionLabel={(o) => o?.name ?? ''}
+        isOptionEqualToValue={(a, b) => a.id === b.id}
         filterOptions={(x) => x}
         renderInput={(params) => (
           <TextField
             {...params}
-            placeholder={piece?.id ? 'Pesquisar tópicos…' : 'Selecione uma peça primeiro'}
+            placeholder={piece?.id ? 'Pesquisar e selecionar 1+ tópicos…' : 'Selecione uma peça primeiro'}
             InputProps={{ ...params.InputProps, endAdornment: (<>{loading ? <CircularProgress size={18} /> : null}{params.InputProps.endAdornment}</>) }}
           />
         )}
