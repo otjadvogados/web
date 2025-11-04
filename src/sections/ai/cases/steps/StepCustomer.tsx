@@ -17,7 +17,10 @@ import { openSnackbar } from 'api/snackbar';
 import useDebounced from 'utils/useDebounced';
 import { useCaseWizard } from '../CaseWizardContext';
 
-type OptionCust = Pick<Customer, 'id'|'displayName'|'name'|'kind'|'isMatriz'|'isFilial'|'parentCustomerId'>;
+type OptionCust = Pick<Customer, 'id'|'displayName'|'name'|'kind'|'isMatriz'|'isFilial'|'parentCustomerId'> & {
+  parent?: { displayName?: string };
+  childrenCount?: number;
+};
 const labelCustomer = (c?: OptionCust | null) => (c?.displayName ?? c?.name ?? '');
 
 export default function StepCustomer() {
@@ -57,8 +60,12 @@ export default function StepCustomer() {
   // Ajuda: badges por tipo
   const badge = (c: OptionCust) => {
     if (c.kind === 'PERSON') return 'PF';
-    if (c.isFilial) return 'Filial';
-    return 'Matriz';
+    if (c.kind === 'COMPANY') {
+      if (c.isFilial) return 'Filial';
+      if (c.isMatriz) return 'Matriz';
+      return 'Empresa';
+    }
+    return '';
   };
 
   // Evitar duplicatas ao adicionar via painel de filiais
@@ -129,9 +136,29 @@ export default function StepCustomer() {
         renderOption={(props, option) => (
           <li {...props} key={option.id}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%', justifyContent: 'space-between' }}>
-              <Stack>
+              <Stack sx={{ flex: 1 }}>
                 <Typography variant="body2">{labelCustomer(option)}</Typography>
-                <Typography variant="caption" color="text.secondary">{badge(option)}</Typography>
+                <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
+                  <Typography variant="caption" color="text.secondary">{badge(option)}</Typography>
+                  {option.kind === 'COMPANY' && option.isFilial && option.parent?.displayName && (
+                    <>
+                      <Typography variant="caption" color="text.secondary">•</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Matriz: {option.parent.displayName}
+                      </Typography>
+                    </>
+                  )}
+                  {option.kind === 'COMPANY' && option.isMatriz && typeof option.childrenCount === 'number' && (
+                    <>
+                      <Chip
+                        size="small"
+                        label={`${option.childrenCount} filial${option.childrenCount !== 1 ? 's' : ''}`}
+                        variant="outlined"
+                        sx={{ height: 18, fontSize: '0.7rem', ml: 0.5 }}
+                      />
+                    </>
+                  )}
+                </Stack>
               </Stack>
               {option.kind !== 'PERSON' && !option.isFilial && (
                 <Button
