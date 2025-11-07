@@ -21,10 +21,10 @@ export default function StepAttachments() {
     e.target.value = '';
     if (!f.length) return;
     const valid = f.filter(file =>
-      /(^application\/pdf$)|(^image\/(png|jpeg|jpg|webp|gif)$)/i.test(file.type)
+      /(^application\/pdf$)|(^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$)|(^image\/(png|jpeg|jpg|webp|gif)$)/i.test(file.type)
     );
     if (valid.length !== f.length) {
-      openSnackbar({ open: true, message: 'Alguns arquivos foram ignorados (somente PDF e imagens).', variant: 'alert', alert: { color: 'warning' } } as any);
+      openSnackbar({ open: true, message: 'Alguns arquivos foram ignorados (somente PDF, DOCX e imagens).', variant: 'alert', alert: { color: 'warning' } } as any);
     }
     setFiles([...(files || []), ...valid]);
   };
@@ -41,7 +41,7 @@ export default function StepAttachments() {
         minRows={3}
       />
       <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography fontWeight={700}>Anexos (PDF/Imagens)</Typography>
+        <Typography fontWeight={700}>Anexos (PDF/DOCX/Imagens)</Typography>
         <Button startIcon={<UploadOutlined />} variant="outlined" onClick={() => fileRef.current?.click()}>
           Adicionar arquivos
         </Button>
@@ -49,7 +49,7 @@ export default function StepAttachments() {
           ref={fileRef}
           type="file"
           multiple
-          accept="application/pdf,image/png,image/jpeg,image/webp,image/gif"
+          accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif"
           style={{ display: 'none' }}
           onChange={onPickFiles}
         />
@@ -63,6 +63,7 @@ export default function StepAttachments() {
           {files.map((f, idx) => {
             const isImg = /^image\//i.test(f.type);
             const isPdf = /^application\/pdf$/i.test(f.type);
+            const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
             const url = URL.createObjectURL(f);
             return (
               <Paper variant="outlined" sx={{ p: 1.5 }} key={idx}>
@@ -71,7 +72,7 @@ export default function StepAttachments() {
                     {isImg ? (
                       <img src={url} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      <Typography variant="caption">PDF</Typography>
+                      <Typography variant="caption">{isDocx ? 'DOCX' : 'PDF'}</Typography>
                     )}
                   </Box>
                   <Stack flex={1} minWidth={0}>
