@@ -15,8 +15,10 @@ export type CaseContextFields = {
 export type CaseContextResponse = {
   message: string;
   data: {
+    /** id de correlação do processamento, para casar com os eventos WS */
+    runId?: string | null;
     _infos: Record<string, any>;
-    pieceId: string;
+    pieceId: string | null;
     docxOriginalName: string | null;
     /** HTML já com os placeholders preenchidos (fase 2) */
     html: string;

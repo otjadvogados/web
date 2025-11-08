@@ -28,6 +28,8 @@ import StepPiece from 'sections/ai/cases/steps/StepPiece';
 import StepTopic from 'sections/ai/cases/steps/StepTopic';
 import StepSpecs from 'sections/ai/cases/steps/StepSpecs';
 import StepAttachments from 'sections/ai/cases/steps/StepAttachments';
+import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
+import { ensureRealtimeConnected } from 'api/realtime';
 
 const steps = [
   { key: 'dept', label: 'Departamento' },
@@ -59,19 +61,28 @@ function CreateCaseWizardInner() {
   const [openHtml, setOpenHtml] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CaseContextResponse | null>(null);
+  const [rtRunId, setRtRunId] = useState<string | null>(null);
+  const [rtOpen, setRtOpen] = useState(false);
 
   const doSubmit = async () => {
     try {
       setSubmitting(true);
+      setRtRunId(null);
+      setRtOpen(true);
+      // tenta conectar ANTES do POST para não perder eventos iniciais
+      await ensureRealtimeConnected(2500);
       const fd = buildCaseContextFormData();
       const res = await postCaseContext(fd);
       setResult(res);
+      if (res?.data?.runId) setRtRunId(res.data.runId || null);
       setOpenResult(true);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Falha ao criar caso';
       openSnackbar({ open: true, message: msg, variant: 'alert', alert: { color: 'error' } } as any);
     } finally {
       setSubmitting(false);
+      // fecha overlay com um pequeno atraso para o usuário ver o "final"
+      setTimeout(() => setRtOpen(false), 800);
     }
   };
 
@@ -317,6 +328,14 @@ function CreateCaseWizardInner() {
             </Stack>
           </Drawer>
         </MainCard>
+
+        {/* Overlay de progresso em tempo real */}
+        <RealtimeProgressOverlay
+          open={rtOpen || submitting}
+          knownRunId={rtRunId ?? undefined}
+          onDetectRunId={(rid) => setRtRunId(rid)}
+          onRequestClose={() => setRtOpen(false)}
+        />
       </Grid>
     </Grid>
   );
