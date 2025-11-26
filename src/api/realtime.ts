@@ -17,7 +17,7 @@ let connecting = false;
 let pendingResolvers: Array<(client: RealtimeClient) => void> = [];
 
 const fallbackOrigin =
-  typeof window !== 'undefined' ? 'http://localhost:22211' : 'http://localhost:22211';
+  typeof window !== 'undefined' ? import.meta.env.VITE_APP_API_URL : import.meta.env.VITE_APP_API_URL;
 const envRealtimePath =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_REALTIME_PATH) || '/ws';
 
