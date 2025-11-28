@@ -59,6 +59,7 @@ function CreateCaseWizardInner() {
   const [openPreview, setOpenPreview] = useState(false);
   const [openResult, setOpenResult] = useState(false);
   const [openHtml, setOpenHtml] = useState(false);
+  const [openTopicSpecificHtml, setOpenTopicSpecificHtml] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CaseContextResponse | null>(null);
   const [rtRunId, setRtRunId] = useState<string | null>(null);
@@ -100,6 +101,13 @@ function CreateCaseWizardInner() {
 
   const onNext = () => { if (step < maxStep && canNext(step)) setStep(step + 1); };
   const onBack = () => { if (step > 0) setStep(step - 1); };
+
+  // Encontra o tópico específico atual para visualização
+  const currentTopicSpecific = useMemo(() => {
+    if (!openTopicSpecificHtml || !result?.data?._infos?.phase07?.topicSpecifics) return null;
+    const topicSpecifics = result.data._infos.phase07.topicSpecifics as any[];
+    return topicSpecifics.find((ts: any) => (ts.id || ts.name) === openTopicSpecificHtml) || null;
+  }, [openTopicSpecificHtml, result?.data?._infos?.phase07?.topicSpecifics]);
 
   return (
     <Grid container spacing={3}>
@@ -245,6 +253,32 @@ function CreateCaseWizardInner() {
                   </IconButton>
                 </Stack>
               </Stack>
+              
+              {/* Botões para HTMLs dos tópicos específicos da phase07 */}
+              {result?.data?._infos?.phase07?.topicSpecifics && Array.isArray(result.data._infos.phase07.topicSpecifics) && (
+                <Stack spacing={1}>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    HTMLs dos Tópicos Específicos:
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {result.data._infos.phase07.topicSpecifics.map((ts: any) => {
+                      if (!ts?.html || !ts?.name) return null;
+                      return (
+                        <Button
+                          key={ts.id || ts.name}
+                          size="small"
+                          variant="outlined"
+                          startIcon={<EyeOutlined />}
+                          onClick={() => setOpenTopicSpecificHtml(ts.id || ts.name)}
+                          title={`Visualizar HTML: ${ts.name}`}
+                        >
+                          {ts.name}
+                        </Button>
+                      );
+                    })}
+                  </Stack>
+                </Stack>
+              )}
               {!result ? (
                 <Paper variant="outlined" sx={{ p: 2, color: 'text.secondary' }}>
                   Nenhum resultado para exibir.
@@ -327,6 +361,69 @@ function CreateCaseWizardInner() {
               </Box>
             </Stack>
           </Drawer>
+
+          {/* Drawer de visualização do HTML de tópico específico */}
+          {openTopicSpecificHtml && currentTopicSpecific?.html && (
+            <Drawer
+              key={openTopicSpecificHtml}
+              anchor="right"
+              open={!!openTopicSpecificHtml}
+              onClose={() => setOpenTopicSpecificHtml(null)}
+              PaperProps={{ sx: { width: { xs: '100%', sm: 720, md: 900 } } }}
+            >
+              <Stack spacing={1} sx={{ p: 2, height: '100%' }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Typography variant="h6" fontWeight={700}>
+                    Visualizar HTML: {currentTopicSpecific.name || 'Tópico Específico'}
+                  </Typography>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => {
+                        const src = `<!doctype html><html><head><meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Preview - ${currentTopicSpecific.name || 'Tópico Específico'}</title>
+  <style>
+    html,body{margin:0;padding:0}
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
+    h1,h2,h3{margin:1em 0 .5em}
+    p{margin:.5em 0}
+    ul,ol{padding-left:1.25em}
+  </style>
+</head><body>${currentTopicSpecific.html}</body></html>`;
+                        const blob = new Blob([src], { type: 'text/html;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      Abrir em nova aba
+                    </Button>
+                    <IconButton onClick={() => setOpenTopicSpecificHtml(null)}>
+                      <CloseOutlined />
+                    </IconButton>
+                  </Stack>
+                </Stack>
+                <Box sx={{ flex: 1, minHeight: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                  <iframe
+                    title={`HTML Preview - ${currentTopicSpecific.name || 'Tópico Específico'}`}
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    sandbox=""
+                    srcDoc={`<!doctype html><html><head><meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html,body{margin:0;padding:0}
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
+    h1,h2,h3{margin:1em 0 .5em}
+    p{margin:.5em 0}
+    ul,ol{padding-left:1.25em}
+  </style>
+</head><body>${currentTopicSpecific.html}</body></html>`}
+                  />
+                </Box>
+              </Stack>
+            </Drawer>
+          )}
         </MainCard>
 
         {/* Overlay de progresso em tempo real */}
