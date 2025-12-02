@@ -48,5 +48,3 @@ export async function postCaseContext(form: FormData) {
   );
   return data;
 }
-
-

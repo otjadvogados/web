@@ -19,13 +19,17 @@ type Props = {
   onRequestClose?: () => void;
 };
 
-const PHASE_ORDER = ['1', '2', '3', '4', '5'];
+const PHASE_ORDER = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const PROGRESS_BY_PHASE: Record<string, number> = {
   '1': 10,
-  '2': 30,
-  '3': 50,
-  '4': 75,
-  '5': 95
+  '2': 20,
+  '3': 30,
+  '4': 40,
+  '5': 50,
+  '6': 60,
+  '7': 70,
+  '8': 80,
+  '9': 95
 };
 
 function normalizeTs(ts?: string): number {
