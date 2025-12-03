@@ -212,8 +212,8 @@ function CreateCaseWizardInner() {
                     {!specs.length && <Typography variant="body2" color="text.secondary">—</Typography>}
                     {!!specs.length && (
                     <Stack spacing={0.5}>
-                      {specs.map((s) => (
-                        <Chip key={s.id} size="small" variant="outlined" label={s.name} />
+                      {specs.map((s, idx) => (
+                        <Chip key={s.id} size="small" variant="outlined" label={`${idx + 1}. ${s.name}`} />
                       ))}
                       </Stack>
                     )}

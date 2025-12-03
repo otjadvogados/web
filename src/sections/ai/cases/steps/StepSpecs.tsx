@@ -17,6 +17,8 @@ export default function StepSpecs() {
   const [loading, setLoading] = useState(false);
   // lista completa de tópicos específicos dos tópicos selecionados
   const [allOpts, setAllOpts] = useState<AiTopicSpecific[]>([]);
+  // --- drag & drop state (lista "selecionados") ---
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!topics.length) {
@@ -66,6 +68,23 @@ export default function StepSpecs() {
     const others = specs.filter((s) => s.topicId !== topicId);
     setSpecs([...others, ...selectedForTopic]);
   };
+
+  // --- DnD handlers para a lista de selecionados (abaixo) ---
+  const onDragStart = (idx: number) => () => setDragIndex(idx);
+  const onDragOver = (e: React.DragEvent) => {
+    // necessário para permitir o drop
+    e.preventDefault();
+  };
+  const onDrop = (toIdx: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === toIdx) { setDragIndex(null); return; }
+    const next = specs.slice();
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(toIdx, 0, moved);
+    setSpecs(next);
+    setDragIndex(null);
+  };
+  const onDragEnd = () => setDragIndex(null);
 
   return (
     <Stack spacing={0.5}>
@@ -148,18 +167,61 @@ export default function StepSpecs() {
         );
       })}
       {!!specs.length && (
-        <Stack spacing={0.75}>
-          {specs.map((s) => {
+        <Stack spacing={0.75} sx={{ mt: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.25 }}>
+            Arraste para ordenar (a ordem será enviada ao criar o caso)
+          </Typography>
+          {specs.map((s, idx) => {
             const det = specDetails[s.id];
             return (
-              <Paper key={s.id} variant="outlined" sx={{ p: 1 }}>
-                <Typography fontWeight={600} variant="body2">{s.name}</Typography>
-                {det?.instruction && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                    {det.instruction}
+              <Paper
+                key={s.id}
+                variant="outlined"
+                sx={{
+                  p: 1,
+                  cursor: 'grab',
+                  borderColor: dragIndex === idx ? 'primary.main' : 'divider',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+                draggable
+                onDragStart={onDragStart(idx)}
+                onDragOver={onDragOver}
+                onDrop={onDrop(idx)}
+                onDragEnd={onDragEnd}
+                title="Arraste para reordenar"
+              >
+                {/* Grip + posição */}
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="center"
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 0.75,
+                    border: '1px dashed',
+                    borderColor: 'divider',
+                    fontSize: 12,
+                    color: 'text.secondary',
+                    flexShrink: 0,
+                    userSelect: 'none'
+                  }}
+                >
+                  {idx + 1}
+                </Stack>
+                <Stack sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography fontWeight={600} variant="body2" noWrap title={s.name}>
+                    {s.name}
                   </Typography>
-                )}
-                <Stack direction="row" spacing={0.5} alignItems="center">
+                  {det?.instruction && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      {det.instruction}
+                    </Typography>
+                  )}
+                </Stack>
+                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
                   {det?.docxFileId ? (
                     <Button size="small" variant="text" startIcon={<DownloadOutlined />} onClick={() => downloadSpecDocx(s.id)}>
                       Baixar DOCX
