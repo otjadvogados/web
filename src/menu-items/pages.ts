@@ -56,6 +56,12 @@ const pages: NavItemType = {
       isDropdown: true,
       children: [
         {
+          id: 'ai-cases-list',
+          title: 'Casos',
+          type: 'item',
+          url: '/ai/cases'
+        },
+        {
           id: 'ai-cases-create',
           title: 'Criar Caso',
           type: 'item',

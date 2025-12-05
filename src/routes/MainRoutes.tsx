@@ -29,6 +29,10 @@ const AITopicsPage = Loadable(lazy(() => import('pages/ai/topics')));
 const AITopicSpecificsPage = Loadable(lazy(() => import('pages/ai/topic-specifics')));
 // NOVO: AI > Criar Caso
 const CreateCasePage = Loadable(lazy(() => import('pages/ai/cases/create')));
+// NOVO: AI > Listar Casos
+const ListCasesPage = Loadable(lazy(() => import('pages/ai/list-cases')));
+// NOVO: AI > Editar Caso
+const EditCasePage = Loadable(lazy(() => import('pages/ai/cases/[id]/edit')));
 // NOVO: Configurações da Conta
 const AccountSettings = Loadable(lazy(() => import('pages/account')));
 
@@ -112,6 +116,18 @@ const MainRoutes = {
         },
         // Inteligência Artificial
         {
+          path: 'ai/cases',
+          element: <ListCasesPage />
+        },
+        {
+          path: 'ai/cases/create',
+          element: <CreateCasePage />
+        },
+        {
+          path: 'ai/cases/:id/edit',
+          element: <EditCasePage />
+        },
+        {
           path: 'ai/pieces',
           element: <AIPiecesPage />
         },
@@ -126,10 +142,6 @@ const MainRoutes = {
         {
           path: 'ai/topic-specifics',
           element: <AITopicSpecificsPage />
-        },
-        {
-          path: 'ai/cases/create',
-          element: <CreateCasePage />
         },
       ]
     },
