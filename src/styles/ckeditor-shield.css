@@ -1,0 +1,56 @@
+/* Escudo contra resets globais */
+.otj-ckeditor .ck.ck-toolbar__items {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 0 !important;
+}
+
+.otj-ckeditor .ck.ck-toolbar {
+  display: flex !important;
+  align-items: center !important;
+}
+.ck.ck-balloon-panel.ck-powered-by-balloon .ck.ck-powered-by {
+  display: none;
+}
+.otj-ckeditor .ck.ck-button,
+.otj-ckeditor .ck.ck-dropdown__button {
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: unset !important;
+  text-align: center !important;
+}
+
+.otj-ckeditor .ck.ck-dropdown {
+  width: auto !important;
+}
+
+.otj-ckeditor .ck.ck-toolbar__separator {
+  height: auto !important;
+}
+
+/* ===== Fix de tabelas dentro do CKEditor ===== */
+.otj-ckeditor .ck-content table {
+  width: 100% !important;
+  table-layout: fixed; /* força distribuir colunas */
+  border-collapse: collapse;
+}
+
+.otj-ckeditor .ck-content td,
+.otj-ckeditor .ck-content th {
+  width: auto !important;
+  white-space: normal;
+  vertical-align: top;
+}
+
+/* Muitas instalações do CKEditor envolvem table em figure.table */
+.otj-ckeditor .ck-content figure.table {
+  width: 100% !important;
+}
+
+/* Se algum reset global tiver mexido no display */
+.otj-ckeditor .ck-content td,
+.otj-ckeditor .ck-content th {
+  display: table-cell !important;
+}
+

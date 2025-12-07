@@ -43,7 +43,8 @@ export default function CaseEditDialog({ open, onClose, caseId, onSaved }: Props
         setLoading(true);
         const data = await getCaseResult(caseId);
         setCaseData(data);
-        setHtml(data.infos?.phase06?.html || data.htmlMain || '');
+        // Prioriza htmlMain (campo salvo pelo backend no AiCaseResult)
+        setHtml(data.htmlMain || data.html || data.infos?.phase06?.html || '');
         setTags(data.tags || {});
       } catch (err: any) {
         openSnackbar({

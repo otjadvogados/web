@@ -46,12 +46,13 @@ export default function CaseViewDialog({ open, onClose, caseId }: Props) {
     })();
   }, [open, caseId, onClose]);
 
-  // Busca o HTML seguindo a mesma estrutura do /context
+  // Prioriza htmlMain (campo salvo pelo backend no AiCaseResult)
+  // Depois tenta outros fallbacks para compatibilidade
   const html = 
+    caseData?.htmlMain || 
     caseData?.html || 
     (caseData?._infos as any)?.phase06?.html || 
     caseData?.infos?.phase06?.html || 
-    caseData?.htmlMain || 
     '';
 
   const handleOpenInNewTab = () => {

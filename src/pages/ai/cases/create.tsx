@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
@@ -53,8 +54,11 @@ function CreateCaseWizardInner() {
     step, setStep, maxStep, canNext,
     dept, customers, piece, topic, topics, specs,
     pieceDetail, topicDetail, payloadPreview,
-    downloadPieceDocx, buildFormData, buildCaseContextFormData, formPreview
+    downloadPieceDocx, buildFormData, buildCaseContextFormData, formPreview,
+    validateAttachments
   } = useCaseWizard();
+
+  const navigate = useNavigate();
 
   const [openPreview, setOpenPreview] = useState(false);
   const [openResult, setOpenResult] = useState(false);
@@ -77,6 +81,10 @@ function CreateCaseWizardInner() {
       setResult(res);
       if (res?.data?.runId) setRtRunId(res.data.runId || null);
       setOpenResult(true);
+      // Se o backend retornou o id do resultado, já navega para a página de edição
+      if (res?.data?.caseResultId) {
+        navigate(`/ai/cases/${res.data.caseResultId}/edit`);
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Falha ao criar caso';
       openSnackbar({ open: true, message: msg, variant: 'alert', alert: { color: 'error' } } as any);
@@ -160,7 +168,7 @@ function CreateCaseWizardInner() {
                     <Button
                       variant="contained"
                       onClick={doSubmit}
-                      disabled={submitting || !dept?.id || !piece?.id}
+                      disabled={submitting || !dept?.id || !piece?.id || !validateAttachments().valid}
                       startIcon={submitting ? <CircularProgress size={16} /> : undefined}
                     >
                       {submitting ? 'Enviando…' : 'Criar Caso'}

@@ -1,0 +1,56 @@
+/**
+ * Blindagem leve contra CSS global do app.
+ * Objetivo: manter a aparência/UX do toolbar igual ao demo do CKEditor.
+ * Sem reestilizar cores/tokens — só restaurar layout/ícones/fluxo.
+ */
+
+.otj-ckeditor .ck,
+.otj-ckeditor .ck * {
+  box-sizing: border-box;
+}
+
+/* Garante que toolbar e itens mantenham layout horizontal padrão */
+.otj-ckeditor .ck-toolbar,
+.otj-ckeditor .ck-toolbar__items {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Evita que resets globais de button/text transform estraguem ícones */
+.otj-ckeditor .ck-button,
+.otj-ckeditor .ck-dropdown__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: none;
+  line-height: normal;
+}
+
+/* Mantém tamanho de ícone consistente caso algum reset global mexa em svg */
+.otj-ckeditor .ck .ck-icon,
+.otj-ckeditor .ck .ck-icon svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* Dropdowns do toolbar precisam ficar acima de AppBar/Drawer/MUI layers */
+.otj-ckeditor .ck-dropdown__panel {
+  z-index: 1400;
+}
+
+/* Evita que estilos globais tornem listas da UI do CK "em coluna gigante" */
+.otj-ckeditor .ck-list,
+.otj-ckeditor .ck-list__item,
+.otj-ckeditor .ck-list__item .ck-button {
+  flex-direction: row;
+}
+
+/* Mantém tooltips e balões legíveis */
+.otj-ckeditor .ck-tooltip,
+.otj-ckeditor .ck-balloon-panel {
+  font-family: inherit;
+}
+
+

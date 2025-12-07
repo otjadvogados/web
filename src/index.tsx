@@ -11,6 +11,12 @@ import 'slick-carousel/slick/slick-theme.css';
 // apex-chart
 import 'assets/third-party/apex-chart.css';
 
+// CKEditor 5 theme (importado globalmente para garantir ordem correta após resets)
+import '@ckeditor/ckeditor5-theme-lark/theme/index.css';
+
+// CKEditor shield CSS (proteção contra CSS global)
+import 'styles/ckeditor-shield.css';
+
 // google-fonts
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';

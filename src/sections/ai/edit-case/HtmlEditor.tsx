@@ -1,6 +1,51 @@
-import { useRef, useEffect } from 'react';
+import { useMemo, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+// ✅ CSS do build "ckeditor5" (mais estável com Vite/Webpack e evita toolbar quebrada)
+import 'ckeditor5/ckeditor5.css';
+// ✅ Importa traduções do CKEditor
+import 'ckeditor5/translations/pt-br.js';
+import './HtmlEditor.ck.css';
+import {
+  DecoupledEditor,
+  Essentials,
+  Paragraph,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Heading,
+  List,
+  Link,
+  BlockQuote,
+  Alignment,
+  Indent,
+  IndentBlock,
+  FontFamily,
+  FontSize,
+  FontColor,
+  FontBackgroundColor,
+  RemoveFormat,
+  HorizontalLine,
+  Table,
+  TableToolbar,
+  GeneralHtmlSupport,
+  Image,
+  ImageToolbar,
+  ImageCaption,
+  ImageStyle,
+  ImageResize,
+  ImageUpload,
+  SimpleUploadAdapter
+  // Opção alternativa (Base64 - não recomendado para produção):
+  // Base64UploadAdapter
+} from 'ckeditor5';
+import useConfig from 'hooks/useConfig';
+
+// Observação: o CKEditor 5 não injeta CSS automaticamente em apps React.
+// Sem o import acima, a toolbar tende a ficar "torta" e herdar estilos globais.
 
 type Props = {
   html: string;
@@ -8,93 +53,395 @@ type Props = {
   editable?: boolean;
 };
 
-export default function HtmlEditor({ html, onChange, editable = true }: Props) {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const isUpdatingRef = useRef(false);
+type ArticleParts = {
+  hasArticle: boolean;
+  attributes: Array<{ name: string; value: string }>;
+  /** style="" original do <article> para não perder no save */
+  styleAttr?: string | null;
+  styleTagsHtml: string;
+  innerContent: string;
+};
 
-  useEffect(() => {
-    if (editorRef.current && !isUpdatingRef.current) {
-      editorRef.current.innerHTML = html;
-    }
-  }, [html]);
+function escapeAttr(v: string) {
+  return v.replace(/"/g, '&quot;');
+}
 
-  const handleInput = () => {
-    if (editorRef.current && editable) {
-      isUpdatingRef.current = true;
-      onChange(editorRef.current.innerHTML);
-      setTimeout(() => {
-        isUpdatingRef.current = false;
-      }, 0);
-    }
+function styleStringToObject(style?: string | null): CSSProperties | undefined {
+  if (!style) return undefined;
+  const out: Record<string, string> = {};
+  style
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .forEach((rule) => {
+      const idx = rule.indexOf(':');
+      if (idx === -1) return;
+      const prop = rule.slice(0, idx).trim();
+      const value = rule.slice(idx + 1).trim();
+      if (!prop || !value) return;
+      out[prop] = value;
+    });
+
+  // Mantém as chaves como CSS string mesmo.
+  // React aceita style com propriedades custom via index signature quando
+  // tipamos como CSSProperties de forma ampla.
+  return out as unknown as CSSProperties;
+}
+
+function parseArticleParts(html: string): ArticleParts {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html || '', 'text/html');
+  const article = doc.querySelector('article');
+
+  if (!article) {
+    return {
+      hasArticle: false,
+      attributes: [],
+      styleAttr: null,
+      styleTagsHtml: '',
+      innerContent: html || ''
+    };
+  }
+
+  const styleAttr = article.getAttribute('style');
+
+  const attributes = Array.from(article.attributes)
+    // Evita attrs que o editor injeta
+    // Mantém o style separado (styleAttr) para preservar no save,
+    // sem tentar aplicar como prop React.
+    .filter((a) => a.name !== 'contenteditable' && a.name !== 'id' && a.name !== 'style')
+    .map((a) => ({ name: a.name, value: a.value }));
+
+  const styleTags = Array.from(article.querySelectorAll('style'));
+  const styleTagsHtml = styleTags.map((s) => s.outerHTML).join('');
+
+  const clone = article.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('style').forEach((s) => s.remove());
+
+  return {
+    hasArticle: true,
+    attributes,
+    styleAttr,
+    styleTagsHtml,
+    innerContent: clone.innerHTML
   };
+}
+
+function buildArticle(parts: ArticleParts, newInner: string) {
+  // Sempre devolve um <article> para manter compatibilidade com o backend
+  let out = '<article';
+  if (parts.styleAttr) {
+    out += ` style="${escapeAttr(parts.styleAttr)}"`;
+  }
+  for (const attr of parts.attributes) {
+    out += ` ${attr.name}="${escapeAttr(attr.value)}"`;
+  }
+  out += '>';
+  out += parts.styleTagsHtml || '';
+  out += newInner || '';
+  out += '</article>';
+  return out;
+}
+
+export default function HtmlEditor({ html, onChange, editable = true }: Props) {
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const { i18n } = useConfig();
+
+  const parts = useMemo(() => parseArticleParts(html), [html]);
+  const data = parts.innerContent ?? '';
+  const hasInlinePageStyle = !!parts.styleAttr;
+  const articleInlineStyle = useMemo(
+    () => styleStringToObject(parts.styleAttr),
+    [parts.styleAttr]
+  );
+
+  // Converte lista de atributos em mapa para espalhar no <article>
+  const articleAttrs = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const a of parts.attributes) out[a.name] = a.value;
+    return out;
+  }, [parts.attributes]);
+
+  // ✅ Determina o idioma do CKEditor baseado no i18n da aplicação
+  const ckeditorLanguage = useMemo(() => {
+    const base = (i18n || 'pt-BR').toLowerCase();
+
+    if (base.startsWith('pt')) return 'pt-br';
+    if (base.startsWith('es')) return 'es';
+    if (base.startsWith('en')) return 'en';
+
+    // fallback
+    return base.split('-')[0] || 'en';
+  }, [i18n]);
+
+  const config = useMemo(() => ({
+    // Ajuste conforme sua licença.
+    // 'GPL' é aceito quando você está em conformidade com os termos da GPL.
+    licenseKey: 'GPL',
+
+    language: {
+      ui: ckeditorLanguage,
+      content: ckeditorLanguage
+    },
+
+    plugins: [
+      Essentials,
+      Paragraph,
+      Bold,
+      Italic,
+      Underline,
+      Strikethrough,
+      Heading,
+      List,
+      Link,
+      BlockQuote,
+      Alignment,
+      Indent,
+      IndentBlock,
+      FontFamily,
+      FontSize,
+      FontColor,
+      FontBackgroundColor,
+      RemoveFormat,
+      HorizontalLine,
+      Table,
+      TableToolbar,
+      GeneralHtmlSupport,
+      Image,
+      ImageToolbar,
+      ImageCaption,
+      ImageStyle,
+      ImageResize,
+      ImageUpload,
+      SimpleUploadAdapter
+      // Opção alternativa (Base64 - não recomendado para produção):
+      // Base64UploadAdapter
+    ],
+    toolbar: {
+      items: [
+        'undo',
+        'redo',
+        '|',
+        'heading',
+        '|',
+        'fontFamily',
+        'fontSize',
+        '|',
+        'bold',
+        'italic',
+        'underline',
+        'strikethrough',
+        '|',
+        'fontColor',
+        'fontBackgroundColor',
+        '|',
+        'alignment',
+        '|',
+        'bulletedList',
+        'numberedList',
+        'outdent',
+        'indent',
+        '|',
+        'link',
+        'blockQuote',
+        'insertTable',
+        'uploadImage',
+        'horizontalLine',
+        '|',
+        'removeFormat'
+      ],
+      // ✅ Como no demo: permite agrupar e usar overflow corretamente
+      shouldNotGroupWhenFull: false
+    },
+    fontFamily: {
+      options: [
+        'default',
+        'Arial, Helvetica, sans-serif',
+        'Calibri, Arial, sans-serif',
+        'Century Gothic, Arial, sans-serif',
+        'Courier New, Courier, monospace',
+        'Georgia, serif',
+        'Lucida Sans Unicode, Lucida Grande, sans-serif',
+        'Tahoma, Geneva, sans-serif',
+        'Times New Roman, Times, serif',
+        'Trebuchet MS, Helvetica, sans-serif',
+        'Verdana, Geneva, sans-serif'
+      ]
+    },
+    fontSize: {
+      options: [
+        9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72
+      ]
+    },
+    table: {
+      contentToolbar: [
+        'tableColumn',
+        'tableRow',
+        'mergeTableCells'
+      ]
+    },
+    // ✅ Configuração de upload de imagens
+    simpleUpload: {
+      uploadUrl: `${import.meta.env.VITE_APP_API_URL || 'http://localhost:22211'}/uploads/images`,
+      // Opcional: adicionar autenticação se necessário
+      // withCredentials: true,
+      // headers: {
+      //   Authorization: `Bearer ${token}`
+      // }
+    },
+    image: {
+      upload: {
+        // Tipos de imagem permitidos (o servidor também deve validar)
+        types: ['jpeg', 'jpg', 'png', 'gif', 'webp']
+      },
+      toolbar: [
+        'imageTextAlternative',
+        'toggleImageCaption',
+        'imageStyle:inline',
+        'imageStyle:block',
+        'imageStyle:side',
+        '|',
+        'resizeImage'
+      ]
+    },
+    /**
+     * ✅ Permite que o CKEditor mantenha atributos, classes e styles inline
+     * vindos do DOCX/html do backend.
+     * Sem isso o editor tende a "limpar" style="" em <p>, <span>, etc.
+     */
+    htmlSupport: {
+      allow: [
+        {
+          name: /.*/,
+          attributes: true,
+          classes: /.*/,
+          styles: true
+        }
+      ]
+    } as any
+  }), [ckeditorLanguage]);
+
+  const baselineTypography = {
+    color: '#000',
+    fontFamily: 'Calibri, Arial, sans-serif',
+    fontSize: '11pt',
+    lineHeight: 1.5
+  } as const;
 
   return (
-    <Box 
-      sx={{ 
-        height: '100%', 
-        overflow: 'auto',
+    <Box
+      className="otj-ckeditor"
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
         bgcolor: 'grey.50',
-        p: 3
+        // Pequenos ajustes de layout para ficar mais próximo do "document editor"
+        // ✅ Se o DOCX trouxe layout de página no <article>, NÃO adiciona padding extra aqui.
+        '& .ck-editor__editable_inline': hasInlinePageStyle
+          ? {
+              minHeight: 'auto',
+              padding: 0,
+              outline: 'none',
+              background: 'transparent',
+              ...baselineTypography
+            }
+          : {
+              minHeight: '70vh',
+              padding: '48px 56px',
+              outline: 'none',
+              ...baselineTypography
+            },
+        /**
+         * CKEditor também usa .ck-content como raiz do conteúdo.
+         * Garantimos o mesmo baseline aqui.
+         */
+        '& .ck-content': {
+          ...baselineTypography
+        }
       }}
     >
+      {/* Toolbar externa (padrão decoupled/document editor) */}
       <Paper
-        elevation={2}
+        variant="outlined"
         sx={{
-          minHeight: '100%',
-          maxWidth: '210mm', // Largura A4
-          mx: 'auto',
-          p: 4,
-          bgcolor: 'white'
+          borderRadius: 0,
+          borderLeft: 0,
+          borderRight: 0,
+          borderTop: 0,
+          bgcolor: 'background.paper',
+          boxShadow: 'none'
+        }}
+      >
+        <Box ref={toolbarRef} />
+      </Paper>
+
+      {/* Área do documento */}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'auto',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+          p: 3
         }}
       >
         <Box
-          ref={editorRef}
-          contentEditable={editable}
-          onInput={handleInput}
-          suppressContentEditableWarning
+          component="article"
+          // ✅ Mantém o <article> presente no DOM durante a edição
+          {...(articleAttrs as any)}
+          // ✅ APLICA o style="" do DOCX no wrapper real
+          style={articleInlineStyle}
           sx={{
-            minHeight: '297mm', // Altura A4
-            outline: 'none',
-            fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-            fontSize: '14px',
-            lineHeight: 1.6,
-            color: 'text.primary',
-            '& h1': {
-              fontSize: '24px',
-              fontWeight: 700,
-              margin: '1em 0 0.5em',
-              textAlign: 'center'
-            },
-            '& h2': {
-              fontSize: '20px',
-              fontWeight: 600,
-              margin: '1em 0 0.5em'
-            },
-            '& h3': {
-              fontSize: '16px',
-              fontWeight: 600,
-              margin: '1em 0 0.5em'
-            },
-            '& p': {
-              margin: '0.75em 0',
-              textAlign: 'justify'
-            },
-            '& ul, & ol': {
-              paddingLeft: '1.5em',
-              margin: '0.75em 0'
-            },
-            '& li': {
-              margin: '0.25em 0'
-            },
-            '& strong': {
-              fontWeight: 600
-            },
-            '& em': {
-              fontStyle: 'italic'
-            }
+            // ✅ Se o article vier com width/padding de página, não substitui aqui.
+            width: hasInlinePageStyle ? undefined : '100%',
+            maxWidth: hasInlinePageStyle ? undefined : 980,
+            bgcolor: hasInlinePageStyle ? undefined : '#fff',
+            borderRadius: hasInlinePageStyle ? 0 : 1,
+            boxShadow: hasInlinePageStyle ? 0 : 1,
+            p: hasInlinePageStyle ? 0 : { xs: 2, sm: 3, md: 4 },
+
+            // ✅ Baseline tipográfico sempre no wrapper da página.
+            // Os estilos do DOCX (<style> internos ou inline nos <p>) continuam
+            // podendo sobrescrever normalmente.
+            color: '#000',
+            fontFamily: 'Calibri, Arial, sans-serif'
           }}
-        />
-      </Paper>
+        >
+          {/* ✅ Reaplica os <style> originais do article sem passar pelo data do CKEditor */}
+          {!!parts.styleTagsHtml && (
+            <Box
+              component="div"
+              dangerouslySetInnerHTML={{ __html: parts.styleTagsHtml }}
+            />
+          )}
+
+          <CKEditor
+            editor={DecoupledEditor}
+            data={data}
+            disabled={!editable}
+            config={config}
+            onReady={(editor) => {
+              // Anexa a toolbar no container externo
+              const el = editor.ui.view.toolbar.element;
+              if (toolbarRef.current && el) {
+                // Evita duplicação/efeitos do StrictMode
+                if (!toolbarRef.current.contains(el)) {
+                  toolbarRef.current.innerHTML = '';
+                  toolbarRef.current.appendChild(el);
+                }
+              }
+            }}
+            onChange={(_, editor) => {
+              const newInner = editor.getData();
+              onChange(buildArticle(parts, newInner));
+            }}
+          />
+        </Box>
+      </Box>
     </Box>
   );
 }

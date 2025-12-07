@@ -1,5 +1,17 @@
 import axios from 'utils/axios';
 
+export type AttachmentBox = 'claimant' | 'client';
+
+export type CaseAttachmentMeta = {
+  /** posição do arquivo no FormData (ordem importa) */
+  index: number;
+  topicSpecificId: string;
+  box: AttachmentBox;
+  name: string;
+  type: string;
+  size: number;
+};
+
 export type CaseContextFields = {
   departmentId: string;
   customerIds?: string[]; // múltiplos clientes
@@ -10,6 +22,9 @@ export type CaseContextFields = {
   topicIds?: string[];
   topicSpecificIds?: string[];
   instruction?: string | null;
+
+  /** NOVO: metadados dos anexos por tópico específico e por caixa */
+  attachmentsMeta?: CaseAttachmentMeta[];
 };
 
 export type CaseContextResponse = {
@@ -17,6 +32,8 @@ export type CaseContextResponse = {
   data: {
     /** id de correlação do processamento, para casar com os eventos WS */
     runId?: string | null;
+    /** NOVO: id do resultado persistido em ai_case_results */
+    caseResultId?: string | null;
     _infos: Record<string, any>;
     pieceId: string | null;
     docxOriginalName: string | null;
@@ -147,8 +164,8 @@ export async function listCaseResults(q: ListCaseResultsQuery = {}) {
  * GET /ai/cases/results/:id - Obter resultado específico
  */
 export async function getCaseResult(id: string) {
-  const { data } = await axios.get<{ message: string; data: CaseResult }>(`/ai/cases/results/${id}`);
-  return data.data;
+  const { data } = await axios.get<{ ok: boolean; item: CaseResult }>(`/ai/cases/results/${id}`);
+  return data.item;
 }
 
 /**

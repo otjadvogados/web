@@ -10,9 +10,7 @@ import Paper from '@mui/material/Paper';
 import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlined from '@ant-design/icons/SaveOutlined';
 import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
-import MessageOutlined from '@ant-design/icons/MessageOutlined';
 import HtmlEditor from 'sections/ai/edit-case/HtmlEditor';
-import ChatPanel from 'sections/ai/edit-case/ChatPanel';
 import { getCaseResult, updateCaseResultHtml, CaseResult } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
 
@@ -24,8 +22,6 @@ export default function EditCasePage() {
   const [saving, setSaving] = useState(false);
   const [caseData, setCaseData] = useState<CaseResult | null>(null);
   const [html, setHtml] = useState('');
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatWidth, setChatWidth] = useState(400);
 
   useEffect(() => {
     if (!id) {
@@ -39,12 +35,13 @@ export default function EditCasePage() {
         const data = await getCaseResult(id);
         setCaseData(data);
         
-        // Busca o HTML seguindo a mesma estrutura do CaseViewDialog
+        // Prioriza htmlMain (campo salvo pelo backend no AiCaseResult)
+        // Depois tenta outros fallbacks para compatibilidade
         const htmlContent = 
+          data?.htmlMain || 
           data?.html || 
           (data?._infos as any)?.phase06?.html || 
           data?.infos?.phase06?.html || 
-          data?.htmlMain || 
           '';
         
         setHtml(htmlContent);
@@ -124,13 +121,6 @@ export default function EditCasePage() {
 
           <Stack direction="row" spacing={1}>
             <Button
-              variant="outlined"
-              startIcon={<MessageOutlined />}
-              onClick={() => setChatOpen(!chatOpen)}
-            >
-              {chatOpen ? 'Fechar Chat' : 'Abrir Chat'}
-            </Button>
-            <Button
               variant="contained"
               startIcon={<SaveOutlined />}
               onClick={handleSave}
@@ -148,9 +138,7 @@ export default function EditCasePage() {
           flex: 1,
           display: 'flex',
           overflow: 'hidden',
-          position: 'relative',
-          transition: 'margin-right 0.3s',
-          marginRight: chatOpen ? `${chatWidth}px` : 0
+          position: 'relative'
         }}
       >
         <HtmlEditor
@@ -159,14 +147,6 @@ export default function EditCasePage() {
           editable={true}
         />
       </Box>
-
-      {/* Painel de chat */}
-      <ChatPanel
-        open={chatOpen}
-        onClose={() => setChatOpen(false)}
-        width={chatWidth}
-        onWidthChange={setChatWidth}
-      />
     </Box>
   );
 }
