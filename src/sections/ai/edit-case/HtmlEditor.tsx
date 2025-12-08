@@ -127,7 +127,71 @@ function parseArticleParts(html: string): ArticleParts {
   };
 }
 
+/**
+ * Processa HTML para garantir que frases específicas de fechamento sejam centralizadas
+ */
+function ensureClosingPhrasesCentered(html: string): string {
+  if (!html) return html;
+  
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Frases que devem ser centralizadas (como texto completo ou principal do parágrafo)
+    const phrasesToCenter = [
+      /^Nestes termos,?\s*$/i,
+      /^pede deferimento\.?\s*$/i,
+      /^P\.\s*deferimento\.?\s*$/i
+    ];
+    
+    // Processa todos os parágrafos
+    const paragraphs = doc.querySelectorAll('p');
+    paragraphs.forEach(p => {
+      const textContent = p.textContent?.trim() || '';
+      const innerHTML = p.innerHTML.trim();
+      
+      // Verifica se o parágrafo contém uma das frases como texto completo ou principal
+      const shouldCenter = phrasesToCenter.some(regex => regex.test(textContent)) ||
+                          textContent === 'Nestes termos,' ||
+                          textContent.toLowerCase().includes('nestes termos') ||
+                          textContent.toLowerCase().includes('pede deferimento') ||
+                          /^P\.?\s*deferimento\.?\s*$/i.test(textContent) ||
+                          innerHTML.includes('Nestes termos') ||
+                          innerHTML.includes('pede deferimento') ||
+                          /P\.?\s*deferimento/i.test(innerHTML);
+      
+      if (shouldCenter) {
+        // Obtém o style atual
+        const currentStyle = p.getAttribute('style') || '';
+        
+        // Remove text-align existente
+        const styleParts = currentStyle
+          .split(';')
+          .map(s => s.trim())
+          .filter(s => s && !s.toLowerCase().startsWith('text-align'))
+          .filter(Boolean);
+        
+        // Adiciona text-align: center
+        styleParts.push('text-align:center');
+        
+        // Aplica o novo style
+        p.setAttribute('style', styleParts.join('; '));
+      }
+    });
+    
+    // Retorna o HTML processado
+    return doc.body.innerHTML;
+  } catch (err) {
+    // Em caso de erro, retorna o HTML original
+    console.warn('Erro ao processar HTML para centralização de frases:', err);
+    return html;
+  }
+}
+
 function buildArticle(parts: ArticleParts, newInner: string) {
+  // Processa o conteúdo para garantir centralização das frases de fechamento
+  const processedInner = ensureClosingPhrasesCentered(newInner);
+  
   // Sempre devolve um <article> para manter compatibilidade com o backend
   let out = '<article';
   if (parts.styleAttr) {
@@ -138,7 +202,7 @@ function buildArticle(parts: ArticleParts, newInner: string) {
   }
   out += '>';
   out += parts.styleTagsHtml || '';
-  out += newInner || '';
+  out += processedInner || '';
   out += '</article>';
   return out;
 }
@@ -147,7 +211,14 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const { i18n } = useConfig();
 
-  const parts = useMemo(() => parseArticleParts(html), [html]);
+  const parts = useMemo(() => {
+    const parsed = parseArticleParts(html);
+    // Garante que as frases de fechamento estejam centralizadas no conteúdo inicial
+    return {
+      ...parsed,
+      innerContent: ensureClosingPhrasesCentered(parsed.innerContent)
+    };
+  }, [html]);
   const data = parts.innerContent ?? '';
   const hasInlinePageStyle = !!parts.styleAttr;
   const articleInlineStyle = useMemo(

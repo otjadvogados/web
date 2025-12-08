@@ -4,6 +4,30 @@
  * Sem reestilizar cores/tokens — só restaurar layout/ícones/fluxo.
  */
 
+/* Remove bordas da última tabela do documento */
+.otj-ckeditor .ck-content table:last-of-type,
+.otj-ckeditor .ck-content figure.table:last-of-type table,
+.otj-ckeditor article table:last-of-type,
+.otj-ckeditor article figure.table:last-of-type table {
+  border: none !important;
+}
+
+.otj-ckeditor .ck-content table:last-of-type td,
+.otj-ckeditor .ck-content table:last-of-type th,
+.otj-ckeditor .ck-content figure.table:last-of-type table td,
+.otj-ckeditor .ck-content figure.table:last-of-type table th,
+.otj-ckeditor article table:last-of-type td,
+.otj-ckeditor article table:last-of-type th,
+.otj-ckeditor article figure.table:last-of-type table td,
+.otj-ckeditor article figure.table:last-of-type table th {
+  border: none !important;
+}
+
+.otj-ckeditor .mention {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
 .otj-ckeditor .ck,
 .otj-ckeditor .ck * {
   box-sizing: border-box;
@@ -53,4 +77,8 @@
   font-family: inherit;
 }
 
-
+/* Centraliza frases específicas de fechamento de documentos legais */
+/* Backup CSS para garantir centralização mesmo se o JavaScript não processar */
+.otj-ckeditor .ck-content p[style*="text-align:center"] {
+  text-align: center !important;
+}
