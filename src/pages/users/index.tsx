@@ -324,10 +324,14 @@ export default function UsersPage() {
                 minWidth: isMobile ? '100%' : 280,
                 flex: isMobile ? 'none' : 1
               }}
+              name="search-users"
+              id="search-users"
               autoComplete="off"
               inputProps={{
-                'data-form-type': 'other',
-                'autocomplete': 'off'
+                'data-form-type': 'search',
+                'autocomplete': 'off',
+                'data-lpignore': 'true',
+                'data-1p-ignore': 'true'
               }}
             />
             

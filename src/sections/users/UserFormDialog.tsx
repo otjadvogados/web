@@ -194,7 +194,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
         }}
       >
         {({ values, errors, touched, handleBlur, handleChange, handleSubmit, isSubmitting, setFieldValue }) => (
-          <>
+          <form id="user-form" onSubmit={handleSubmit} noValidate>
             <DialogContent dividers>
               <Grid container spacing={2}>
                                  <Grid size={{ xs: 12, md: 6 }}>
@@ -207,9 +207,9 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
 
                                  <Grid size={{ xs: 12, md: 6 }}>
                    <Stack sx={{ gap: 1 }}>
-                     <InputLabel htmlFor="email">E-mail *</InputLabel>
+                     <InputLabel htmlFor="user-email">E-mail *</InputLabel>
                      <OutlinedInput 
-                       id="email" 
+                       id="user-email" 
                        name="email" 
                        type="email" 
                        value={values.email} 
@@ -217,9 +217,11 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                        onBlur={handleBlur} 
                        error={Boolean(touched.email && errors.email)}
                        autoComplete="email"
+                       form="user-form"
                        inputProps={{
                          'data-form-type': 'user-registration',
-                         'autocomplete': 'email'
+                         'autocomplete': 'email',
+                         'data-lpignore': 'false'
                        }}
                      />
                      {touched.email && errors.email && <FormHelperText error>{errors.email}</FormHelperText>}
@@ -407,9 +409,9 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
               </Grid>
             </DialogContent>
                          <DialogActions>
-               <Button onClick={onClose} color="secondary">Cancelar</Button>
+               <Button onClick={onClose} color="secondary" type="button">Cancelar</Button>
                <Button
-                 onClick={() => handleSubmit()}
+                 type="submit"
                  variant="contained"
                  disabled={
                    isSubmitting ||
@@ -419,7 +421,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                  {isEdit ? 'Salvar' : 'Criar'}
                </Button>
              </DialogActions>
-          </>
+          </form>
         )}
       </Formik>
     </Dialog>
