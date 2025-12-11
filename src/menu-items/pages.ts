@@ -110,6 +110,7 @@ const pages: NavItemType = {
       icon: icons.UserOutlined,
       url: '/clients'
     },
+    
   ]
 };
 

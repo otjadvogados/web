@@ -51,6 +51,7 @@
     "build": "tsc && vite build",
     "build-stage": "env-cmd -f .env.qa vite build",
     "build:homol": "vite build --mode homol",
+    "build:prod": "vite build --mode production",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",

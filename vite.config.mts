@@ -4,9 +4,20 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 import path from 'path';
 
 export default defineConfig(({ mode }) => {
+  // Carrega variáveis de ambiente do arquivo .env.{mode}
+  // Quando mode = 'production', carrega .env.production automaticamente
+  // O terceiro parâmetro '' significa que carrega variáveis com qualquer prefixo
+  // Mas o Vite só expõe variáveis que começam com VITE_ para o código do cliente
   const env = loadEnv(mode, process.cwd(), '');
   const API_URL = env.VITE_APP_BASE_NAME || '/';
   const PORT = 3000;
+
+  // Log para debug (pode remover depois)
+  if (mode === 'production') {
+    console.log('🔧 Modo: production');
+    console.log('📝 VITE_APP_API_URL:', env.VITE_APP_API_URL || 'NÃO DEFINIDO');
+    console.log('📝 Variáveis carregadas:', Object.keys(env).filter(k => k.startsWith('VITE_')).join(', '));
+  }
 
   return {
     base: API_URL,
