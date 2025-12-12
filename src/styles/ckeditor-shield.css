@@ -1,7 +1,16 @@
 /* Escudo contra resets globais */
+.ck-content{
+  overflow: visible !important;
+}
+
 .otj-ckeditor p,
 .otj-ckeditor table{
   font-family: 'Century Gothic' !important;
+}
+
+#doc-header-img{
+  position: absolute;
+  top: -110px;
 }
 
 .otj-ckeditor .ck.ck-toolbar__items {

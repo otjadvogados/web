@@ -10,9 +10,11 @@ import Paper from '@mui/material/Paper';
 import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlined from '@ant-design/icons/SaveOutlined';
 import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
+import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
 import HtmlEditor from 'sections/ai/edit-case/HtmlEditor';
 import { getCaseResult, updateCaseResultHtml, CaseResult } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
+import { convertHtmlToDocx } from 'api/aiDocs';
 
 export default function EditCasePage() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +22,7 @@ export default function EditCasePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [caseData, setCaseData] = useState<CaseResult | null>(null);
   const [html, setHtml] = useState('');
 
@@ -92,6 +95,45 @@ export default function EditCasePage() {
     navigate('/ai/cases');
   };
 
+  const handleDownloadDocx = async () => {
+    if (!html || downloading) return;
+
+    try {
+      setDownloading(true);
+      const { blob, filename } = await convertHtmlToDocx({
+        html,
+        filename: caseData?.piece?.name 
+          ? `${caseData.piece.name.replace(/[\\/:*?"<>|]/g, '_')}.docx`
+          : 'documento.docx'
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'documento.docx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      openSnackbar({
+        open: true,
+        message: 'Documento DOCX baixado com sucesso!',
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || err?.message || 'Falha ao converter para DOCX',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -120,6 +162,14 @@ export default function EditCasePage() {
           </Stack>
 
           <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadOutlined />}
+              onClick={handleDownloadDocx}
+              disabled={downloading || !html}
+            >
+              {downloading ? 'Convertendo...' : 'Baixar DOCX'}
+            </Button>
             <Button
               variant="contained"
               startIcon={<SaveOutlined />}
