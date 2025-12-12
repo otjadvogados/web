@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -209,17 +209,47 @@ function buildArticle(parts: ArticleParts, newInner: string) {
 
 export default function HtmlEditor({ html, onChange, editable = true }: Props) {
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<DecoupledEditor | null>(null);
   const { i18n } = useConfig();
+  const lastHtmlRef = useRef<string>(html);
+  const isInternalChangeRef = useRef(false);
 
+  // Parse do HTML inicial e estrutura do article
   const parts = useMemo(() => {
     const parsed = parseArticleParts(html);
-    // Garante que as frases de fechamento estejam centralizadas no conteúdo inicial
-    return {
-      ...parsed,
-      innerContent: ensureClosingPhrasesCentered(parsed.innerContent)
-    };
+    return parsed;
   }, [html]);
-  const data = parts.innerContent ?? '';
+
+  // Estado interno para o conteúdo do editor (evita reset do cursor durante digitação)
+  const [editorData, setEditorData] = useState(() => {
+    const initialContent = parts.innerContent ?? '';
+    return ensureClosingPhrasesCentered(initialContent);
+  });
+
+  // Sincroniza o estado interno quando o html prop mudar externamente
+  useEffect(() => {
+    // Ignora mudanças que vêm do próprio editor
+    if (isInternalChangeRef.current) {
+      isInternalChangeRef.current = false;
+      lastHtmlRef.current = html;
+      return;
+    }
+
+    // Só atualiza se o HTML realmente mudou de uma fonte externa
+    if (html !== lastHtmlRef.current) {
+      lastHtmlRef.current = html;
+      const parsed = parseArticleParts(html);
+      const newContent = ensureClosingPhrasesCentered(parsed.innerContent ?? '');
+      // Só atualiza se o conteúdo realmente mudou
+      setEditorData(prev => {
+        if (prev !== newContent) {
+          return newContent;
+        }
+        return prev;
+      });
+    }
+  }, [html]);
+
   const hasInlinePageStyle = !!parts.styleAttr;
   const articleInlineStyle = useMemo(
     () => styleStringToObject(parts.styleAttr),
@@ -492,10 +522,11 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
 
           <CKEditor
             editor={DecoupledEditor}
-            data={data}
+            data={editorData}
             disabled={!editable}
             config={config}
             onReady={(editor) => {
+              editorRef.current = editor;
               // Anexa a toolbar no container externo
               const el = editor.ui.view.toolbar.element;
               if (toolbarRef.current && el) {
@@ -508,6 +539,9 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
             }}
             onChange={(_, editor) => {
               const newInner = editor.getData();
+              // Marca que a mudança é interna (vem do editor) para evitar loop
+              isInternalChangeRef.current = true;
+              // Notifica o componente pai (que pode atualizar o html prop)
               onChange(buildArticle(parts, newInner));
             }}
           />

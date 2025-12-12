@@ -1,5 +1,6 @@
 /* Escudo contra resets globais */
-.otj-ckeditor p{
+.otj-ckeditor p,
+.otj-ckeditor table{
   font-family: 'Century Gothic' !important;
 }
 
