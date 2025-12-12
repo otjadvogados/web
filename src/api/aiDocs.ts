@@ -44,3 +44,26 @@ export async function convertHtmlToDocx(
   return { blob, filename };
 }
 
+export type OcrTestResponse = {
+  ocr: 'Sucesso' | 'Atenção' | 'Erro';
+  message: string;
+};
+
+/**
+ * POST /ai/ocr-test - Verifica se o anexo contém OCR legível
+ * Aceita upload de arquivo via multipart/form-data (campo file)
+ * Limite de 25MB por arquivo
+ */
+export async function testOcr(file: File): Promise<OcrTestResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await axios.post<OcrTestResponse>('/ai/ocr-test', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+
+  return res.data;
+}
+

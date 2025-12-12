@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -7,22 +7,102 @@ import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
+import Tooltip from '@mui/material/Tooltip';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import UploadOutlined from '@ant-design/icons/UploadOutlined';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
 import WarningOutlined from '@ant-design/icons/WarningOutlined';
+import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
+import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
+import EyeOutlined from '@ant-design/icons/EyeOutlined';
 import { openSnackbar } from 'api/snackbar';
 import { BRAND_GOLD } from 'config';
 import { useCaseWizard } from '../CaseWizardContext';
+import { testOcr, type OcrTestResponse } from 'api/aiDocs';
 
 export default function StepAttachments() {
-  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment } = useCaseWizard();
+  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment, updateAttachmentOcr, updateCommonAttachmentOcr } = useCaseWizard();
+  const [verifyingOcr, setVerifyingOcr] = useState<Set<string>>(new Set());
+  const [ocrMessageDialog, setOcrMessageDialog] = useState<{ open: boolean; message: string; fileName: string }>({ open: false, message: '', fileName: '' });
 
   const isValidType = (file: File) =>
     /(^application\/pdf$)|(^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$)|(^image\/(png|jpeg|jpg|webp|gif)$)/i.test(file.type);
 
+  const verifyFileOcr = async (file: File, attachmentId: string, isCommon: boolean = false): Promise<void> => {
+    const fileKey = `${file.name}-${file.size}`;
+    setVerifyingOcr((prev) => new Set(prev).add(fileKey));
+
+    try {
+      const result = await testOcr(file);
+      
+      // Salva o resultado no anexo
+      if (isCommon) {
+        updateCommonAttachmentOcr(attachmentId, result);
+      } else {
+        updateAttachmentOcr(attachmentId, result);
+      }
+      
+      if (result.ocr === 'Sucesso') {
+        openSnackbar({
+          open: true,
+          message: `OCR verificado: ${file.name}`,
+          variant: 'alert',
+          alert: { color: 'success' }
+        } as any);
+      } else if (result.ocr === 'Atenção') {
+        openSnackbar({
+          open: true,
+          message: `Atenção no OCR: ${file.name}`,
+          variant: 'alert',
+          alert: { color: 'warning' }
+        } as any);
+      } else {
+        openSnackbar({
+          open: true,
+          message: `Erro no OCR: ${file.name}`,
+          variant: 'alert',
+          alert: { color: 'error' }
+        } as any);
+      }
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: `Falha ao verificar OCR de ${file.name}: ${err?.response?.data?.message || err?.message || 'Erro desconhecido'}`,
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setVerifyingOcr((prev) => {
+        const next = new Set(prev);
+        next.delete(fileKey);
+        return next;
+      });
+    }
+  };
+
+  const getOcrStatusIcon = (ocrResult?: OcrTestResponse) => {
+    if (!ocrResult) return null;
+    
+    if (ocrResult.ocr === 'Sucesso') {
+      return <CheckCircleOutlined sx={{ color: 'success.main', fontSize: 18 }} />;
+    } else if (ocrResult.ocr === 'Atenção') {
+      return <WarningOutlined sx={{ color: 'warning.main', fontSize: 18 }} />;
+    } else {
+      return <CloseCircleOutlined sx={{ color: 'error.main', fontSize: 18 }} />;
+    }
+  };
+
+  const handleShowOcrMessage = (message: string, fileName: string) => {
+    setOcrMessageDialog({ open: true, message, fileName });
+  };
+
   const handlePick = (topicSpecificId: string, box: 'claimant' | 'client') =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       const f = Array.from(e.target.files || []);
       e.target.value = '';
       if (!f.length) return;
@@ -35,10 +115,17 @@ export default function StepAttachments() {
           alert: { color: 'warning' }
         } as any);
       }
-      addAttachments(topicSpecificId, box, valid);
+      
+      // Adiciona os anexos e obtém os IDs
+      const attachmentIds = addAttachments(topicSpecificId, box, valid);
+      
+      // Verifica OCR de cada arquivo em paralelo
+      await Promise.all(valid.map((file, index) => 
+        verifyFileOcr(file, attachmentIds[index], false)
+      ));
     };
 
-  const handlePickCommon = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePickCommon = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = Array.from(e.target.files || []);
     e.target.value = '';
     if (!f.length) return;
@@ -51,7 +138,14 @@ export default function StepAttachments() {
         alert: { color: 'warning' }
       } as any);
     }
-    addCommonAttachments(valid);
+    
+    // Adiciona os anexos e obtém os IDs
+    const attachmentIds = addCommonAttachments(valid);
+    
+    // Verifica OCR de cada arquivo em paralelo
+    await Promise.all(valid.map((file, index) => 
+      verifyFileOcr(file, attachmentIds[index], true)
+    ));
   };
 
   const bySpec = useMemo(() => {
@@ -131,6 +225,9 @@ export default function StepAttachments() {
                 const isPdf = /^application\/pdf$/i.test(f.type);
                 const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
                 const url = URL.createObjectURL(f);
+                const fileKey = `${f.name}-${f.size}`;
+                const isVerifying = verifyingOcr.has(fileKey);
+                const ocrStatusIcon = getOcrStatusIcon(a.ocrResult);
                 return (
                   <Paper variant="outlined" sx={{ p: 1 }} key={a.id}>
                     <Stack direction="row" spacing={1.25} alignItems="center">
@@ -142,12 +239,27 @@ export default function StepAttachments() {
                         )}
                       </Box>
                       <Stack flex={1} minWidth={0}>
-                        <Typography noWrap title={f.name}>{f.name}</Typography>
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Typography noWrap title={f.name}>{f.name}</Typography>
+                          {isVerifying && <CircularProgress size={12} />}
+                          {ocrStatusIcon && !isVerifying && ocrStatusIcon}
+                        </Stack>
                         <Typography variant="caption" color="text.secondary">{(f.size / 1024).toFixed(1)} KB</Typography>
                       </Stack>
                       <Stack direction="row" spacing={0.5}>
-                        <IconButton size="small" onClick={() => window.open(url, '_blank') as any} title="Visualizar">
-                          <InfoCircleOutlined />
+                        {a.ocrResult && (
+                          <Tooltip title="Ver mensagem do OCR">
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleShowOcrMessage(a.ocrResult!.message, f.name)}
+                              title="Ver mensagem do OCR"
+                            >
+                              <InfoCircleOutlined />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <IconButton size="small" onClick={() => window.open(url, '_blank') as any} title="Visualizar arquivo">
+                          <EyeOutlined />
                         </IconButton>
                         <IconButton size="small" color="error" onClick={() => removeCommonAttachment(a.id)} title="Remover">
                           <CloseOutlined />
@@ -208,6 +320,9 @@ export default function StepAttachments() {
                         const isPdf = /^application\/pdf$/i.test(f.type);
                         const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
                         const url = URL.createObjectURL(f);
+                        const fileKey = `${f.name}-${f.size}`;
+                        const isVerifying = verifyingOcr.has(fileKey);
+                        const ocrStatusIcon = getOcrStatusIcon(a.ocrResult);
                         return (
                           <Paper variant="outlined" sx={{ p: 1 }} key={a.id}>
                             <Stack direction="row" spacing={1.25} alignItems="center">
@@ -219,10 +334,25 @@ export default function StepAttachments() {
                                 )}
                               </Box>
                               <Stack flex={1} minWidth={0}>
-                                <Typography noWrap title={f.name}>{f.name}</Typography>
+                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                  <Typography noWrap title={f.name}>{f.name}</Typography>
+                                  {isVerifying && <CircularProgress size={12} />}
+                                  {ocrStatusIcon && !isVerifying && ocrStatusIcon}
+                                </Stack>
                                 <Typography variant="caption" color="text.secondary">{(f.size / 1024).toFixed(1)} KB</Typography>
                               </Stack>
                               <Stack direction="row" spacing={0.5}>
+                                {a.ocrResult && (
+                                  <Tooltip title="Ver mensagem do OCR">
+                                    <IconButton 
+                                      size="small" 
+                                      onClick={() => handleShowOcrMessage(a.ocrResult!.message, f.name)}
+                                      title="Ver mensagem do OCR"
+                                    >
+                                      <InfoCircleOutlined />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
                                 <IconButton size="small" onClick={() => window.open(url, '_blank') as any} title="Visualizar">
                                   <InfoCircleOutlined />
                                 </IconButton>
@@ -287,6 +417,28 @@ export default function StepAttachments() {
           })}
         </Stack>
       )}
+
+      {/* Dialog para exibir mensagem completa do OCR */}
+      <Dialog 
+        open={ocrMessageDialog.open} 
+        onClose={() => setOcrMessageDialog({ open: false, message: '', fileName: '' })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Mensagem do OCR - {ocrMessageDialog.fileName}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+            {ocrMessageDialog.message}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOcrMessageDialog({ open: false, message: '', fileName: '' })}>
+            Fechar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

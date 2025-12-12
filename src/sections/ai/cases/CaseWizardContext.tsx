@@ -13,16 +13,20 @@ export type OptionPiece = AiPiece;
 export type OptionTopic = AiTopic;
 export type OptionSpec = AiTopicSpecific;
 
+import type { OcrTestResponse } from 'api/aiDocs';
+
 export type CaseAttachmentItem = {
   id: string;
   topicSpecificId: string;
   box: AttachmentBox;
   file: File;
+  ocrResult?: OcrTestResponse;
 };
 
 export type CaseCommonAttachmentItem = {
   id: string;
   file: File;
+  ocrResult?: OcrTestResponse;
 };
 
 type Ctx = {
@@ -46,13 +50,15 @@ type Ctx = {
   instruction: string; setInstruction: (t: string) => void;
   attachments: CaseAttachmentItem[];
   setAttachments: (f: CaseAttachmentItem[]) => void;
-  addAttachments: (topicSpecificId: string, box: AttachmentBox, files: File[]) => void;
+  addAttachments: (topicSpecificId: string, box: AttachmentBox, files: File[]) => string[];
   removeAttachment: (id: string) => void;
   clearAttachments: (topicSpecificId?: string) => void;
+  updateAttachmentOcr: (id: string, ocrResult: OcrTestResponse) => void;
   // common attachments
   commonAttachments: CaseCommonAttachmentItem[];
-  addCommonAttachments: (files: File[]) => void;
+  addCommonAttachments: (files: File[]) => string[];
   removeCommonAttachment: (id: string) => void;
+  updateCommonAttachmentOcr: (id: string, ocrResult: OcrTestResponse) => void;
   // helpers
   canNext: (s: number) => boolean;
   maxStep: number;
@@ -117,8 +123,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const addAttachments = (topicSpecificId: string, box: AttachmentBox, filesToAdd: File[]) => {
-    if (!filesToAdd?.length) return;
+  const addAttachments = (topicSpecificId: string, box: AttachmentBox, filesToAdd: File[]): string[] => {
+    if (!filesToAdd?.length) return [];
     const items = filesToAdd.map((file) => ({
       id: genId(),
       topicSpecificId,
@@ -126,6 +132,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       file
     }));
     setAttachments((prev) => [...prev, ...items]);
+    return items.map(i => i.id);
   };
 
   const removeAttachment = (id: string) => {
@@ -137,17 +144,26 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     setAttachments((prev) => prev.filter((a) => a.topicSpecificId !== topicSpecificId));
   };
 
-  const addCommonAttachments = (filesToAdd: File[]) => {
-    if (!filesToAdd?.length) return;
+  const addCommonAttachments = (filesToAdd: File[]): string[] => {
+    if (!filesToAdd?.length) return [];
     const items = filesToAdd.map((file) => ({
       id: genId(),
       file
     }));
     setCommonAttachments((prev) => [...prev, ...items]);
+    return items.map(i => i.id);
   };
 
   const removeCommonAttachment = (id: string) => {
     setCommonAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const updateAttachmentOcr = (id: string, ocrResult: OcrTestResponse) => {
+    setAttachments((prev) => prev.map((a) => (a.id === id ? { ...a, ocrResult } : a)));
+  };
+
+  const updateCommonAttachmentOcr = (id: string, ocrResult: OcrTestResponse) => {
+    setCommonAttachments((prev) => prev.map((a) => (a.id === id ? { ...a, ocrResult } : a)));
   };
 
   // encadeamento de resets
@@ -408,8 +424,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       specDetails, setSpecDetails,
       instruction, setInstruction,
       attachments, setAttachments,
-      addAttachments, removeAttachment, clearAttachments,
-      commonAttachments, addCommonAttachments, removeCommonAttachment,
+      addAttachments, removeAttachment, clearAttachments, updateAttachmentOcr,
+      commonAttachments, addCommonAttachments, removeCommonAttachment, updateCommonAttachmentOcr,
       canNext, maxStep, payloadPreview, validateAttachments,
       downloadPieceDocx, downloadSpecDocx,
       buildFormData, buildCaseContextFormData, formPreview
