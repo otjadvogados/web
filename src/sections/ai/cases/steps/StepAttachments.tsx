@@ -89,11 +89,11 @@ export default function StepAttachments() {
     if (!ocrResult) return null;
     
     if (ocrResult.ocr === 'Sucesso') {
-      return <CheckCircleOutlined sx={{ color: 'success.main', fontSize: 18 }} />;
+      return <CheckCircleOutlined style={{ color: '#4caf50', fontSize: 18 }} />;
     } else if (ocrResult.ocr === 'Atenção') {
-      return <WarningOutlined sx={{ color: 'warning.main', fontSize: 18 }} />;
+      return <WarningOutlined style={{ color: '#ff9800', fontSize: 18 }} />;
     } else {
-      return <CloseCircleOutlined sx={{ color: 'error.main', fontSize: 18 }} />;
+      return <CloseCircleOutlined style={{ color: '#f44336', fontSize: 18 }} />;
     }
   };
 
@@ -156,7 +156,10 @@ export default function StepAttachments() {
       map[a.topicSpecificId][a.box].push(a);
     }
     return map;
-  }, [specs.map(s => s.id).join('|'), attachments.map(a => a.id).join('|')]);
+  }, [
+    specs.map(s => s.id).join('|'), 
+    attachments.map(a => `${a.id}-${a.ocrResult?.ocr || 'none'}`).join('|')
+  ]);
 
   const validation = useMemo(() => validateAttachments(), [specs.map(s => s.id).join('|'), attachments.map(a => a.id).join('|'), validateAttachments]);
 
@@ -353,8 +356,8 @@ export default function StepAttachments() {
                                     </IconButton>
                                   </Tooltip>
                                 )}
-                                <IconButton size="small" onClick={() => window.open(url, '_blank') as any} title="Visualizar">
-                                  <InfoCircleOutlined />
+                                <IconButton size="small" onClick={() => window.open(url, '_blank') as any} title="Visualizar arquivo">
+                                  <EyeOutlined />
                                 </IconButton>
                                 <IconButton size="small" color="error" onClick={() => removeAttachment(a.id)} title="Remover">
                                   <CloseOutlined />
