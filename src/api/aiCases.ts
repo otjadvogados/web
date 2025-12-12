@@ -12,6 +12,15 @@ export type CaseAttachmentMeta = {
   size: number;
 };
 
+export type CaseCommonAttachmentMeta = {
+  /** posição do arquivo no FormData (ordem importa) */
+  index: number;
+  name: string;
+  type: string;
+  size: number;
+  isCommon: true; // marca como arquivo comum
+};
+
 export type CaseContextFields = {
   departmentId: string;
   customerIds?: string[]; // múltiplos clientes
@@ -25,6 +34,8 @@ export type CaseContextFields = {
 
   /** NOVO: metadados dos anexos por tópico específico e por caixa */
   attachmentsMeta?: CaseAttachmentMeta[];
+  /** NOVO: metadados dos arquivos em comum para todos os tópicos específicos */
+  commonAttachmentsMeta?: CaseCommonAttachmentMeta[];
 };
 
 export type CaseContextResponse = {
@@ -53,7 +64,8 @@ export type CaseContextResponse = {
  * { message, data: { html, _infos, placeholders, ... } }.
  * Espera FormData com:
  *  - fields: JSON string (CaseContextFields)
- *  - attachments: múltiplos arquivos (pdf/imagem)
+ *  - attachments: múltiplos arquivos (pdf/imagem) - anexos por tópico específico
+ *  - commonAttachments: múltiplos arquivos (pdf/imagem) - arquivos em comum
  */
 export async function postCaseContext(form: FormData) {
   const { data } = await axios.post<CaseContextResponse>(

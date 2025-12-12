@@ -16,7 +16,7 @@ import { BRAND_GOLD } from 'config';
 import { useCaseWizard } from '../CaseWizardContext';
 
 export default function StepAttachments() {
-  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics } = useCaseWizard();
+  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment } = useCaseWizard();
 
   const isValidType = (file: File) =>
     /(^application\/pdf$)|(^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$)|(^image\/(png|jpeg|jpg|webp|gif)$)/i.test(file.type);
@@ -37,6 +37,22 @@ export default function StepAttachments() {
       }
       addAttachments(topicSpecificId, box, valid);
     };
+
+  const handlePickCommon = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!f.length) return;
+    const valid = f.filter(isValidType);
+    if (valid.length !== f.length) {
+      openSnackbar({
+        open: true,
+        message: 'Alguns arquivos foram ignorados (somente PDF, DOCX e imagens).',
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+    }
+    addCommonAttachments(valid);
+  };
 
   const bySpec = useMemo(() => {
     const map: Record<string, { claimant: any[]; client: any[] }> = {};
@@ -75,6 +91,76 @@ export default function StepAttachments() {
         multiline
         minRows={3}
       />
+
+      {/* Campo de Arquivos em comum */}
+      {specs.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 1.5 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
+            <Stack>
+              <Typography fontWeight={700}>Arquivos em comum</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Arquivos que serão aplicados a todos os tópicos específicos
+              </Typography>
+            </Stack>
+            <Button
+              size="small"
+              startIcon={<UploadOutlined />}
+              variant="outlined"
+              onClick={() => document.getElementById('common-attachments-input')?.click()}
+            >
+              Adicionar
+            </Button>
+            <input
+              id="common-attachments-input"
+              type="file"
+              multiple
+              accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif"
+              style={{ display: 'none' }}
+              onChange={handlePickCommon}
+            />
+          </Stack>
+          {!commonAttachments.length ? (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              Nenhum arquivo em comum adicionado.
+            </Typography>
+          ) : (
+            <Stack spacing={1}>
+              {commonAttachments.map((a) => {
+                const f = a.file as File;
+                const isImg = /^image\//i.test(f.type);
+                const isPdf = /^application\/pdf$/i.test(f.type);
+                const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
+                const url = URL.createObjectURL(f);
+                return (
+                  <Paper variant="outlined" sx={{ p: 1 }} key={a.id}>
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                      <Box sx={{ width: 48, height: 48, borderRadius: 1, overflow: 'hidden', bgcolor: 'grey.100', display: 'grid', placeItems: 'center' }}>
+                        {isImg ? (
+                          <img src={url} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <Typography variant="caption">{isDocx ? 'DOCX' : (isPdf ? 'PDF' : 'ARQ')}</Typography>
+                        )}
+                      </Box>
+                      <Stack flex={1} minWidth={0}>
+                        <Typography noWrap title={f.name}>{f.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{(f.size / 1024).toFixed(1)} KB</Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={0.5}>
+                        <IconButton size="small" onClick={() => window.open(url, '_blank') as any} title="Visualizar">
+                          <InfoCircleOutlined />
+                        </IconButton>
+                        <IconButton size="small" color="error" onClick={() => removeCommonAttachment(a.id)} title="Remover">
+                          <CloseOutlined />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                );
+              })}
+            </Stack>
+          )}
+        </Paper>
+      )}
 
       {!specs.length ? (
         <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>

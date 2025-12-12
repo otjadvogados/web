@@ -5,7 +5,7 @@ import { AiPiece, fetchPieceDocx } from 'api/aiPieces';
 import { AiTopic } from 'api/aiTopics';
 import { AiTopicSpecific, fetchTopicSpecificDocx } from 'api/aiTopicSpecifics';
 import { openSnackbar } from 'api/snackbar';
-import type { CaseContextFields, AttachmentBox, CaseAttachmentMeta } from 'api/aiCases';
+import type { CaseContextFields, AttachmentBox, CaseAttachmentMeta, CaseCommonAttachmentMeta } from 'api/aiCases';
 
 export type OptionDept = Pick<Department, 'id'|'name'>;
 export type OptionCust = Pick<Customer, 'id'|'displayName'|'name'|'kind'|'isMatriz'|'isFilial'|'parentCustomerId'>;
@@ -17,6 +17,11 @@ export type CaseAttachmentItem = {
   id: string;
   topicSpecificId: string;
   box: AttachmentBox;
+  file: File;
+};
+
+export type CaseCommonAttachmentItem = {
+  id: string;
   file: File;
 };
 
@@ -44,6 +49,10 @@ type Ctx = {
   addAttachments: (topicSpecificId: string, box: AttachmentBox, files: File[]) => void;
   removeAttachment: (id: string) => void;
   clearAttachments: (topicSpecificId?: string) => void;
+  // common attachments
+  commonAttachments: CaseCommonAttachmentItem[];
+  addCommonAttachments: (files: File[]) => void;
+  removeCommonAttachment: (id: string) => void;
   // helpers
   canNext: (s: number) => boolean;
   maxStep: number;
@@ -66,8 +75,10 @@ type Ctx = {
       topicSpecificIds: string[];
       instruction: string | null;
       attachmentsMeta?: CaseAttachmentMeta[];
+      commonAttachmentsMeta?: CaseCommonAttachmentMeta[];
     };
     attachments: { name: string; type: string; size: number; topicSpecificId?: string; box?: AttachmentBox }[];
+    commonAttachments: { name: string; type: string; size: number }[];
   };
 };
 
@@ -95,6 +106,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
 
   const [instruction, setInstruction] = useState('');
   const [attachments, setAttachments] = useState<CaseAttachmentItem[]>([]);
+  const [commonAttachments, setCommonAttachments] = useState<CaseCommonAttachmentItem[]>([]);
 
   const genId = () => {
     try {
@@ -123,6 +135,19 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const clearAttachments = (topicSpecificId?: string) => {
     if (!topicSpecificId) return setAttachments([]);
     setAttachments((prev) => prev.filter((a) => a.topicSpecificId !== topicSpecificId));
+  };
+
+  const addCommonAttachments = (filesToAdd: File[]) => {
+    if (!filesToAdd?.length) return;
+    const items = filesToAdd.map((file) => ({
+      id: genId(),
+      file
+    }));
+    setCommonAttachments((prev) => [...prev, ...items]);
+  };
+
+  const removeCommonAttachment = (id: string) => {
+    setCommonAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
   // encadeamento de resets
@@ -269,11 +294,25 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     }));
     if (attachmentsMeta.length) fields.attachmentsMeta = attachmentsMeta;
 
+    // --- NOVO: meta dos arquivos em comum ---
+    const commonAttachmentsMeta: CaseCommonAttachmentMeta[] = commonAttachments.map((a, index) => ({
+      index,
+      name: a.file.name,
+      type: a.file.type,
+      size: a.file.size,
+      isCommon: true as const
+    }));
+    if (commonAttachmentsMeta.length) fields.commonAttachmentsMeta = commonAttachmentsMeta;
+
     const fd = new FormData();
     fd.append('fields', JSON.stringify(fields));
     // importante: mesma ordem do attachmentsMeta
     attachments.forEach((a) => {
       fd.append('attachments', a.file, a.file.name);
+    });
+    // arquivos comuns em campo separado
+    commonAttachments.forEach((a) => {
+      fd.append('commonAttachments', a.file, a.file.name);
     });
     return fd;
   };
@@ -296,6 +335,13 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
         name: a.file.name,
         type: a.file.type,
         size: a.file.size
+      })),
+      commonAttachmentsMeta: commonAttachments.map((a, index) => ({
+        index,
+        name: a.file.name,
+        type: a.file.type,
+        size: a.file.size,
+        isCommon: true as const
       }))
     },
     attachments: attachments.map(a => ({
@@ -304,8 +350,13 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       size: a.file.size,
       topicSpecificId: a.topicSpecificId,
       box: a.box
+    })),
+    commonAttachments: commonAttachments.map(a => ({
+      name: a.file.name,
+      type: a.file.type,
+      size: a.file.size
     }))
-  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, topics.map(t=>t.id).join('|'), specs.map(s=>s.id).join('|'), instruction, attachments.map(a=>a.id).join('|')]);
+  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, topics.map(t=>t.id).join('|'), specs.map(s=>s.id).join('|'), instruction, attachments.map(a=>a.id).join('|'), commonAttachments.map(a=>a.id).join('|')]);
 
   const downloading = useRef(false);
   const downloadPieceDocx = async () => {
@@ -358,6 +409,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       instruction, setInstruction,
       attachments, setAttachments,
       addAttachments, removeAttachment, clearAttachments,
+      commonAttachments, addCommonAttachments, removeCommonAttachment,
       canNext, maxStep, payloadPreview, validateAttachments,
       downloadPieceDocx, downloadSpecDocx,
       buildFormData, buildCaseContextFormData, formPreview
