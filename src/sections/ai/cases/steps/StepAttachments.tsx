@@ -12,10 +12,11 @@ import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
 import WarningOutlined from '@ant-design/icons/WarningOutlined';
 import { openSnackbar } from 'api/snackbar';
+import { BRAND_GOLD } from 'config';
 import { useCaseWizard } from '../CaseWizardContext';
 
 export default function StepAttachments() {
-  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments } = useCaseWizard();
+  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics } = useCaseWizard();
 
   const isValidType = (file: File) =>
     /(^application\/pdf$)|(^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$)|(^image\/(png|jpeg|jpg|webp|gif)$)/i.test(file.type);
@@ -156,6 +157,9 @@ export default function StepAttachments() {
             const hasAttachments = (group.claimant?.length || 0) + (group.client?.length || 0) > 0;
             const specMissing = validation.missingSpecs.includes(spec.name);
 
+            // Busca o nome do tópico: primeiro tenta spec.topic?.name, depois busca em topics pelo topicId
+            const topicName = spec.topic?.name || (spec.topicId ? topics.find(t => t.id === spec.topicId)?.name : null);
+
             return (
               <Paper 
                 key={spec.id} 
@@ -170,8 +174,16 @@ export default function StepAttachments() {
                 }}
               >
                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                  <Typography fontWeight={700}>
+                  <Typography fontWeight={700} component="span">
                     {spec.name}
+                    {topicName && (
+                      <>
+                        {' - '}
+                        <Typography component="span" sx={{ color: BRAND_GOLD }}>
+                          {topicName}
+                        </Typography>
+                      </>
+                    )}
                   </Typography>
                   {!hasAttachments && (
                     <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
