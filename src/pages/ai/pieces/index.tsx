@@ -23,6 +23,7 @@ import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import UploadOutlined from '@ant-design/icons/UploadOutlined';
 import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
+import CircularProgress from '@mui/material/CircularProgress';
 import AIIcon from 'components/icons/AIIcon';
 import MainCard from 'components/MainCard';
 import { listPieces, deletePiece, uploadPieceDocx, deletePieceDocx, fetchPieceDocx, AiPiece } from 'api/aiPieces';
@@ -55,6 +56,7 @@ export default function AIPiecesPage() {
   // DOCX upload
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingUploadId, setPendingUploadId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
@@ -140,6 +142,7 @@ export default function AIPiecesPage() {
     if (!file || !pendingUploadId) return;
     
     try {
+      setUploadingId(pendingUploadId);
       await uploadPieceDocx(pendingUploadId, file);
       openSnackbar({ 
         open: true, 
@@ -156,6 +159,7 @@ export default function AIPiecesPage() {
         alert: { color: 'error' } 
       } as any);
     } finally {
+      setUploadingId(null);
       setPendingUploadId(null);
     }
   };
@@ -275,8 +279,9 @@ export default function AIPiecesPage() {
                         <Button 
                           size="small" 
                           variant="outlined" 
-                          startIcon={<UploadOutlined />}
+                          startIcon={uploadingId === p.id ? <CircularProgress size={16} /> : <UploadOutlined />}
                           onClick={() => triggerUpload(p.id)}
+                          disabled={uploadingId === p.id}
                         >
                           {p.docxFileId ? 'Trocar DOCX' : 'Anexar DOCX'}
                         </Button>
@@ -370,8 +375,9 @@ export default function AIPiecesPage() {
                             <Button 
                               size="small" 
                               variant="outlined" 
-                              startIcon={<UploadOutlined />}
+                              startIcon={uploadingId === p.id ? <CircularProgress size={16} /> : <UploadOutlined />}
                               onClick={() => triggerUpload(p.id)}
+                              disabled={uploadingId === p.id}
                             >
                               {p.docxFileId ? 'Trocar' : 'Anexar'}
                             </Button>

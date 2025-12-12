@@ -49,6 +49,9 @@ import '@fontsource/montserrat/500.css';
 import '@fontsource/montserrat/600.css';
 import '@fontsource/montserrat/700.css';
 
+// Century Gothic fonts (local files)
+import 'assets/fonts/century-gothic.css';
+
 // project imports
 import App from './App';
 import { ConfigProvider } from 'contexts/ConfigContext';

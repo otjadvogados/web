@@ -1,0 +1,43 @@
+/* Century Gothic Font Face Definitions */
+
+@font-face {
+  font-family: 'Century Gothic';
+  src: url('./century-gothic/century-gothic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Century Gothic';
+  src: url('./century-gothic/century-gothic-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Century Gothic';
+  src: url('./century-gothic/century-gothic-italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Century Gothic';
+  src: url('./century-gothic/century-gothic-bold-italic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Century Gothic Again (alternativa) */
+@font-face {
+  font-family: 'Century Gothic Again';
+  src: url('./century-gothic/centurygothicagain-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+

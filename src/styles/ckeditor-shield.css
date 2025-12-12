@@ -1,4 +1,8 @@
 /* Escudo contra resets globais */
+.otj-ckeditor p{
+  font-family: 'Century Gothic' !important;
+}
+
 .otj-ckeditor .ck.ck-toolbar__items {
   display: flex !important;
   flex-wrap: wrap !important;
@@ -10,9 +14,11 @@
   display: flex !important;
   align-items: center !important;
 }
+
 .ck.ck-balloon-panel.ck-powered-by-balloon .ck.ck-powered-by {
   display: none;
 }
+
 .otj-ckeditor .ck.ck-button,
 .otj-ckeditor .ck.ck-dropdown__button {
   display: inline-flex !important;
@@ -32,7 +38,8 @@
 /* ===== Fix de tabelas dentro do CKEditor ===== */
 .otj-ckeditor .ck-content table {
   width: 100% !important;
-  table-layout: fixed; /* força distribuir colunas */
+  table-layout: fixed;
+  /* força distribuir colunas */
   border-collapse: collapse;
 }
 
@@ -53,4 +60,3 @@
 .otj-ckeditor .ck-content th {
   display: table-cell !important;
 }
-
