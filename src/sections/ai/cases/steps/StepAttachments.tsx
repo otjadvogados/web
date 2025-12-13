@@ -28,6 +28,7 @@ import { testOcr, type OcrTestResponse } from 'api/aiDocs';
 export default function StepAttachments() {
   const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment, updateAttachmentOcr, updateCommonAttachmentOcr } = useCaseWizard();
   const [verifyingOcr, setVerifyingOcr] = useState<Set<string>>(new Set());
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [ocrMessageDialog, setOcrMessageDialog] = useState<{ open: boolean; message: string; fileName: string }>({ open: false, message: '', fileName: '' });
 
   const isValidType = (file: File) =>
@@ -116,13 +117,30 @@ export default function StepAttachments() {
         } as any);
       }
       
-      // Adiciona os anexos e obtém os IDs
-      const attachmentIds = addAttachments(topicSpecificId, box, valid);
+      // Marca os arquivos como sendo processados
+      const fileKeys = valid.map(file => `${file.name}-${file.size}`);
+      setUploadingFiles(prev => {
+        const next = new Set(prev);
+        fileKeys.forEach(key => next.add(key));
+        return next;
+      });
       
-      // Verifica OCR de cada arquivo em paralelo
-      await Promise.all(valid.map((file, index) => 
-        verifyFileOcr(file, attachmentIds[index], false)
-      ));
+      try {
+        // Adiciona os anexos e obtém os IDs
+        const attachmentIds = addAttachments(topicSpecificId, box, valid);
+        
+        // Verifica OCR de cada arquivo em paralelo
+        await Promise.all(valid.map((file, index) => 
+          verifyFileOcr(file, attachmentIds[index], false)
+        ));
+      } finally {
+        // Remove os arquivos do estado de loading após concluir
+        setUploadingFiles(prev => {
+          const next = new Set(prev);
+          fileKeys.forEach(key => next.delete(key));
+          return next;
+        });
+      }
     };
 
   const handlePickCommon = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,13 +157,30 @@ export default function StepAttachments() {
       } as any);
     }
     
-    // Adiciona os anexos e obtém os IDs
-    const attachmentIds = addCommonAttachments(valid);
+    // Marca os arquivos como sendo processados
+    const fileKeys = valid.map(file => `${file.name}-${file.size}`);
+    setUploadingFiles(prev => {
+      const next = new Set(prev);
+      fileKeys.forEach(key => next.add(key));
+      return next;
+    });
     
-    // Verifica OCR de cada arquivo em paralelo
-    await Promise.all(valid.map((file, index) => 
-      verifyFileOcr(file, attachmentIds[index], true)
-    ));
+    try {
+      // Adiciona os anexos e obtém os IDs
+      const attachmentIds = addCommonAttachments(valid);
+      
+      // Verifica OCR de cada arquivo em paralelo
+      await Promise.all(valid.map((file, index) => 
+        verifyFileOcr(file, attachmentIds[index], true)
+      ));
+    } finally {
+      // Remove os arquivos do estado de loading após concluir
+      setUploadingFiles(prev => {
+        const next = new Set(prev);
+        fileKeys.forEach(key => next.delete(key));
+        return next;
+      });
+    }
   };
 
   const bySpec = useMemo(() => {
@@ -162,6 +197,9 @@ export default function StepAttachments() {
   ]);
 
   const validation = useMemo(() => validateAttachments(), [specs.map(s => s.id).join('|'), attachments.map(a => a.id).join('|'), validateAttachments]);
+
+  // Verifica se há algum arquivo sendo processado
+  const isProcessingFiles = uploadingFiles.size > 0 || verifyingOcr.size > 0;
 
   return (
     <Stack spacing={1.5}>
@@ -204,6 +242,7 @@ export default function StepAttachments() {
               startIcon={<UploadOutlined />}
               variant="outlined"
               onClick={() => document.getElementById('common-attachments-input')?.click()}
+              disabled={isProcessingFiles}
             >
               Adicionar
             </Button>
@@ -229,7 +268,9 @@ export default function StepAttachments() {
                 const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
                 const url = URL.createObjectURL(f);
                 const fileKey = `${f.name}-${f.size}`;
+                const isUploading = uploadingFiles.has(fileKey);
                 const isVerifying = verifyingOcr.has(fileKey);
+                const isLoading = isUploading || isVerifying;
                 const ocrStatusIcon = getOcrStatusIcon(a.ocrResult);
                 return (
                   <Paper variant="outlined" sx={{ p: 1 }} key={a.id}>
@@ -244,8 +285,8 @@ export default function StepAttachments() {
                       <Stack flex={1} minWidth={0}>
                         <Stack direction="row" spacing={0.5} alignItems="center">
                           <Typography noWrap title={f.name}>{f.name}</Typography>
-                          {isVerifying && <CircularProgress size={12} />}
-                          {ocrStatusIcon && !isVerifying && ocrStatusIcon}
+                          {isLoading && <CircularProgress size={12} />}
+                          {ocrStatusIcon && !isLoading && ocrStatusIcon}
                         </Stack>
                         <Typography variant="caption" color="text.secondary">{(f.size / 1024).toFixed(1)} KB</Typography>
                       </Stack>
@@ -298,6 +339,7 @@ export default function StepAttachments() {
                       startIcon={<UploadOutlined />}
                       variant="outlined"
                       onClick={() => document.getElementById(inputId)?.click()}
+                      disabled={isProcessingFiles}
                     >
                       Adicionar
                     </Button>
@@ -324,7 +366,9 @@ export default function StepAttachments() {
                         const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
                         const url = URL.createObjectURL(f);
                         const fileKey = `${f.name}-${f.size}`;
+                        const isUploading = uploadingFiles.has(fileKey);
                         const isVerifying = verifyingOcr.has(fileKey);
+                        const isLoading = isUploading || isVerifying;
                         const ocrStatusIcon = getOcrStatusIcon(a.ocrResult);
                         return (
                           <Paper variant="outlined" sx={{ p: 1 }} key={a.id}>
@@ -339,8 +383,8 @@ export default function StepAttachments() {
                               <Stack flex={1} minWidth={0}>
                                 <Stack direction="row" spacing={0.5} alignItems="center">
                                   <Typography noWrap title={f.name}>{f.name}</Typography>
-                                  {isVerifying && <CircularProgress size={12} />}
-                                  {ocrStatusIcon && !isVerifying && ocrStatusIcon}
+                                  {isLoading && <CircularProgress size={12} />}
+                                  {ocrStatusIcon && !isLoading && ocrStatusIcon}
                                 </Stack>
                                 <Typography variant="caption" color="text.secondary">{(f.size / 1024).toFixed(1)} KB</Typography>
                               </Stack>
