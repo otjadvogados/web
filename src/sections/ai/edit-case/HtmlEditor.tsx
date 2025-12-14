@@ -128,6 +128,28 @@ function parseArticleParts(html: string): ArticleParts {
 }
 
 /**
+ * Converte tamanhos de fonte de px para pt no HTML
+ * Processa diretamente na string HTML para garantir que todos os casos sejam capturados
+ */
+function convertFontSizePxToPt(html: string): string {
+  if (!html) return html;
+  
+  try {
+    // Regex para encontrar font-size:XXpx em qualquer contexto dentro de atributos style
+    // Funciona com aspas simples, duplas ou sem aspas (embora sem aspas seja inválido, alguns parsers aceitam)
+    // Também captura casos onde há espaços extras
+    return html.replace(
+      /font-size\s*:\s*(\d+(?:\.\d+)?)\s*px/gi,
+      'font-size:$1pt'
+    );
+  } catch (err) {
+    // Em caso de erro, retorna o HTML original
+    console.warn('Erro ao converter font-size de px para pt:', err);
+    return html;
+  }
+}
+
+/**
  * Processa HTML para garantir que frases específicas de fechamento sejam centralizadas
  */
 function ensureClosingPhrasesCentered(html: string): string {
@@ -189,8 +211,10 @@ function ensureClosingPhrasesCentered(html: string): string {
 }
 
 function buildArticle(parts: ArticleParts, newInner: string) {
+  // Converte font-size de px para pt primeiro
+  const convertedInner = convertFontSizePxToPt(newInner);
   // Processa o conteúdo para garantir centralização das frases de fechamento
-  const processedInner = ensureClosingPhrasesCentered(newInner);
+  const processedInner = ensureClosingPhrasesCentered(convertedInner);
   
   // Sempre devolve um <article> para manter compatibilidade com o backend
   let out = '<article';
@@ -204,7 +228,9 @@ function buildArticle(parts: ArticleParts, newInner: string) {
   out += parts.styleTagsHtml || '';
   out += processedInner || '';
   out += '</article>';
-  return out;
+  
+  // Conversão final para garantir que nenhum px tenha escapado
+  return convertFontSizePxToPt(out);
 }
 
 export default function HtmlEditor({ html, onChange, editable = true }: Props) {
@@ -223,7 +249,8 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
   // Estado interno para o conteúdo do editor (evita reset do cursor durante digitação)
   const [editorData, setEditorData] = useState(() => {
     const initialContent = parts.innerContent ?? '';
-    return ensureClosingPhrasesCentered(initialContent);
+    const convertedContent = convertFontSizePxToPt(initialContent);
+    return ensureClosingPhrasesCentered(convertedContent);
   });
 
   // Sincroniza o estado interno quando o html prop mudar externamente
@@ -239,7 +266,8 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
     if (html !== lastHtmlRef.current) {
       lastHtmlRef.current = html;
       const parsed = parseArticleParts(html);
-      const newContent = ensureClosingPhrasesCentered(parsed.innerContent ?? '');
+      const convertedContent = convertFontSizePxToPt(parsed.innerContent ?? '');
+      const newContent = ensureClosingPhrasesCentered(convertedContent);
       // Só atualiza se o conteúdo realmente mudou
       setEditorData(prev => {
         if (prev !== newContent) {
@@ -371,8 +399,9 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
     },
     fontSize: {
       options: [
-        9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72
-      ]
+        '9pt', '10pt', '11pt', '12pt', '13pt', '14pt', '15pt', '16pt', '18pt', '20pt', '22pt', '24pt', '26pt', '28pt', '36pt', '48pt', '72pt'
+      ],
+      supportAllValues: true
     },
     table: {
       contentToolbar: [

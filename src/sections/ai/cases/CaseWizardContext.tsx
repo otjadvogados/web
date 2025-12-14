@@ -186,10 +186,17 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   }, [topics]);
 
   // Valida se todos os tópicos específicos têm pelo menos 1 anexo
+  // Se houver anexos em comum, os tópicos específicos podem ficar vazios
   const validateAttachments = () => {
     if (specs.length === 0) {
       return { valid: true, missingSpecs: [] }; // se não há specs, não precisa validar
     }
+    
+    // Se houver anexos em comum, não precisa validar os tópicos específicos
+    if (commonAttachments.length > 0) {
+      return { valid: true, missingSpecs: [] };
+    }
+    
     const specIds = new Set(specs.map(s => s.id));
     const attachmentsBySpec = new Map<string, number>();
     
@@ -299,11 +306,11 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     if (!dept?.id || !piece?.id || !piece?.docxFileId) {
       throw new Error('Departamento e Peça com DOCX são obrigatórios para criar o caso.');
     }
-    // Valida se todos os tópicos específicos têm pelo menos 1 anexo
+    // Valida se todos os tópicos específicos têm pelo menos 1 anexo (ou se há anexos em comum)
     const validation = validateAttachments();
     if (!validation.valid) {
       const specsList = validation.missingSpecs.join(', ');
-      throw new Error(`Cada tópico específico deve ter pelo menos 1 anexo. Faltam anexos em: ${specsList}`);
+      throw new Error(`Cada tópico específico deve ter pelo menos 1 anexo, ou adicione arquivos em comum. Faltam anexos em: ${specsList}`);
     }
     const fields: CaseContextFields = {
       departmentId: dept.id,

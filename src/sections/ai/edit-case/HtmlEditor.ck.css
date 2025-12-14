@@ -23,11 +23,6 @@
   border: none !important;
 }
 
-.otj-ckeditor .mention {
-  background-color: transparent !important;
-  color: inherit !important;
-}
-
 .otj-ckeditor .ck,
 .otj-ckeditor .ck * {
   box-sizing: border-box;

@@ -1,14 +1,30 @@
 /* Escudo contra resets globais */
-.ck-content{
+.ck-content {
   overflow: visible !important;
 }
 
 .otj-ckeditor p,
-.otj-ckeditor table{
+.otj-ckeditor table {
   font-family: 'Century Gothic' !important;
 }
 
-#doc-header-img{
+.otj-ckeditor .mention {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
+.otj-ckeditor .suggestion {
+  color: black !important;
+  background-color: yellow !important;
+}
+
+.otj-ckeditor .suggestion a{
+  color: #242424 !important;
+  background-color: yellow !important;
+  line-height: 1.15 !important;
+}
+
+#doc-header-img {
   position: absolute;
   top: -110px;
 }

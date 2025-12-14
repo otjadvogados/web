@@ -196,7 +196,7 @@ export default function StepAttachments() {
     attachments.map(a => `${a.id}-${a.ocrResult?.ocr || 'none'}`).join('|')
   ]);
 
-  const validation = useMemo(() => validateAttachments(), [specs.map(s => s.id).join('|'), attachments.map(a => a.id).join('|'), validateAttachments]);
+  const validation = useMemo(() => validateAttachments(), [specs.map(s => s.id).join('|'), attachments.map(a => a.id).join('|'), commonAttachments.map(a => a.id).join('|'), validateAttachments]);
   const ocrErrors = useMemo(() => hasOcrErrors(), [attachments.map(a => `${a.id}-${a.ocrResult?.ocr || 'none'}`).join('|'), commonAttachments.map(a => `${a.id}-${a.ocrResult?.ocr || 'none'}`).join('|')]);
 
   // Verifica se há algum arquivo sendo processado
@@ -227,7 +227,7 @@ export default function StepAttachments() {
           sx={{ mb: 1 }}
         >
           <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
-            Atenção: Cada tópico específico deve ter pelo menos 1 anexo (em qualquer caixa).
+            Atenção: Cada tópico específico deve ter pelo menos 1 anexo (em qualquer caixa), ou adicione arquivos em comum.
           </Typography>
           <Typography variant="body2">
             Faltam anexos em: <strong>{validation.missingSpecs.join(', ')}</strong>
