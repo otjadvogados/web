@@ -55,7 +55,7 @@ function CreateCaseWizardInner() {
     dept, customers, piece, topic, topics, specs,
     pieceDetail, topicDetail, payloadPreview,
     downloadPieceDocx, buildFormData, buildCaseContextFormData, formPreview,
-    validateAttachments
+    validateAttachments, hasOcrErrors
   } = useCaseWizard();
 
   const navigate = useNavigate();
@@ -168,7 +168,7 @@ function CreateCaseWizardInner() {
                     <Button
                       variant="contained"
                       onClick={doSubmit}
-                      disabled={submitting || !dept?.id || !piece?.id || !validateAttachments().valid}
+                      disabled={submitting || !dept?.id || !piece?.id || !validateAttachments().valid || hasOcrErrors().hasErrors}
                       startIcon={submitting ? <CircularProgress size={16} /> : undefined}
                     >
                       {submitting ? 'Enviando…' : 'Criar Caso'}

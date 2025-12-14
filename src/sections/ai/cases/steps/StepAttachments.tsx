@@ -26,7 +26,7 @@ import { useCaseWizard } from '../CaseWizardContext';
 import { testOcr, type OcrTestResponse } from 'api/aiDocs';
 
 export default function StepAttachments() {
-  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment, updateAttachmentOcr, updateCommonAttachmentOcr } = useCaseWizard();
+  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment, updateAttachmentOcr, updateCommonAttachmentOcr, hasOcrErrors } = useCaseWizard();
   const [verifyingOcr, setVerifyingOcr] = useState<Set<string>>(new Set());
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [ocrMessageDialog, setOcrMessageDialog] = useState<{ open: boolean; message: string; fileName: string }>({ open: false, message: '', fileName: '' });
@@ -197,6 +197,7 @@ export default function StepAttachments() {
   ]);
 
   const validation = useMemo(() => validateAttachments(), [specs.map(s => s.id).join('|'), attachments.map(a => a.id).join('|'), validateAttachments]);
+  const ocrErrors = useMemo(() => hasOcrErrors(), [attachments.map(a => `${a.id}-${a.ocrResult?.ocr || 'none'}`).join('|'), commonAttachments.map(a => `${a.id}-${a.ocrResult?.ocr || 'none'}`).join('|')]);
 
   // Verifica se há algum arquivo sendo processado
   const isProcessingFiles = uploadingFiles.size > 0 || verifyingOcr.size > 0;
@@ -205,6 +206,20 @@ export default function StepAttachments() {
     <Stack spacing={1.5}>
       <Typography fontWeight={700}>6. Instruções & Anexos</Typography>
       
+      {ocrErrors.hasErrors && (
+        <Alert 
+          severity="error" 
+          icon={<CloseCircleOutlined />}
+          sx={{ mb: 1 }}
+        >
+          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+            Erro: Existem arquivos com erro de OCR. Remova-os antes de criar o caso.
+          </Typography>
+          <Typography variant="body2">
+            Arquivos com erro: <strong>{ocrErrors.errorFiles.join(', ')}</strong>
+          </Typography>
+        </Alert>
+      )}
       {specs.length > 0 && !validation.valid && (
         <Alert 
           severity="warning" 

@@ -64,6 +64,7 @@ type Ctx = {
   maxStep: number;
   payloadPreview: any; // mantido para compat, mas agora usamos formPreview para exibir no UI
   validateAttachments: () => { valid: boolean; missingSpecs: string[] };
+  hasOcrErrors: () => { hasErrors: boolean; errorFiles: string[] };
   // downloads
   downloadPieceDocx: () => Promise<void>;
   downloadSpecDocx: (id: string) => Promise<void>;
@@ -207,6 +208,29 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     return {
       valid: missingSpecs.length === 0,
       missingSpecs
+    };
+  };
+
+  const hasOcrErrors = () => {
+    const errorFiles: string[] = [];
+    
+    // Verifica anexos regulares
+    attachments.forEach(a => {
+      if (a.ocrResult && a.ocrResult.ocr === 'Erro') {
+        errorFiles.push(a.file.name);
+      }
+    });
+    
+    // Verifica anexos em comum
+    commonAttachments.forEach(a => {
+      if (a.ocrResult && a.ocrResult.ocr === 'Erro') {
+        errorFiles.push(a.file.name);
+      }
+    });
+    
+    return {
+      hasErrors: errorFiles.length > 0,
+      errorFiles
     };
   };
 
@@ -426,7 +450,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       attachments, setAttachments,
       addAttachments, removeAttachment, clearAttachments, updateAttachmentOcr,
       commonAttachments, addCommonAttachments, removeCommonAttachment, updateCommonAttachmentOcr,
-      canNext, maxStep, payloadPreview, validateAttachments,
+      canNext, maxStep, payloadPreview, validateAttachments, hasOcrErrors,
       downloadPieceDocx, downloadSpecDocx,
       buildFormData, buildCaseContextFormData, formPreview
     }}>
