@@ -161,9 +161,7 @@ function ensureClosingPhrasesCentered(html: string): string {
     
     // Frases que devem ser centralizadas (como texto completo ou principal do parágrafo)
     const phrasesToCenter = [
-      /^Nestes termos,?\s*$/i,
-      /^pede deferimento\.?\s*$/i,
-      /^P\.\s*deferimento\.?\s*$/i
+      /^asdasdasadsdasdasdfdssdfsdf,?\s*$/i
     ];
     
     // Processa todos os parágrafos
@@ -173,14 +171,7 @@ function ensureClosingPhrasesCentered(html: string): string {
       const innerHTML = p.innerHTML.trim();
       
       // Verifica se o parágrafo contém uma das frases como texto completo ou principal
-      const shouldCenter = phrasesToCenter.some(regex => regex.test(textContent)) ||
-                          textContent === 'Nestes termos,' ||
-                          textContent.toLowerCase().includes('nestes termos') ||
-                          textContent.toLowerCase().includes('pede deferimento') ||
-                          /^P\.?\s*deferimento\.?\s*$/i.test(textContent) ||
-                          innerHTML.includes('Nestes termos') ||
-                          innerHTML.includes('pede deferimento') ||
-                          /P\.?\s*deferimento/i.test(innerHTML);
+      const shouldCenter = phrasesToCenter.some(regex => regex.test(textContent));
       
       if (shouldCenter) {
         // Obtém o style atual
@@ -402,6 +393,10 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
         '9pt', '10pt', '11pt', '12pt', '13pt', '14pt', '15pt', '16pt', '18pt', '20pt', '22pt', '24pt', '26pt', '28pt', '36pt', '48pt', '72pt'
       ],
       supportAllValues: true
+    },
+    indentBlock: {
+      offset: 38,
+      unit: 'px'
     },
     table: {
       contentToolbar: [
