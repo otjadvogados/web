@@ -6,6 +6,8 @@ export type Customer = {
   id: string;
   displayName?: string;
   name?: string;
+  // personId presente quando kind=PERSON (id da tabela customer_person)
+  personId?: string;
   // SUGESTÃO: o backend passar esses campos quando includeHierarchy=true
   kind?: CustomerKind;                 // 'PERSON' | 'COMPANY'
   isMatriz?: boolean;                  // true para empresa não-filial (raiz ou sem vínculo)

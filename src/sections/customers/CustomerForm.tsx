@@ -43,7 +43,7 @@ import {
   linkAsBranch, createCompanyAsBranch, deleteCompanyBranch, getCompanyBranches,
   getCompanyPeople, upsertCompanyPerson, deleteCompanyPerson
 } from '../../api/customers';
-import { listPeople as apiListPeople, resolveSubjectId } from '../../api/customers';
+import { listPeople as apiListPeople } from '../../api/customers';
 import { openSnackbar } from '../../api/snackbar';
 import type { CreateAddressPayload, AddressType, UpdateAddressPayload } from '../../types/customers';
 
@@ -2003,11 +2003,23 @@ export default function CustomerForm() {
                           return;
                         }
                         try {
-                          // resolve o personId real (pode exigir um GET /customers/:id?tree=true por baixo)
-                          const resolvedPerson = await resolveSubjectId((quickSelectedPerson as any).id);
-                          if (!resolvedPerson?.id) throw new Error('Não foi possível obter o ID da pessoa.');
+                          // Precisamos do personId (customer_person.id).
+                          // Preferência:
+                          // 1) selected.person?.id (quando o autocomplete já traz o objeto person)
+                          // 2) selected.personId (se o backend já devolver)
+                          // 3) selected.id (como último fallback, se o option já for o próprio personId)
+                          const selected = quickSelectedPerson as any;
+                          const personId = selected?.person?.id || selected?.personId || selected?.id;
+                          if (!personId) throw new Error('Não foi possível obter o ID da pessoa (personId).');
                           // cria o vínculo e faz atualização imediata da lista
-                          const created = await linkPersonToCompany(id, resolvedPerson.id, quickRole || undefined);
+                          const created = await linkPersonToCompany(id, personId, quickRole || undefined);
+                          // feedback ao usuário (backend não retorna message)
+                          openSnackbar({
+                            open: true,
+                            message: 'Pessoa vinculada à empresa com sucesso.',
+                            variant: 'alert',
+                            alert: { color: 'success' }
+                          } as any);
                           setNewlyLinked(created);     // empurra para a lista sem refetch
                           setQuickSelectedPerson(null);
                           setQuickPersonInput('');
