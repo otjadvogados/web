@@ -91,6 +91,10 @@ export type CaseResult = {
   pieceName?: string | null;
   /** Nome do departamento já denormalizado pelo backend */
   departmentName?: string | null;
+  /** Dados do usuário redator */
+  userName?: string | null;
+  userRoleName?: string | null;
+  userAvatarFileId?: string | null;
   customers: string[] | null | Array<{ id: string; name: string; displayName?: string }>;
   html?: string; // ← Novo campo (igual ao /context)
   htmlMain?: string; // ← Mantido para compatibilidade

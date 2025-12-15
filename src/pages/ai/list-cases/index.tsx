@@ -15,6 +15,8 @@ import TableBody from '@mui/material/TableBody';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 import Chip from '@mui/material/Chip';
+import Avatar from 'components/@extended/Avatar';
+import useAvatarUrl from 'hooks/useAvatarUrl';
 import Box from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { Theme } from '@mui/material/styles';
@@ -31,6 +33,29 @@ import { listPieces } from 'api/aiPieces';
 import { openSnackbar } from 'api/snackbar';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import CaseViewDialog from 'sections/ai/list-cases/CaseViewDialog';
+
+function AuthorCell({ requesterId, userName, userRoleName, userAvatarFileId }: { requesterId?: string; userName?: string | null; userRoleName?: string | null; userAvatarFileId?: string | null }) {
+  const avatarUrl = useAvatarUrl(requesterId || null, userAvatarFileId || null);
+  const name = userName || '—';
+  const role = userRoleName || '';
+  return (
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Avatar src={avatarUrl ?? undefined} alt={name} size="sm" color="primary">
+        {name.charAt(0)}
+      </Avatar>
+      <Stack spacing={0} minWidth={0}>
+        <Typography fontWeight={600} noWrap>
+          {name}
+        </Typography>
+        {role ? (
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {role}
+          </Typography>
+        ) : null}
+      </Stack>
+    </Stack>
+  );
+}
 
 export default function ListCasesPage() {
   const navigate = useNavigate();
@@ -343,9 +368,6 @@ export default function ListCasesPage() {
                           size="small"
                           label={`Depto: ${item.departmentName || (item.infos as any)?.piece?.department?.name || item.department?.name || '—'}`}
                         />
-                        {item.customers && Array.isArray(item.customers) && item.customers.length > 0 && typeof item.customers[0] === 'object' && (
-                          <Chip size="small" label={`Cliente: ${(item.customers[0] as any)?.displayName || (item.customers[0] as any)?.name || '—'}`} />
-                        )}
                       </Stack>
 
                       <Typography variant="caption" color="text.secondary">
@@ -387,7 +409,7 @@ export default function ListCasesPage() {
                       <TableCell>Nome do caso</TableCell>
                       <TableCell>Peça</TableCell>
                       <TableCell>Departamento</TableCell>
-                      <TableCell>Clientes</TableCell>
+                      <TableCell>Redator</TableCell>
                       <TableCell>Criado em</TableCell>
                       <TableCell align="right">Ações</TableCell>
                     </TableRow>
@@ -405,22 +427,19 @@ export default function ListCasesPage() {
                         </TableCell>
                         <TableCell>
                           <Typography fontWeight={600}>
-                            {(item.infos as any)?.piece?.name || item.piece?.name || '—'}
+                            {item.pieceName || (item.infos as any)?.piece?.name || item.piece?.name || '—'}
                           </Typography>
                         </TableCell>
                         <TableCell>
                           {item.departmentName || (item.infos as any)?.piece?.department?.name || item.department?.name || '—'}
                         </TableCell>
                         <TableCell>
-                          {item.customers && Array.isArray(item.customers) && item.customers.length > 0 && typeof item.customers[0] === 'object' ? (
-                            <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                              {(item.customers as Array<{ id: string; name: string; displayName?: string }>).map((c) => (
-                                <Chip key={c.id} size="small" label={c?.displayName || c?.name || '—'} variant="outlined" />
-                              ))}
-                            </Stack>
-                          ) : (
-                            '—'
-                          )}
+                          <AuthorCell
+                            requesterId={item.requesterId}
+                            userName={item.userName}
+                            userRoleName={item.userRoleName}
+                            userAvatarFileId={item.userAvatarFileId}
+                          />
                         </TableCell>
                         <TableCell>{item.createdAt ? formatDate(item.createdAt) : '—'}</TableCell>
                         <TableCell align="right">
