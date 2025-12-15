@@ -8,6 +8,7 @@ import 'ckeditor5/ckeditor5.css';
 // ✅ Importa traduções do CKEditor
 import 'ckeditor5/translations/pt-br.js';
 import './HtmlEditor.ck.css';
+import { processImagesInElement, createImageObserver } from 'hooks/useApiImageUrls';
 import {
   DecoupledEditor,
   Essentials,
@@ -227,6 +228,7 @@ function buildArticle(parts: ArticleParts, newInner: string) {
 export default function HtmlEditor({ html, onChange, editable = true }: Props) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<DecoupledEditor | null>(null);
+  const observerRef = useRef<MutationObserver | null>(null);
   const { i18n } = useConfig();
   const lastHtmlRef = useRef<string>(html);
   const isInternalChangeRef = useRef(false);
@@ -266,8 +268,33 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
         }
         return prev;
       });
+
+      // Processa imagens após atualizar o conteúdo do editor
+      if (editorRef.current) {
+        setTimeout(() => {
+          const editableElement = editorRef.current?.editing.view.domRoots.get('main') as HTMLElement;
+          if (editableElement) {
+            processImagesInElement(editableElement);
+          } else {
+            // Fallback: procura pelo elemento editável via seletor
+            const fallbackElement = document.querySelector('.ck-editor__editable_inline') as HTMLElement;
+            if (fallbackElement) {
+              processImagesInElement(fallbackElement);
+            }
+          }
+        }, 100);
+      }
     }
   }, [html]);
+
+  // Cleanup do observer quando o componente desmontar
+  useEffect(() => {
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, []);
 
   const hasInlinePageStyle = !!parts.styleAttr;
   const articleInlineStyle = useMemo(
@@ -560,9 +587,44 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
                   toolbarRef.current.appendChild(el);
                 }
               }
+
+              // Processa imagens existentes no conteúdo inicial
+              // Usa um timeout para garantir que o DOM está pronto
+              setTimeout(() => {
+                // Tenta encontrar o elemento editável do CKEditor
+                const editableElement = editor.editing.view.domRoots.get('main') as HTMLElement;
+                if (editableElement) {
+                  processImagesInElement(editableElement);
+                  
+                  // Cria observer para processar imagens adicionadas dinamicamente
+                  if (observerRef.current) {
+                    observerRef.current.disconnect();
+                  }
+                  observerRef.current = createImageObserver(editableElement);
+                } else {
+                  // Fallback: procura pelo elemento editável via seletor
+                  const fallbackElement = document.querySelector('.ck-editor__editable_inline') as HTMLElement;
+                  if (fallbackElement) {
+                    processImagesInElement(fallbackElement);
+                    if (observerRef.current) {
+                      observerRef.current.disconnect();
+                    }
+                    observerRef.current = createImageObserver(fallbackElement);
+                  }
+                }
+              }, 100);
             }}
             onChange={(_, editor) => {
               const newInner = editor.getData();
+              
+              // Processa imagens no conteúdo atualizado
+              setTimeout(() => {
+                const editableElement = editor.editing.view.domRoots.get('main') as HTMLElement;
+                if (editableElement) {
+                  processImagesInElement(editableElement);
+                }
+              }, 50);
+              
               // Marca que a mudança é interna (vem do editor) para evitar loop
               isInternalChangeRef.current = true;
               // Notifica o componente pai (que pode atualizar o html prop)
