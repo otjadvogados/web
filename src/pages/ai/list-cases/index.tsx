@@ -328,13 +328,21 @@ export default function ListCasesPage() {
                     <Stack spacing={0.75}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Checkbox checked={selected.includes(item.id)} onChange={() => handleSelect(item.id)} size="small" />
-                        <Typography fontWeight={700}>
-                          {(item.infos as any)?.piece?.name || item.piece?.name || '—'}
-                        </Typography>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography fontWeight={700}>
+                            {item.name || '—'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {item.pieceName || (item.infos as any)?.piece?.name || item.piece?.name || '—'}
+                          </Typography>
+                        </Box>
                       </Stack>
 
                       <Stack direction="row" spacing={1} flexWrap="wrap">
-                        <Chip size="small" label={`Depto: ${(item.infos as any)?.piece?.department?.name || item.department?.name || '—'}`} />
+                        <Chip
+                          size="small"
+                          label={`Depto: ${item.departmentName || (item.infos as any)?.piece?.department?.name || item.department?.name || '—'}`}
+                        />
                         {item.customers && Array.isArray(item.customers) && item.customers.length > 0 && typeof item.customers[0] === 'object' && (
                           <Chip size="small" label={`Cliente: ${(item.customers[0] as any)?.displayName || (item.customers[0] as any)?.name || '—'}`} />
                         )}
@@ -376,6 +384,7 @@ export default function ListCasesPage() {
                           disabled={items.length === 0}
                         />
                       </TableCell>
+                      <TableCell>Nome do caso</TableCell>
                       <TableCell>Peça</TableCell>
                       <TableCell>Departamento</TableCell>
                       <TableCell>Clientes</TableCell>
@@ -390,12 +399,17 @@ export default function ListCasesPage() {
                           <Checkbox checked={selected.includes(item.id)} onChange={() => handleSelect(item.id)} />
                         </TableCell>
                         <TableCell>
+                          <Typography fontWeight={700}>
+                            {item.name || '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
                           <Typography fontWeight={600}>
                             {(item.infos as any)?.piece?.name || item.piece?.name || '—'}
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          {(item.infos as any)?.piece?.department?.name || item.department?.name || '—'}
+                          {item.departmentName || (item.infos as any)?.piece?.department?.name || item.department?.name || '—'}
                         </TableCell>
                         <TableCell>
                           {item.customers && Array.isArray(item.customers) && item.customers.length > 0 && typeof item.customers[0] === 'object' ? (

@@ -123,7 +123,8 @@ export default function RealtimeProgressOverlay({ open, knownRunId, onDetectRunI
       open={open}
       sx={{
         zIndex: (t) => t.zIndex.modal + 20,
-        bgcolor: 'rgba(0,0,0,0.68)',
+        // Fundo mais escuro para destacar ainda mais os logs
+        bgcolor: 'rgba(0,0,0,0.88)',
         backdropFilter: 'blur(1px)',
         display: 'flex',
         alignItems: 'center',

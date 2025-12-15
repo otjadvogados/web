@@ -85,6 +85,12 @@ export type CaseResult = {
   requesterId: string;
   companyId: string;
   pieceId: string;
+  /** Nome descritivo do caso retornado pelo backend */
+  name?: string | null;
+  /** Nome da peça já denormalizado pelo backend */
+  pieceName?: string | null;
+  /** Nome do departamento já denormalizado pelo backend */
+  departmentName?: string | null;
   customers: string[] | null | Array<{ id: string; name: string; displayName?: string }>;
   html?: string; // ← Novo campo (igual ao /context)
   htmlMain?: string; // ← Mantido para compatibilidade

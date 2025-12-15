@@ -27,6 +27,7 @@
 #doc-header-img {
   position: absolute;
   top: -110px;
+  opacity: .5;
 }
 
 .otj-ckeditor .ck.ck-toolbar__items {
