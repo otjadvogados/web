@@ -91,6 +91,12 @@ const pages: NavItemType = {
           type: 'item',
           url: '/ai/rules'
         },
+        {
+          id: 'ai-usage',
+          title: 'Uso da IA',
+          type: 'item',
+          url: '/ai/usage'
+        },
 
       ]
     },

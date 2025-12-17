@@ -15,6 +15,7 @@ type Props = {
   disabled?: boolean;
   helperText?: React.ReactNode;
   error?: boolean;
+  size?: 'small' | 'medium';
 };
 
 /**
@@ -28,7 +29,8 @@ export default function UserSelect({
   onChange,
   disabled,
   helperText,
-  error
+  error,
+  size = 'medium'
 }: Props) {
   const [input, setInput] = useState('');
   const deb = useDebounced(input, 300);
@@ -74,6 +76,7 @@ export default function UserSelect({
       onInputChange={(_, v) => setInput(v)}
       loading={loading}
       disabled={disabled}
+      size={size}
       renderOption={(props, option) => (
         <li {...props} key={option.id}>
           <Stack spacing={0} sx={{ py: 0.25 }}>
@@ -91,6 +94,7 @@ export default function UserSelect({
           {...params}
           label={label}
           placeholder={placeholder}
+          size={size}
           InputProps={{
             ...params.InputProps,
             endAdornment: (
