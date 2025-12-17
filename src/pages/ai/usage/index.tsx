@@ -26,9 +26,8 @@ import AIIcon from 'components/icons/AIIcon';
 import { openSnackbar } from 'api/snackbar';
 import {
   listAiUsage,
-  getAiUsageSummary,
   AiUsageRecord,
-  AiUsageSummaryResponse
+  AiUsageAgg
 } from 'api/aiUsage';
 import { searchUsers, type UserBasic } from 'api/users';
 
@@ -46,13 +45,12 @@ const MODEL_OPTIONS = [
 
 export default function AIUsagePage() {
   const [records, setRecords] = useState<AiUsageRecord[]>([]);
-  const [summary, setSummary] = useState<AiUsageSummaryResponse | null>(null);
+  const [aggregates, setAggregates] = useState<AiUsageAgg | null>(null);
   const [total, setTotal] = useState(0);
   const [totalCostUsd, setTotalCostUsd] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(50);
   const [loading, setLoading] = useState(false);
-  const [summaryLoading, setSummaryLoading] = useState(false);
 
   // Filtros
   const [model, setModel] = useState('');
@@ -85,33 +83,39 @@ export default function AIUsagePage() {
       }
 
       const res = await listAiUsage(params);
+      const topLevelAgg =
+        'calls' in res
+          ? {
+              calls: (res as any).calls,
+              promptTokens: (res as any).promptTokens,
+              completionTokens: (res as any).completionTokens,
+              cachedTokens: (res as any).cachedTokens,
+              totalTokens: (res as any).totalTokens,
+              totalCostUsd: (res as any).totalCostUsd,
+              costUsd: (res as any).costUsd,
+              updatedAt: (res as any).updatedAt
+            }
+          : null;
+
+      const agg =
+        (res as any).aggregates ??
+        (res as any).summary ??
+        (res as any).global ??
+        (res as any).totals ??
+        topLevelAgg ??
+        null;
+      setAggregates(agg);
       setRecords(res.items);
       setTotal(res.total);
-      setTotalCostUsd(res.totalCostUsd);
+      const nextTotalCostUsd = agg?.costUsd ?? agg?.totalCostUsd ?? res.totalCostUsd;
+      setTotalCostUsd(nextTotalCostUsd);
     } catch (err: any) {
       openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao carregar registros de uso', variant: 'alert', alert: { color: 'error' } } as any);
       setRecords([]);
+      setAggregates(null);
+      setTotalCostUsd(undefined);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function loadSummary() {
-    try {
-      setSummaryLoading(true);
-      const params: any = {
-        topModels: 10,
-        topUsers: 10
-      };
-      if (model) params.model = model;
-      if (userId) params.userId = userId;
-
-      const res = await getAiUsageSummary(params);
-      setSummary(res);
-    } catch (err: any) {
-      openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao carregar resumo', variant: 'alert', alert: { color: 'error' } } as any);
-    } finally {
-      setSummaryLoading(false);
     }
   }
 
@@ -119,11 +123,6 @@ export default function AIUsagePage() {
     loadRecords();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, order]);
-
-  useEffect(() => {
-    loadSummary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -160,7 +159,6 @@ export default function AIUsagePage() {
   const onSearch = () => {
     setPage(0);
     loadRecords();
-    loadSummary();
   };
 
   const onClearFilters = () => {
@@ -172,7 +170,6 @@ export default function AIUsagePage() {
     setToDate('');
     setPage(0);
     loadRecords();
-    loadSummary();
   };
 
   const formatNumber = (num?: number) => {
@@ -286,10 +283,10 @@ export default function AIUsagePage() {
                 <MenuItem value="asc">Mais antigos</MenuItem>
               </TextField>
               <Stack direction="row" spacing={1}>
-                <Button variant="outlined" startIcon={<ReloadOutlined />} onClick={onSearch} disabled={loading || summaryLoading}>
+                <Button variant="outlined" startIcon={<ReloadOutlined />} onClick={onSearch} disabled={loading}>
                   Buscar
                 </Button>
-                <Button variant="text" onClick={onClearFilters} disabled={loading || summaryLoading}>
+                <Button variant="text" onClick={onClearFilters} disabled={loading}>
                   Limpar
                 </Button>
               </Stack>
@@ -298,17 +295,17 @@ export default function AIUsagePage() {
             <Divider />
 
             {/* Resumo */}
-            {(summary || totalCostUsd !== undefined) && (
+            {(aggregates || totalCostUsd !== undefined) && (
               <>
                 <Grid container spacing={2}>
-                  {summary && (
+                  {aggregates && (
                     <>
                       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Card>
                           <CardContent>
                             <Typography variant="body2" color="text.secondary">Total de Chamadas</Typography>
                             <Typography variant="h4" fontWeight={700}>
-                              {formatNumber(summary.global.calls)}
+                              {formatNumber(aggregates.calls)}
                             </Typography>
                           </CardContent>
                         </Card>
@@ -318,7 +315,7 @@ export default function AIUsagePage() {
                           <CardContent>
                             <Typography variant="body2" color="text.secondary">Tokens do Prompt</Typography>
                             <Typography variant="h4" fontWeight={700} color="primary.main">
-                              {formatNumber(summary.global.promptTokens)}
+                              {formatNumber(aggregates.promptTokens)}
                             </Typography>
                           </CardContent>
                         </Card>
@@ -328,7 +325,7 @@ export default function AIUsagePage() {
                           <CardContent>
                             <Typography variant="body2" color="text.secondary">Tokens de Completion</Typography>
                             <Typography variant="h4" fontWeight={700} color="success.main">
-                              {formatNumber(summary.global.completionTokens)}
+                              {formatNumber(aggregates.completionTokens)}
                             </Typography>
                           </CardContent>
                         </Card>
@@ -338,7 +335,7 @@ export default function AIUsagePage() {
                           <CardContent>
                             <Typography variant="body2" color="text.secondary">Cached Tokens</Typography>
                             <Typography variant="h4" fontWeight={700} color="info.main">
-                              {formatNumber(summary.global.cachedTokens)}
+                              {formatNumber(aggregates.cachedTokens)}
                             </Typography>
                           </CardContent>
                         </Card>
@@ -348,7 +345,7 @@ export default function AIUsagePage() {
                           <CardContent>
                             <Typography variant="body2" color="text.secondary">Total de Tokens</Typography>
                             <Typography variant="h4" fontWeight={700} color="warning.main">
-                              {formatNumber(summary.global.totalTokens)}
+                              {formatNumber(aggregates.totalTokens)}
                             </Typography>
                           </CardContent>
                         </Card>

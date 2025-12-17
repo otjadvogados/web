@@ -22,6 +22,15 @@ export type AiUsageListResponse = {
   offset: number;
   order: 'asc' | 'desc';
   totalCostUsd?: number;
+  aggregates?: AiUsageAgg;
+  // Alguns backends retornam os agregados na raiz do objeto
+  calls?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  cachedTokens?: number;
+  totalTokens?: number;
+  costUsd?: number;
+  updatedAt?: string;
   items: AiUsageRecord[];
 };
 
@@ -32,7 +41,8 @@ export type AiUsageAgg = {
   cachedTokens: number;
   totalTokens: number;
   totalCostUsd?: number;
-  updatedAt: string;
+  costUsd?: number;
+  updatedAt?: string;
 };
 
 export type AiUsageSummaryResponse = {
