@@ -1,5 +1,5 @@
 import api from '../utils/axios';
-import { RuleItem } from '../types/rules';
+import { RuleTreeNode } from '../types/rules';
 
 const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
 
@@ -8,10 +8,9 @@ type ListRulesParams = {
   module?: string;
 };
 
-export async function listRules(params: ListRulesParams = {}): Promise<RuleItem[]> {
-  const res = await api.get<{ data: RuleItem[] }>('/rules', {
+export async function listRules(params: ListRulesParams = {}): Promise<RuleTreeNode[]> {
+  const res = await api.get<{ data: RuleTreeNode[] }>('/rules', {
     params: {
-      flat: true, // ✅ garante lista plana
       search: params.search || undefined,
       module: params.module || undefined
     },

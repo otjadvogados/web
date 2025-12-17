@@ -1,9 +1,9 @@
 import api from '../utils/axios';
-import { RoleRulesListResponse, RuleItem } from '../types/rules';
+import { RoleRulesListResponse, RuleTreeNode } from '../types/rules';
 
 const LANG = import.meta.env.VITE_APP_ACCEPT_LANGUAGE || 'pt-BR';
 
-export async function listRoleRules(roleId: string): Promise<RuleItem[]> {
+export async function listRoleRules(roleId: string): Promise<RuleTreeNode[]> {
   const res = await api.get<RoleRulesListResponse>(`/roles/${roleId}/rules`, {
     headers: { 'Accept-Language': LANG }
   });

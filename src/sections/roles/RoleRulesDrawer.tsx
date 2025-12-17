@@ -19,14 +19,17 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Chip from '@mui/material/Chip';
+import Collapse from '@mui/material/Collapse';
 
 import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
 import SearchOutlined from '@ant-design/icons/SearchOutlined';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
+import DownOutlined from '@ant-design/icons/DownOutlined';
+import RightOutlined from '@ant-design/icons/RightOutlined';
 
 import { RoleRow } from '../../types/roles';
-import { RuleItem } from '../../types/rules';
+import { RuleItem, RuleTreeNode } from '../../types/rules';
 import { listRoleRules, addRuleToRole, removeRuleFromRole } from '../../api/roleRules';
 import { listRules } from '../../api/rules';
 import { openSnackbar } from '../../api/snackbar';
@@ -38,6 +41,72 @@ function useDebounced<T>(value: T, delay = 300) {
   return v;
 }
 
+function flattenRuleTree(nodes: RuleTreeNode[]): RuleItem[] {
+  const items: RuleItem[] = [];
+  const walk = (list: RuleTreeNode[]) => {
+    list.forEach((node) => {
+      if (node.data?.length) items.push(...node.data);
+      if (node.children?.length) walk(node.children);
+    });
+  };
+  walk(nodes);
+  return items;
+}
+
+function filterRuleTree(nodes: RuleTreeNode[], query: string): RuleTreeNode[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return nodes;
+  const walk = (list: RuleTreeNode[]) => {
+    return list
+      .map((node) => {
+        const filteredChildren = node.children ? walk(node.children) : [];
+        const filteredData =
+          node.data?.filter((r) => `${r.name} ${r.description ?? ''}`.toLowerCase().includes(q)) ?? [];
+        const hasChildren = filteredChildren.length > 0;
+        const hasData = filteredData.length > 0;
+        if (!hasChildren && !hasData) return null;
+        return {
+          ...node,
+          children: hasChildren ? filteredChildren : undefined,
+          data: hasData ? filteredData : undefined
+        };
+      })
+      .filter((n): n is RuleTreeNode => Boolean(n));
+  };
+  return walk(nodes);
+}
+
+function countNodeSelections(node: RuleTreeNode, selectedIds: Set<string>): { total: number; checked: number } {
+  let total = 0;
+  let checked = 0;
+  if (node.data?.length) {
+    total += node.data.length;
+    checked += node.data.filter((r) => selectedIds.has(r.id)).length;
+  }
+  if (node.children?.length) {
+    node.children.forEach((child) => {
+      const res = countNodeSelections(child, selectedIds);
+      total += res.total;
+      checked += res.checked;
+    });
+  }
+  return { total, checked };
+}
+
+function makeGroupKey(path: string[], name: string, index: number) {
+  return [...path, `${name}-${index}`].join(' / ');
+}
+
+function collectGroupKeys(nodes: RuleTreeNode[], path: string[] = []): string[] {
+  const keys: string[] = [];
+  nodes.forEach((node, idx) => {
+    const key = makeGroupKey(path, node.name, idx);
+    keys.push(key);
+    if (node.children?.length) keys.push(...collectGroupKeys(node.children, [...path, `${node.name}-${idx}`]));
+  });
+  return keys;
+}
+
 type Props = { open: boolean; role: RoleRow | null; onClose: () => void; onChanged?: () => void };
 
 export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Props) {
@@ -45,9 +114,11 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
 
   const [loadingCurrent, setLoadingCurrent] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
-  const [current, setCurrent] = useState<RuleItem[]>([]);
-  const [catalog, setCatalog] = useState<RuleItem[]>([]);
+  const [currentIds, setCurrentIds] = useState<Set<string>>(new Set());
+  const [currentList, setCurrentList] = useState<RuleItem[]>([]);
+  const [catalogTree, setCatalogTree] = useState<RuleTreeNode[]>([]);
   const [catalogEnabled, setCatalogEnabled] = useState(true); // desliga se /rules for 404
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const [search, setSearch] = useState('');
   const debSearch = useDebounced(search);
@@ -58,38 +129,28 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
 
   const busy = loadingCurrent || (catalogEnabled && loadingCatalog);
 
-  // ids já vinculados
-  const currentIds = useMemo(() => new Set(current.map((r) => r.id)), [current]);
+  const hasCatalog = catalogEnabled && catalogTree.length > 0;
+  const catalogMap = useMemo(() => {
+    const map = new Map<string, RuleItem>();
+    flattenRuleTree(catalogTree).forEach((r) => map.set(r.id, r));
+    return map;
+  }, [catalogTree]);
+
+  const filteredTree = useMemo(() => filterRuleTree(catalogTree, debSearch), [catalogTree, debSearch]);
+  const treeLeaves = useMemo(() => flattenRuleTree(filteredTree), [filteredTree]);
+  const fallbackFiltered = useMemo(() => {
+    const q = debSearch.trim().toLowerCase();
+    if (!q) return currentList;
+    return currentList.filter((r) => `${r.name} ${r.description ?? ''} ${r.moduleName ?? ''}`.toLowerCase().includes(q));
+  }, [currentList, debSearch]);
+
+  const visibleLeaves = hasCatalog ? treeLeaves : fallbackFiltered;
+
   const isLinked = (id: string) => currentIds.has(id);
 
-  // junta catálogo + atuais (sem duplicar)
-  const allRules: RuleItem[] = useMemo(() => {
-    if (!catalogEnabled) return [...current].sort((a, b) => a.name.localeCompare(b.name));
-    const map = new Map<string, RuleItem>();
-    current.forEach((r) => map.set(r.id, r));
-    catalog.forEach((r) => {
-      if (!map.has(r.id)) map.set(r.id, r);
-      else {
-        // mescla dando preferência a dados do catálogo para nome/descrição, mantendo id
-        const c = map.get(r.id)!;
-        map.set(r.id, { ...c, ...r, id: r.id });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [catalogEnabled, current, catalog]);
-
-  // filtro
-  const filtered = useMemo(() => {
-    const q = debSearch.trim().toLowerCase();
-    if (!q) return allRules;
-    return allRules.filter((r) =>
-      `${r.name} ${r.description ?? ''} ${r.moduleName ?? ''}`.toLowerCase().includes(q)
-    );
-  }, [allRules, debSearch]);
-
   // estado do master checkbox
-  const totalFiltered = filtered.length;
-  const checkedCount = filtered.filter((r) => isLinked(r.id)).length;
+  const totalFiltered = visibleLeaves.length;
+  const checkedCount = visibleLeaves.filter((r) => isLinked(r.id)).length;
   const allChecked = totalFiltered > 0 && checkedCount === totalFiltered;
   const someChecked = checkedCount > 0 && checkedCount < totalFiltered;
 
@@ -103,7 +164,9 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
       try {
         const rules = await listRoleRules(roleId);
         if (!alive) return;
-        setCurrent(rules);
+        const flattened = flattenRuleTree(rules);
+        setCurrentList(flattened);
+        setCurrentIds(new Set(flattened.map((r) => r.id)));
       } catch (err: any) {
         openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao carregar rules do cargo', variant: 'alert', alert: { color: 'error' } } as any);
       } finally {
@@ -116,8 +179,10 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
       try {
         const rules = await listRules();
         if (!alive) return;
-        setCatalog(rules);
+        setCatalogTree(rules);
         setCatalogEnabled(true);
+        const rootKeys = rules.map((node, idx) => makeGroupKey([], node.name, idx));
+        setExpanded(new Set(rootKeys));
       } catch {
         setCatalogEnabled(false);
       } finally {
@@ -130,6 +195,21 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
     return () => { alive = false; };
   }, [open, roleId]);
 
+  // expande tudo quando há busca para facilitar visualizar os matches
+  useEffect(() => {
+    if (!debSearch.trim() || !hasCatalog) return;
+    setExpanded(new Set(collectGroupKeys(filteredTree)));
+  }, [debSearch, filteredTree, hasCatalog]);
+
+  const toggleExpand = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   // toggle unitário (liga = adiciona; desliga = remove)
   async function toggleRule(id: string) {
     if (!roleId || busyIds.has(id)) return;
@@ -138,13 +218,18 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
     try {
       if (linked) {
         await removeRuleFromRole(roleId, id);
-        setCurrent((prev) => prev.filter((r) => r.id !== id));
+        setCurrentIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        setCurrentList((prev) => prev.filter((r) => r.id !== id));
         openSnackbar({ open: true, message: 'Rule removida do cargo', variant: 'alert', alert: { color: 'success' } } as any);
       } else {
         await addRuleToRole(roleId, id);
-        // pega metadados do catálogo se existir
-        const found = catalog.find((r) => r.id === id);
-        setCurrent((prev) => [...prev, found || ({ id, name: id } as RuleItem)]);
+        const found = catalogMap.get(id);
+        setCurrentIds((prev) => new Set(prev).add(id));
+        setCurrentList((prev) => [...prev, found || ({ id, name: id } as RuleItem)]);
         openSnackbar({ open: true, message: 'Rule adicionada ao cargo', variant: 'alert', alert: { color: 'success' } } as any);
       }
       onChanged?.();
@@ -165,15 +250,28 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
     setBulkBusy(true);
     try {
       if (allChecked) {
-        const toRemove = filtered.filter((r) => isLinked(r.id)).map((r) => r.id);
+        const toRemove = visibleLeaves.filter((r) => isLinked(r.id)).map((r) => r.id);
         await Promise.all(toRemove.map((id) => removeRuleFromRole(roleId, id)));
-        setCurrent((prev) => prev.filter((r) => !toRemove.includes(r.id)));
+        setCurrentIds((prev) => {
+          const next = new Set(prev);
+          toRemove.forEach((id) => next.delete(id));
+          return next;
+        });
+        setCurrentList((prev) => prev.filter((r) => !toRemove.includes(r.id)));
         openSnackbar({ open: true, message: `Removidas ${toRemove.length} rule(s)`, variant: 'alert', alert: { color: 'success' } } as any);
       } else {
-        const toAdd = filtered.filter((r) => !isLinked(r.id)).map((r) => r.id);
+        const toAdd = visibleLeaves.filter((r) => !isLinked(r.id)).map((r) => r.id);
         await Promise.all(toAdd.map((id) => addRuleToRole(roleId, id)));
-        const addedObjs = catalog.filter((r) => toAdd.includes(r.id));
-        setCurrent((prev) => [...prev, ...addedObjs.filter((r) => !prev.find((p) => p.id === r.id))]);
+        setCurrentIds((prev) => {
+          const next = new Set(prev);
+          toAdd.forEach((id) => next.add(id));
+          return next;
+        });
+        setCurrentList((prev) => {
+          const map = new Map(prev.map((r) => [r.id, r]));
+          toAdd.forEach((id) => map.set(id, catalogMap.get(id) || ({ id, name: id } as RuleItem)));
+          return Array.from(map.values());
+        });
         openSnackbar({ open: true, message: `Adicionadas ${toAdd.length} rule(s)`, variant: 'alert', alert: { color: 'success' } } as any);
       }
       onChanged?.();
@@ -190,8 +288,9 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
     if (!id || !roleId) return;
     try {
       await addRuleToRole(roleId, id);
-      const found = catalog.find((r) => r.id === id);
-      setCurrent((prev) => [...prev, found || ({ id, name: id } as RuleItem)]);
+      const found = catalogMap.get(id);
+      setCurrentIds((prev) => new Set(prev).add(id));
+      setCurrentList((prev) => [...prev, found || ({ id, name: id } as RuleItem)]);
       setManualId('');
       openSnackbar({ open: true, message: 'Rule adicionada', variant: 'alert', alert: { color: 'success' } } as any);
       onChanged?.();
@@ -199,6 +298,58 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
       openSnackbar({ open: true, message: err?.response?.data?.message || 'Não foi possível adicionar', variant: 'alert', alert: { color: 'error' } } as any);
     }
   }
+
+  const renderRuleItem = (r: RuleItem) => {
+    const linked = isLinked(r.id);
+    const disabled = busyIds.has(r.id) || bulkBusy;
+    return (
+      <ListItem key={r.id} disablePadding secondaryAction={linked ? <Chip size="small" color="success" label="vinculada" /> : undefined}>
+        <ListItemButton onClick={() => !disabled && toggleRule(r.id)} dense disabled={disabled}>
+          <ListItemIcon>
+            <Checkbox edge="start" checked={linked} tabIndex={-1} disableRipple disabled={disabled} />
+          </ListItemIcon>
+          <ListItemText
+            primary={r.name}
+            secondary={r.description || r.moduleName}
+            primaryTypographyProps={{ noWrap: true }}
+            secondaryTypographyProps={{ noWrap: true }}
+          />
+        </ListItemButton>
+      </ListItem>
+    );
+  };
+
+  const renderTree = (nodes: RuleTreeNode[], path: string[] = []) =>
+    nodes.map((node, idx) => {
+      const key = makeGroupKey(path, node.name, idx);
+      const open = expanded.has(key);
+      const counts = countNodeSelections(node, currentIds);
+      const hasChildren = node.children?.length;
+      const hasData = node.data?.length;
+      if (!hasChildren && !hasData) return null;
+      return (
+        <Box key={key} sx={{ borderLeft: path.length ? '1px dashed' : 'none', borderColor: 'divider' }}>
+          <ListItem disableGutters>
+            <ListItemButton onClick={() => toggleExpand(key)} dense>
+              <ListItemIcon sx={{ minWidth: 34 }}>
+                {open ? <DownOutlined /> : <RightOutlined />}
+              </ListItemIcon>
+              <ListItemText
+                primary={node.name}
+                secondary={counts.total > 0 ? `${counts.checked}/${counts.total} selecionadas` : undefined}
+                primaryTypographyProps={{ fontWeight: 600 }}
+              />
+            </ListItemButton>
+          </ListItem>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <List dense disablePadding sx={{ pl: 4 }}>
+              {node.data?.map((r) => renderRuleItem(r))}
+              {node.children && renderTree(node.children, [...path, `${node.name}-${idx}`])}
+            </List>
+          </Collapse>
+        </Box>
+      );
+    });
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
@@ -244,28 +395,10 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
             </Stack>
 
             <List dense sx={{ maxHeight: 420, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-              {filtered.length === 0 && (
+              {totalFiltered === 0 && (
                 <ListItem><ListItemText primary="Nenhuma rule encontrada." /></ListItem>
               )}
-              {filtered.map((r) => {
-                const linked = isLinked(r.id);
-                const disabled = busyIds.has(r.id) || bulkBusy;
-                return (
-                  <ListItem key={r.id} disablePadding secondaryAction={linked ? <Chip size="small" color="success" label="vinculada" /> : undefined}>
-                    <ListItemButton onClick={() => !disabled && toggleRule(r.id)} dense disabled={disabled}>
-                      <ListItemIcon>
-                        <Checkbox edge="start" checked={linked} tabIndex={-1} disableRipple disabled={disabled} />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={r.name}
-                        secondary={r.description || r.moduleName}
-                        primaryTypographyProps={{ noWrap: true }}
-                        secondaryTypographyProps={{ noWrap: true }}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                );
-              })}
+              {hasCatalog ? renderTree(filteredTree) : fallbackFiltered.map((r) => renderRuleItem(r))}
             </List>
 
             {!catalogEnabled && (
