@@ -25,11 +25,23 @@ export type SummarizeRequestParams = {
   maxTokens?: number;
 };
 
+export type SummaryJson = {
+  objetivo?: string;
+  pontosChave?: string[];
+  acoes?: string[];
+  citacoes?: string[];
+  tarefas?: Array<{
+    descricao: string;
+    responsavel?: string;
+  }>;
+  resumo?: string;
+};
+
 export type SummarizeResponse = {
-  summary: string;
+  summary?: string | SummaryJson; // Pode ser string JSON ou objeto parseado
   model?: string;
   tokensUsed?: number;
-};
+} & Partial<SummaryJson>; // O backend pode retornar os campos do SummaryJson diretamente na raiz
 
 /**
  * Faz upload de arquivo de áudio/vídeo para transcrição

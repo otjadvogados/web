@@ -9,6 +9,9 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
 import CopyOutlined from '@ant-design/icons/CopyOutlined';
@@ -17,7 +20,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
-import { getTranscription, summarizeTranscription, TranscriptionRecord, SummarizeResponse } from 'api/aiTranscribe';
+import { getTranscription, summarizeTranscription, TranscriptionRecord, SummarizeResponse, SummaryJson } from 'api/aiTranscribe';
 import { openSnackbar } from 'api/snackbar';
 
 type Props = {
@@ -78,7 +81,27 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
       if (promptTemplate.trim()) params.promptTemplate = promptTemplate.trim();
 
       const result = await summarizeTranscription(transcriptionId, params);
-      setSummary(result);
+      console.log('Resumo recebido:', result); // Debug
+      
+      // Normaliza a resposta: se vier os campos do SummaryJson na raiz, move para summary
+      let normalizedResult: SummarizeResponse;
+      if (result && typeof result === 'object' && ('objetivo' in result || 'pontosChave' in result || 'resumo' in result)) {
+        // Se tem campos do SummaryJson na raiz e não tem campo summary, move para summary
+        if (!('summary' in result)) {
+          const { model, tokensUsed, ...summaryData } = result as any;
+          normalizedResult = {
+            summary: summaryData as SummaryJson,
+            model,
+            tokensUsed
+          };
+        } else {
+          normalizedResult = result;
+        }
+      } else {
+        normalizedResult = result;
+      }
+      
+      setSummary(normalizedResult);
     } catch (err: any) {
       openSnackbar({
         open: true,
@@ -111,6 +134,39 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const parseSummary = (response: SummarizeResponse | string | SummaryJson): SummaryJson | null => {
+    if (typeof response === 'object' && response !== null) {
+      // Se tem campos do SummaryJson na raiz (objetivo, pontosChave, resumo, etc)
+      if ('objetivo' in response || 'pontosChave' in response || 'resumo' in response) {
+        // Extrai apenas os campos do SummaryJson, ignorando model e tokensUsed
+        const { model, tokensUsed, summary, ...summaryFields } = response as any;
+        return summaryFields as SummaryJson;
+      }
+      // Se tem campo summary, extrai ele
+      if ('summary' in response) {
+        const summary = (response as any).summary;
+        if (typeof summary === 'object' && summary !== null) {
+          return summary as SummaryJson;
+        }
+        if (typeof summary === 'string') {
+          try {
+            return JSON.parse(summary) as SummaryJson;
+          } catch {
+            return null;
+          }
+        }
+      }
+    }
+    if (typeof response === 'string') {
+      try {
+        return JSON.parse(response) as SummaryJson;
+      } catch {
+        return null;
+      }
+    }
+    return null;
   };
 
   return (
@@ -237,29 +293,149 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
 
                 {summary && (
                   <Box>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                      <Typography variant="subtitle2" fontWeight={600}>
-                        Resumo
-                      </Typography>
-                      <Button size="small" startIcon={<CopyOutlined />} onClick={() => handleCopyText(summary.summary)}>
-                        Copiar
-                      </Button>
-                    </Stack>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                      Resumo
+                    </Typography>
                     <Paper
                       variant="outlined"
                       sx={{
                         p: 2,
                         bgcolor: 'primary.lighter',
                         minHeight: 150,
-                        maxHeight: 300,
+                        maxHeight: 500,
                         overflow: 'auto'
                       }}
                     >
-                      <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                        {summary.summary}
-                      </Typography>
+                      {(() => {
+                        const parsed = parseSummary(summary);
+                        if (parsed) {
+                          // Exibe de forma estruturada
+                          return (
+                            <Stack spacing={2}>
+                              {parsed.objetivo && (
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                    Objetivo
+                                  </Typography>
+                                  <Typography variant="body2">{parsed.objetivo}</Typography>
+                                </Box>
+                              )}
+
+                              {parsed.pontosChave && parsed.pontosChave.length > 0 && (
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                    Pontos Chave
+                                  </Typography>
+                                  <List dense sx={{ py: 0 }}>
+                                    {parsed.pontosChave.map((ponto, idx) => (
+                                      <ListItem key={idx} sx={{ py: 0.25, px: 0 }}>
+                                        <ListItemText
+                                          primary={
+                                            <Typography variant="body2" component="span">
+                                              • {ponto}
+                                            </Typography>
+                                          }
+                                        />
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                </Box>
+                              )}
+
+                              {parsed.acoes && parsed.acoes.length > 0 && (
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                    Ações
+                                  </Typography>
+                                  <List dense sx={{ py: 0 }}>
+                                    {parsed.acoes.map((acao, idx) => (
+                                      <ListItem key={idx} sx={{ py: 0.25, px: 0 }}>
+                                        <ListItemText
+                                          primary={
+                                            <Typography variant="body2" component="span">
+                                              • {acao}
+                                            </Typography>
+                                          }
+                                        />
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                </Box>
+                              )}
+
+                              {parsed.citacoes && parsed.citacoes.length > 0 && (
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                    Citações
+                                  </Typography>
+                                  <List dense sx={{ py: 0 }}>
+                                    {parsed.citacoes.map((citacao, idx) => (
+                                      <ListItem key={idx} sx={{ py: 0.25, px: 0 }}>
+                                        <ListItemText
+                                          primary={
+                                            <Typography variant="body2" component="span" sx={{ fontStyle: 'italic' }}>
+                                              "{citacao}"
+                                            </Typography>
+                                          }
+                                        />
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                </Box>
+                              )}
+
+                              {parsed.tarefas && parsed.tarefas.length > 0 && (
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                    Tarefas
+                                  </Typography>
+                                  <List dense sx={{ py: 0 }}>
+                                    {parsed.tarefas.map((tarefa, idx) => (
+                                      <ListItem key={idx} sx={{ py: 0.25, px: 0 }}>
+                                        <ListItemText
+                                          primary={
+                                            <Typography variant="body2" component="span">
+                                              • {tarefa.descricao}
+                                              {tarefa.responsavel && (
+                                                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                                  (Responsável: {tarefa.responsavel})
+                                                </Typography>
+                                              )}
+                                            </Typography>
+                                          }
+                                        />
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                </Box>
+                              )}
+
+                              {parsed.resumo && (
+                                <Box>
+                                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                    Resumo
+                                  </Typography>
+                                  <Typography variant="body2">{parsed.resumo}</Typography>
+                                </Box>
+                              )}
+                            </Stack>
+                          );
+                        } else {
+                          // Fallback: exibe como JSON formatado ou texto
+                          const summaryText = typeof summary.summary === 'string' ? summary.summary : JSON.stringify(summary.summary, null, 2);
+                          return (
+                            <Typography
+                              variant="body2"
+                              component="pre"
+                              sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.875rem' }}
+                            >
+                              {summaryText}
+                            </Typography>
+                          );
+                        }
+                      })()}
                       {summary.tokensUsed && (
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
                           Tokens usados: {summary.tokensUsed}
                         </Typography>
                       )}
