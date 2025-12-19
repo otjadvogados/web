@@ -4,13 +4,14 @@ import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
 import AppstoreOutlined from '@ant-design/icons/AppstoreOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
+import AudioOutlined from '@ant-design/icons/AudioOutlined';
 import AIIcon from 'components/icons/AIIcon';
 
 // type
 import { NavItemType } from 'types/menu';
 
 // icons
-const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined, UserOutlined, AIIcon };
+const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined, UserOutlined, AudioOutlined, AIIcon };
 
 // ==============================|| MENU ITEMS - PAGES ||============================== //
 
@@ -96,6 +97,12 @@ const pages: NavItemType = {
           title: 'Uso da IA',
           type: 'item',
           url: '/ai/usage'
+        },
+        {
+          id: 'ai-transcribe',
+          title: 'Transcrições',
+          type: 'item',
+          url: '/ai/transcribe'
         },
 
       ]
