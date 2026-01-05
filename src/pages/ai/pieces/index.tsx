@@ -31,8 +31,11 @@ import { listDepartments } from 'api/departments';
 import { openSnackbar } from 'api/snackbar';
 import PieceFormDialog from '../../../sections/ai/pieces/PieceFormDialog';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
+import Permission from 'components/Permission';
+import useAuth from 'hooks/useAuth';
 
 export default function AIPiecesPage() {
+  const { user } = useAuth();
   // filtros/lista
   const [items, setItems] = useState<AiPiece[]>([]);
   const [total, setTotal] = useState(0);
@@ -185,9 +188,10 @@ export default function AIPiecesPage() {
   };
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <MainCard
+    <Permission resources={['ai.pieces.read']}>
+      <Grid container spacing={3}>
+        <Grid size={12}>
+          <MainCard
           title={
             <Stack direction="row" spacing={1} alignItems="center">
               <AIIcon />
@@ -227,9 +231,11 @@ export default function AIPiecesPage() {
                 <Button variant="text" onClick={onClearFilters} disabled={loading}>
                   Limpar
                 </Button>
-                <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
-                  Nova Peça
-                </Button>
+                <Permission resources={['ai.pieces.create']}>
+                  <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
+                    Nova Peça
+                  </Button>
+                </Permission>
               </Stack>
             </Stack>
 
@@ -307,12 +313,16 @@ export default function AIPiecesPage() {
                         )}
                       </Stack>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(p)}>
-                          Editar
-                        </Button>
-                        <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(p)}>
-                          Excluir
-                        </Button>
+                        <Permission resources={['ai.pieces.update']}>
+                          <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(p)}>
+                            Editar
+                          </Button>
+                        </Permission>
+                        <Permission resources={['ai.pieces.delete']}>
+                          <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(p)}>
+                            Excluir
+                          </Button>
+                        </Permission>
                       </Stack>
                     </Stack>
                   </Box>
@@ -342,7 +352,9 @@ export default function AIPiecesPage() {
                       <TableCell>Status</TableCell>
                       <TableCell>Documento</TableCell>
                       <TableCell>Criada em</TableCell>
-                      <TableCell align="right">Ações</TableCell>
+                      {user?.rules?.some((r: string) => ['ai.pieces.update', 'ai.pieces.delete'].includes(r)) && (
+                        <TableCell align="right">Ações</TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -406,21 +418,27 @@ export default function AIPiecesPage() {
                         <TableCell>
                           {p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}
                         </TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(p)}>
-                              Editar
-                            </Button>
-                            <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(p)}>
-                              Excluir
-                            </Button>
-                          </Stack>
-                        </TableCell>
+                        {user?.rules?.some((r: string) => ['ai.pieces.update', 'ai.pieces.delete'].includes(r)) && (
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                              <Permission resources={['ai.pieces.update']}>
+                                <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(p)}>
+                                  Editar
+                                </Button>
+                              </Permission>
+                              <Permission resources={['ai.pieces.delete']}>
+                                <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(p)}>
+                                  Excluir
+                                </Button>
+                              </Permission>
+                            </Stack>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={8}>
+                        <TableCell colSpan={user?.rules?.some((r: string) => ['ai.pieces.update', 'ai.pieces.delete'].includes(r)) ? 8 : 7}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhuma peça encontrada.'}
@@ -451,54 +469,55 @@ export default function AIPiecesPage() {
             </Stack>
           </Stack>
         </MainCard>
-      </Grid>
+        </Grid>
 
-      {/* Dialog de criar/editar */}
-      <PieceFormDialog
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        editingId={editId}
-        initial={editInitial || undefined}
-        onSaved={() => { setPage(0); load(); }}
-      />
+        {/* Dialog de criar/editar */}
+        <PieceFormDialog
+          open={formOpen}
+          onClose={() => setFormOpen(false)}
+          editingId={editId}
+          initial={editInitial || undefined}
+          onSaved={() => { setPage(0); load(); }}
+        />
 
-      {/* Confirmação de exclusão */}
-      <ConfirmDeleteDialog
-        open={deleteOpen}
-        onCancel={() => {
-          if (deleting) return;
-          setDeleteOpen(false);
-          setDeleteTarget(null);
-        }}
-        onConfirm={async () => {
-          if (!deleteTarget) return;
-          try {
-            setDeleting(true);
-            const res = await deletePiece(deleteTarget.id);
-            openSnackbar({ open: true, message: res.message || 'Peça removida!', variant: 'alert', alert: { color: 'success' } } as any);
-            if (items.length === 1 && page > 0) setPage((p) => p - 1);
-            else load();
-          } catch (err: any) {
-            openSnackbar({ open: true, message: err?.response?.data?.message || 'Não foi possível remover', variant: 'alert', alert: { color: 'error' } } as any);
-          } finally {
-            setDeleting(false);
+        {/* Confirmação de exclusão */}
+        <ConfirmDeleteDialog
+          open={deleteOpen}
+          onCancel={() => {
+            if (deleting) return;
             setDeleteOpen(false);
             setDeleteTarget(null);
-          }
-        }}
-        loading={deleting}
-        title="Remover peça"
-        description={<span>Esta ação <b>não pode ser desfeita</b>. Deseja remover a peça <b>{deleteTarget?.name}</b>?</span>}
-      />
+          }}
+          onConfirm={async () => {
+            if (!deleteTarget) return;
+            try {
+              setDeleting(true);
+              const res = await deletePiece(deleteTarget.id);
+              openSnackbar({ open: true, message: res.message || 'Peça removida!', variant: 'alert', alert: { color: 'success' } } as any);
+              if (items.length === 1 && page > 0) setPage((p) => p - 1);
+              else load();
+            } catch (err: any) {
+              openSnackbar({ open: true, message: err?.response?.data?.message || 'Não foi possível remover', variant: 'alert', alert: { color: 'error' } } as any);
+            } finally {
+              setDeleting(false);
+              setDeleteOpen(false);
+              setDeleteTarget(null);
+            }
+          }}
+          loading={deleting}
+          title="Remover peça"
+          description={<span>Esta ação <b>não pode ser desfeita</b>. Deseja remover a peça <b>{deleteTarget?.name}</b>?</span>}
+        />
 
-      {/* Input de arquivo oculto para upload de DOCX */}
-      <input 
-        ref={fileRef} 
-        onChange={onPickFile} 
-        type="file" 
-        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
-        style={{ display: 'none' }} 
-      />
-    </Grid>
+        {/* Input de arquivo oculto para upload de DOCX */}
+        <input 
+          ref={fileRef} 
+          onChange={onPickFile} 
+          type="file" 
+          accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
+          style={{ display: 'none' }} 
+        />
+      </Grid>
+    </Permission>
   );
 }

@@ -15,6 +15,7 @@ import HtmlEditor from 'sections/ai/edit-case/HtmlEditor';
 import { getCaseResult, updateCaseResultHtml, CaseResult } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
 import { convertHtmlToDocx } from 'api/aiDocs';
+import Permission from 'components/Permission';
 
 export default function EditCasePage() {
   const { id } = useParams<{ id: string }>();
@@ -143,7 +144,8 @@ export default function EditCasePage() {
   }
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Permission resources={['ai.cases.update']}>
+      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Barra de ferramentas superior */}
       <Paper elevation={2} sx={{ zIndex: 1100 }}>
         <Toolbar sx={{ gap: 2, justifyContent: 'space-between' }}>
@@ -198,5 +200,6 @@ export default function EditCasePage() {
         />
       </Box>
     </Box>
+    </Permission>
   );
 }

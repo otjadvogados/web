@@ -28,6 +28,7 @@ import { openSnackbar } from '../../api/snackbar';
 import UserSelect from '../../components/inputs/UserSelect';
 import type { UserBasic } from '../../api/users';
 import { formatPhoneBR, formatCNPJ, bindMask, digitsOnly } from '../../utils/mask';
+import Permission from '../../components/Permission';
 
 const schema = Yup.object({
   name: Yup.string().required('Nome é obrigatório').min(2, 'Mínimo 2 caracteres'),
@@ -101,9 +102,10 @@ export default function CompanyPage() {
   }), [initial]);
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <MainCard title="Empresa" contentSX={{ p: 0 }}>
+    <Permission resources={['company.read']}>
+      <Grid container spacing={3}>
+        <Grid size={12}>
+          <MainCard title="Empresa" contentSX={{ p: 0 }}>
           <Stack direction={isMobile ? 'column' : 'row'} spacing={1.5} sx={{ p: 2 }} alignItems={isMobile ? 'stretch' : 'center'}>
             <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
               Gerencie as informações básicas da empresa.
@@ -155,94 +157,96 @@ export default function CompanyPage() {
                 }}
               >
                 {({ values, errors, touched, handleBlur, handleChange, handleSubmit, setFieldValue, isSubmitting }) => (
-                  <Stack spacing={2}>
-                    <Stack gap={1}>
-                      <InputLabel htmlFor="name">Nome *</InputLabel>
-                      <OutlinedInput id="name" name="name" value={values.name} onChange={handleChange} onBlur={handleBlur} error={Boolean(touched.name && errors.name)} />
-                      {touched.name && errors.name && <FormHelperText error>{errors.name as string}</FormHelperText>}
-                    </Stack>
-
-                    <Stack gap={1}>
-                      <InputLabel htmlFor="tradeName">Nome Fantasia</InputLabel>
-                      <OutlinedInput id="tradeName" name="tradeName" value={values.tradeName} onChange={handleChange} onBlur={handleBlur} />
-                    </Stack>
-
-                    <Stack gap={1}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <InputLabel htmlFor="website">Website</InputLabel>
-                        <Tooltip title="Limpar campo (não envia valor)"><span></span></Tooltip>
+                  <Permission resources={['company.update']}>
+                    <Stack spacing={2}>
+                      <Stack gap={1}>
+                        <InputLabel htmlFor="name">Nome *</InputLabel>
+                        <OutlinedInput id="name" name="name" value={values.name} onChange={handleChange} onBlur={handleBlur} error={Boolean(touched.name && errors.name)} />
+                        {touched.name && errors.name && <FormHelperText error>{errors.name as string}</FormHelperText>}
                       </Stack>
-                      <OutlinedInput id="website" name="website" placeholder="https://minhaempresa.com.br" value={values.website} onChange={handleChange} onBlur={handleBlur} error={Boolean(touched.website && errors.website)} />
-                      {touched.website && errors.website && <FormHelperText error>{errors.website as string}</FormHelperText>}
-                    </Stack>
 
-                                         <Stack gap={1}>
-                       <Stack direction="row" justifyContent="space-between" alignItems="center">
-                         <InputLabel htmlFor="phone">Telefone</InputLabel>
-                         <Tooltip title="Limpar telefone"><span><IconButton size="small" onClick={() => setFieldValue('phone', '')}><ClearOutlined /></IconButton></span></Tooltip>
+                      <Stack gap={1}>
+                        <InputLabel htmlFor="tradeName">Nome Fantasia</InputLabel>
+                        <OutlinedInput id="tradeName" name="tradeName" value={values.tradeName} onChange={handleChange} onBlur={handleBlur} />
+                      </Stack>
+
+                      <Stack gap={1}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <InputLabel htmlFor="website">Website</InputLabel>
+                          <Tooltip title="Limpar campo (não envia valor)"><span></span></Tooltip>
+                        </Stack>
+                        <OutlinedInput id="website" name="website" placeholder="https://minhaempresa.com.br" value={values.website} onChange={handleChange} onBlur={handleBlur} error={Boolean(touched.website && errors.website)} />
+                        {touched.website && errors.website && <FormHelperText error>{errors.website as string}</FormHelperText>}
+                      </Stack>
+
+                                           <Stack gap={1}>
+                         <Stack direction="row" justifyContent="space-between" alignItems="center">
+                           <InputLabel htmlFor="phone">Telefone</InputLabel>
+                           <Tooltip title="Limpar telefone"><span><IconButton size="small" onClick={() => setFieldValue('phone', '')}><ClearOutlined /></IconButton></span></Tooltip>
+                         </Stack>
+                         <OutlinedInput 
+                           id="phone" 
+                           name="phone" 
+                           inputRef={phoneRef}
+                           placeholder="(11) 91234-5678" 
+                           value={values.phone} 
+                           onChange={bindMask('phone', setFieldValue, formatPhoneBR, phoneRef)}
+                           onBlur={handleBlur} 
+                           error={Boolean(touched.phone && errors.phone)} 
+                         />
+                         {touched.phone && errors.phone && <FormHelperText error>{errors.phone as string}</FormHelperText>}
                        </Stack>
-                       <OutlinedInput 
-                         id="phone" 
-                         name="phone" 
-                         inputRef={phoneRef}
-                         placeholder="(11) 91234-5678" 
-                         value={values.phone} 
-                         onChange={bindMask('phone', setFieldValue, formatPhoneBR, phoneRef)}
-                         onBlur={handleBlur} 
-                         error={Boolean(touched.phone && errors.phone)} 
-                       />
-                       {touched.phone && errors.phone && <FormHelperText error>{errors.phone as string}</FormHelperText>}
-                     </Stack>
 
-                     <Stack gap={1}>
-                       <Stack direction="row" justifyContent="space-between" alignItems="center">
-                         <InputLabel htmlFor="cnpj">CNPJ</InputLabel>
-                         <Tooltip title="Limpar CNPJ"><span><IconButton size="small" onClick={() => setFieldValue('cnpj', '')}><ClearOutlined /></IconButton></span></Tooltip>
+                       <Stack gap={1}>
+                         <Stack direction="row" justifyContent="space-between" alignItems="center">
+                           <InputLabel htmlFor="cnpj">CNPJ</InputLabel>
+                           <Tooltip title="Limpar CNPJ"><span><IconButton size="small" onClick={() => setFieldValue('cnpj', '')}><ClearOutlined /></IconButton></span></Tooltip>
+                         </Stack>
+                         <OutlinedInput 
+                           id="cnpj" 
+                           name="cnpj" 
+                           inputRef={cnpjRef}
+                           placeholder="12.345.678/0001-90" 
+                           value={values.cnpj} 
+                           onChange={bindMask('cnpj', setFieldValue, formatCNPJ, cnpjRef)}
+                           onBlur={handleBlur} 
+                           error={Boolean(touched.cnpj && errors.cnpj)} 
+                         />
+                         {touched.cnpj && errors.cnpj && <FormHelperText error>{errors.cnpj as string}</FormHelperText>}
                        </Stack>
-                       <OutlinedInput 
-                         id="cnpj" 
-                         name="cnpj" 
-                         inputRef={cnpjRef}
-                         placeholder="12.345.678/0001-90" 
-                         value={values.cnpj} 
-                         onChange={bindMask('cnpj', setFieldValue, formatCNPJ, cnpjRef)}
-                         onBlur={handleBlur} 
-                         error={Boolean(touched.cnpj && errors.cnpj)} 
-                       />
-                       {touched.cnpj && errors.cnpj && <FormHelperText error>{errors.cnpj as string}</FormHelperText>}
-                     </Stack>
 
-                    <Divider sx={{ my: 1 }} />
+                      <Divider sx={{ my: 1 }} />
 
-                    {/* Responsável pela assinatura */}
-                    <Stack gap={1}>
-                      <InputLabel>Responsável pela assinatura</InputLabel>
-                 
+                      {/* Responsável pela assinatura */}
+                      <Stack gap={1}>
+                        <InputLabel>Responsável pela assinatura</InputLabel>
+                   
 
-                      <UserSelect
-                        value={resp}
-                        onChange={(u) => { setResp(u); setClearResp(false); }}
-                        placeholder="Digite para buscar usuários…"
-                      />
+                        <UserSelect
+                          value={resp}
+                          onChange={(u) => { setResp(u); setClearResp(false); }}
+                          placeholder="Digite para buscar usuários…"
+                        />
 
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Button
-                          size="small"
-                          color={clearResp ? 'success' : 'inherit'}
-                          onClick={() => { setResp(null); setClearResp((v) => !v); }}
-                        >
-                          {clearResp ? 'Remoção marcada' : 'Limpar responsável'}
-                        </Button>
-                        <Typography variant="caption" color="text.secondary">
-                          {clearResp ? 'Ao salvar, o responsável será removido.' : 'Opcional: escolha um novo responsável ou limpe.'}
-                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Button
+                            size="small"
+                            color={clearResp ? 'success' : 'inherit'}
+                            onClick={() => { setResp(null); setClearResp((v) => !v); }}
+                          >
+                            {clearResp ? 'Remoção marcada' : 'Limpar responsável'}
+                          </Button>
+                          <Typography variant="caption" color="text.secondary">
+                            {clearResp ? 'Ao salvar, o responsável será removido.' : 'Opcional: escolha um novo responsável ou limpe.'}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button variant="contained" startIcon={<SaveOutlined />} onClick={() => handleSubmit()} disabled={isSubmitting || submitting}>Salvar</Button>
                       </Stack>
                     </Stack>
-
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Button variant="contained" startIcon={<SaveOutlined />} onClick={() => handleSubmit()} disabled={isSubmitting || submitting}>Salvar</Button>
-                    </Stack>
-                  </Stack>
+                  </Permission>
                 )}
               </Formik>
             </Box>
@@ -250,5 +254,6 @@ export default function CompanyPage() {
         </MainCard>
       </Grid>
     </Grid>
+    </Permission>
   );
 }

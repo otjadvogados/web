@@ -31,6 +31,7 @@ import StepSpecs from 'sections/ai/cases/steps/StepSpecs';
 import StepAttachments from 'sections/ai/cases/steps/StepAttachments';
 import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
 import { ensureRealtimeConnected } from 'api/realtime';
+import Permission from 'components/Permission';
 
 const steps = [
   { key: 'dept', label: 'Departamento' },
@@ -43,9 +44,11 @@ const steps = [
 
 export default function CreateCaseWizardPage() {
   return (
-    <CaseWizardProvider>
-      <CreateCaseWizardInner />
-    </CaseWizardProvider>
+    <Permission resources={['ai.cases.create']}>
+      <CaseWizardProvider>
+        <CreateCaseWizardInner />
+      </CaseWizardProvider>
+    </Permission>
   );
 }
 

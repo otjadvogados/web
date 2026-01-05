@@ -32,19 +32,22 @@ const pages: NavItemType = {
           id: 'company',
           title: 'company',
           type: 'item',
-          url: '/company'
+          url: '/company',
+          permissions: ['company.read', 'company.update'],
         },
         {
           id: 'departments',
           title: 'departments',
           type: 'item',
-          url: '/departments'
+          url: '/departments',
+          permissions: ['departments.read', 'departments.create', 'departments.update', 'departments.delete'],
         },
         {
           id: 'roles',
           title: 'roles',
           type: 'item',
-          url: '/roles'
+          url: '/roles',
+          permissions: ['roles.read', 'roles.create', 'roles.update', 'roles.delete'],
         }
       ]
     },
@@ -60,25 +63,29 @@ const pages: NavItemType = {
           id: 'ai-cases-list',
           title: 'Casos',
           type: 'item',
-          url: '/ai/cases'
+          url: '/ai/cases',
+          permissions: ['ai.cases.read', 'ai.cases.create', 'ai.cases.update', 'ai.cases.delete'],
         },
         {
           id: 'ai-cases-create',
           title: 'Criar Caso',
           type: 'item',
-          url: '/ai/cases/create'
+          url: '/ai/cases/create',
+          permissions: ['ai.cases.create'],
         },
         {
           id: 'ai-pieces',
           title: 'Peças',
           type: 'item',
-          url: '/ai/pieces'
+          url: '/ai/pieces',
+          permissions: ['ai.pieces.read', 'ai.pieces.create', 'ai.pieces.update', 'ai.pieces.delete'],
         },
         {
           id: 'ai-topics',
           title: 'Tópicos',
           type: 'item',
-          url: '/ai/topics'
+          url: '/ai/topics',
+          permissions: ['ai.topics.read', 'ai.topics.create', 'ai.topics.update', 'ai.topics.delete'],
         },
         {
           id: 'ai-topic-specifics',
@@ -90,7 +97,8 @@ const pages: NavItemType = {
           id: 'ai-rules',
           title: 'Regras e tipografia',
           type: 'item',
-          url: '/ai/rules'
+          url: '/ai/rules',
+          permissions: ['ai.rules.read', 'ai.rules.create', 'ai.rules.update', 'ai.rules.delete'],
         },
         {
           id: 'ai-usage',
@@ -113,7 +121,8 @@ const pages: NavItemType = {
       title: 'users',
       type: 'item',
       icon: icons.TeamOutlined,
-      url: '/users'
+      url: '/users',
+      permissions: ['users.read', 'users.create', 'users.update', 'users.delete'],
     },
     // 👇 Clientes
     {
@@ -121,7 +130,8 @@ const pages: NavItemType = {
       title: 'customer',
       type: 'item',
       icon: icons.UserOutlined,
-      url: '/clients'
+      url: '/clients',
+      permissions: ['customers.read', 'customers.create', 'customers.update', 'customers.delete'],
     },
     
   ]

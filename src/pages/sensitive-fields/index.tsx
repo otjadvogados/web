@@ -34,12 +34,15 @@ import SensitiveFieldFormDialog from 'sections/users/SensitiveFieldFormDialog';
 import { listSensitiveFields, deleteSensitiveField, updateSensitiveField } from 'api/sensitiveFields';
 import { SensitiveField } from 'types/privacy';
 import { openSnackbar } from 'api/snackbar';
+import Permission from 'components/Permission';
+import useAuth from 'hooks/useAuth';
 
 function scopeLabel(sf: SensitiveField) {
   return 'Global';
 }
 
 export default function SensitiveFieldsPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<SensitiveField[]>([]);
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
@@ -173,16 +176,20 @@ export default function SensitiveFieldsPage() {
               )}
             </Box>
             <Stack direction="row" spacing={0.5}>
-              <Tooltip title="Editar">
-                <IconButton size="small" color="secondary" onClick={() => openEdit(sf)}>
-                  <EditOutlined />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Excluir">
-                <IconButton size="small" color="error" onClick={() => askDelete(sf)}>
-                  <DeleteOutlined />
-                </IconButton>
-              </Tooltip>
+              <Permission resources={['privacy.update']}>
+                <Tooltip title="Editar">
+                  <IconButton size="small" color="secondary" onClick={() => openEdit(sf)}>
+                    <EditOutlined />
+                  </IconButton>
+                </Tooltip>
+              </Permission>
+              <Permission resources={['privacy.delete']}>
+                <Tooltip title="Excluir">
+                  <IconButton size="small" color="error" onClick={() => askDelete(sf)}>
+                    <DeleteOutlined />
+                  </IconButton>
+                </Tooltip>
+              </Permission>
             </Stack>
           </Stack>
 
@@ -192,23 +199,25 @@ export default function SensitiveFieldsPage() {
                <Typography variant="caption" color="text.secondary" sx={{ minWidth: isSmallMobile ? 60 : 80 }}>
                  Status:
                </Typography>
-               <FormControlLabel
-                 control={
-                   <Switch 
-                     checked={sf.active} 
-                     onChange={(_, v) => handleStatusChange(sf, v)}
-                     disabled={updatingStatus === sf.id}
-                     size="small"
-                     color="primary"
-                   />
-                 }
-                 label={
-                   <Typography variant="caption" color="text.secondary">
-                     {sf.active ? 'Ativo' : 'Inativo'}
-                   </Typography>
-                 }
-                 sx={{ margin: 0 }}
-               />
+               <Permission resources={['privacy.update']}>
+                 <FormControlLabel
+                   control={
+                     <Switch 
+                       checked={sf.active} 
+                       onChange={(_, v) => handleStatusChange(sf, v)}
+                       disabled={updatingStatus === sf.id}
+                       size="small"
+                       color="primary"
+                     />
+                   }
+                   label={
+                     <Typography variant="caption" color="text.secondary">
+                       {sf.active ? 'Ativo' : 'Inativo'}
+                     </Typography>
+                   }
+                   sx={{ margin: 0 }}
+                 />
+               </Permission>
              </Stack>
            </Stack>
         </Stack>
@@ -217,8 +226,9 @@ export default function SensitiveFieldsPage() {
   );
 
   return (
-    <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <MainCard title="Dados sensíveis" contentSX={{ p: 0, width: '100%' }}>
+    <Permission resources={['privacy.read']}>
+      <Box sx={{ width: '100%', maxWidth: '100%' }}>
+        <MainCard title="Dados sensíveis" contentSX={{ p: 0, width: '100%' }}>
           {/* Cabeçalho responsivo */}
           <Stack 
             direction={isMobile ? "column" : "row"} 
@@ -245,14 +255,16 @@ export default function SensitiveFieldsPage() {
             />
             
             {/* Botão de ação */}
-            <Button 
-              variant="contained" 
-              startIcon={<PlusOutlined />} 
-              onClick={openCreate}
-              size={isSmallMobile ? "small" : "medium"}
-            >
-              {isSmallMobile ? 'Novo' : 'Novo'}
-            </Button>
+            <Permission resources={['privacy.create']}>
+              <Button 
+                variant="contained" 
+                startIcon={<PlusOutlined />} 
+                onClick={openCreate}
+                size={isSmallMobile ? "small" : "medium"}
+              >
+                {isSmallMobile ? 'Novo' : 'Novo'}
+              </Button>
+            </Permission>
           </Stack>
 
           <Divider />
@@ -282,7 +294,9 @@ export default function SensitiveFieldsPage() {
                      <TableCell>Módulo</TableCell>
                      <TableCell>Rótulo</TableCell>
                      <TableCell>Status</TableCell>
-                     <TableCell align="right">Ações</TableCell>
+                     {user?.rules?.some((r: string) => ['privacy.update', 'privacy.delete'].includes(r)) && (
+                       <TableCell align="right">Ações</TableCell>
+                     )}
                    </TableRow>
                  </TableHead>
                 <TableBody>
@@ -293,43 +307,51 @@ export default function SensitiveFieldsPage() {
                        </TableCell>
                        <TableCell>{sf.label || '—'}</TableCell>
                        <TableCell>
-                         <FormControlLabel
-                           control={
-                             <Switch 
-                               checked={sf.active} 
-                               onChange={(_, v) => handleStatusChange(sf, v)}
-                               disabled={updatingStatus === sf.id}
-                               size="small"
-                               color="primary"
-                             />
-                           }
-                           label={
-                             <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                               {sf.active ? 'Ativo' : 'Inativo'}
-                             </Typography>
-                           }
-                           sx={{ margin: 0 }}
-                         />
+                         <Permission resources={['privacy.update']}>
+                           <FormControlLabel
+                             control={
+                               <Switch 
+                                 checked={sf.active} 
+                                 onChange={(_, v) => handleStatusChange(sf, v)}
+                                 disabled={updatingStatus === sf.id}
+                                 size="small"
+                                 color="primary"
+                               />
+                             }
+                             label={
+                               <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                 {sf.active ? 'Ativo' : 'Inativo'}
+                               </Typography>
+                             }
+                             sx={{ margin: 0 }}
+                           />
+                         </Permission>
                        </TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                          <Tooltip title="Editar">
-                            <IconButton color="secondary" onClick={() => openEdit(sf)}>
-                              <EditOutlined />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Excluir">
-                            <IconButton color="error" onClick={() => askDelete(sf)}>
-                              <DeleteOutlined />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
+                      {user?.rules?.some((r: string) => ['privacy.update', 'privacy.delete'].includes(r)) && (
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <Permission resources={['privacy.update']}>
+                              <Tooltip title="Editar">
+                                <IconButton color="secondary" onClick={() => openEdit(sf)}>
+                                  <EditOutlined />
+                                </IconButton>
+                              </Tooltip>
+                            </Permission>
+                            <Permission resources={['privacy.delete']}>
+                              <Tooltip title="Excluir">
+                                <IconButton color="error" onClick={() => askDelete(sf)}>
+                                  <DeleteOutlined />
+                                </IconButton>
+                              </Tooltip>
+                            </Permission>
+                          </Stack>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                   {!items.length && (
                     <TableRow>
-                      <TableCell colSpan={4}>
+                      <TableCell colSpan={user?.rules?.some((r: string) => ['privacy.update', 'privacy.delete'].includes(r)) ? 4 : 3}>
                         <Stack alignItems="center" sx={{ py: 6 }}>
                           <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhum registro encontrado.'}</Typography>
                         </Stack>
@@ -412,5 +434,6 @@ export default function SensitiveFieldsPage() {
           }
         />
       </Box>
+    </Permission>
   );
 }

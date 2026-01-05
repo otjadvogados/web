@@ -81,7 +81,7 @@ export async function listCustomers(params?: { search?: string; page?: number; l
 }
 
 // Aceita string (busca) ou objeto { search, page, limit } e sempre retorna o ARRAY de customers.
-export async function listPeople(params?: { search?: string; page?: number; limit?: number } | string) {
+export async function listPeople(params?: { search?: string; page?: number; limit?: number } | string): Promise<import('../types/customers').Customer[]> {
   const isStr = typeof params === 'string';
   const q = {
     page: !isStr ? params?.page ?? 1 : 1,
@@ -92,10 +92,10 @@ export async function listPeople(params?: { search?: string; page?: number; limi
   // backend pode vir como {message,data,pagination} ou diretamente como array
   // padroniza para array
   // @ts-ignore
-  return Array.isArray(data) ? (data as unknown as Customer[]) : (data?.data ?? []);
+  return Array.isArray(data) ? (data as unknown as import('../types/customers').Customer[]) : (data?.data ?? []);
 }
 
-export async function listCompanies(params?: { search?: string; page?: number; limit?: number } | string) {
+export async function listCompanies(params?: { search?: string; page?: number; limit?: number } | string): Promise<import('../types/customers').Customer[]> {
   const isStr = typeof params === 'string';
   const q = {
     page: !isStr ? params?.page ?? 1 : 1,
@@ -105,7 +105,7 @@ export async function listCompanies(params?: { search?: string; page?: number; l
   const { data } = await axios.get<CustomersListResponse>('/customers/companies', { params: q });
   // padroniza para array
   // @ts-ignore
-  return Array.isArray(data) ? (data as unknown as Customer[]) : (data?.data ?? []);
+  return Array.isArray(data) ? (data as unknown as import('../types/customers').Customer[]) : (data?.data ?? []);
 }
 
 export async function getCompanyPeople(companyId: string) {

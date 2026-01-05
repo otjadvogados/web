@@ -28,8 +28,11 @@ import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import { listTopics, deleteTopic, AiTopic } from 'api/aiTopics';
 import { listPieces } from 'api/aiPieces';
 import TopicFormDialog from 'sections/ai/topics/TopicFormDialog';
+import Permission from 'components/Permission';
+import useAuth from 'hooks/useAuth';
 
 export default function AITopicsPage() {
+  const { user } = useAuth();
   // lista/filtros
   const [items, setItems] = useState<AiTopic[]>([]);
   const [total, setTotal] = useState(0);
@@ -109,9 +112,10 @@ export default function AITopicsPage() {
   ]), []);
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <MainCard
+    <Permission resources={['ai.topics.read']}>
+      <Grid container spacing={3}>
+        <Grid size={12}>
+          <MainCard
           title={
             <Stack direction="row" spacing={1} alignItems="center">
               <AIIcon />
@@ -149,9 +153,11 @@ export default function AITopicsPage() {
                 <Button variant="text" onClick={onClearFilters} disabled={loading}>
                   Limpar
                 </Button>
-                <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
-                  Novo Tópico
-                </Button>
+                <Permission resources={['ai.topics.create']}>
+                  <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
+                    Novo Tópico
+                  </Button>
+                </Permission>
               </Stack>
             </Stack>
 
@@ -184,12 +190,16 @@ export default function AITopicsPage() {
                         </Typography>
                       )}
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(t)}>
-                          Editar
-                        </Button>
-                        <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(t)}>
-                          Excluir
-                        </Button>
+                        <Permission resources={['ai.topics.update']}>
+                          <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(t)}>
+                            Editar
+                          </Button>
+                        </Permission>
+                        <Permission resources={['ai.topics.delete']}>
+                          <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(t)}>
+                            Excluir
+                          </Button>
+                        </Permission>
                       </Stack>
                     </Stack>
                   </Box>
@@ -216,7 +226,9 @@ export default function AITopicsPage() {
                       <TableCell>Peça</TableCell>
                       <TableCell>Descrição</TableCell>
                       <TableCell>Criado em</TableCell>
-                      <TableCell align="right">Ações</TableCell>
+                      {user?.rules?.some((r: string) => ['ai.topics.update', 'ai.topics.delete'].includes(r)) && (
+                        <TableCell align="right">Ações</TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -236,21 +248,27 @@ export default function AITopicsPage() {
                           </Typography>
                         </TableCell>
                         <TableCell>{t.createdAt ? new Date(t.createdAt).toLocaleString() : '—'}</TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(t)}>
-                              Editar
-                            </Button>
-                            <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(t)}>
-                              Excluir
-                            </Button>
-                          </Stack>
-                        </TableCell>
+                        {user?.rules?.some((r: string) => ['ai.topics.update', 'ai.topics.delete'].includes(r)) && (
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                              <Permission resources={['ai.topics.update']}>
+                                <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(t)}>
+                                  Editar
+                                </Button>
+                              </Permission>
+                              <Permission resources={['ai.topics.delete']}>
+                                <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(t)}>
+                                  Excluir
+                                </Button>
+                              </Permission>
+                            </Stack>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={columns.length}>
+                        <TableCell colSpan={user?.rules?.some((r: string) => ['ai.topics.update', 'ai.topics.delete'].includes(r)) ? columns.length : columns.length - 1}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhum tópico encontrado.'}
@@ -320,6 +338,7 @@ export default function AITopicsPage() {
         title="Remover tópico"
         description={<span>Esta ação <b>não pode ser desfeita</b>. Deseja remover o tópico <b>{deleteTarget?.name}</b>?</span>}
       />
-    </Grid>
+      </Grid>
+    </Permission>
   );
 }

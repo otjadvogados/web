@@ -56,22 +56,27 @@ function flattenRuleTree(nodes: RuleTreeNode[]): RuleItem[] {
 function filterRuleTree(nodes: RuleTreeNode[], query: string): RuleTreeNode[] {
   const q = query.trim().toLowerCase();
   if (!q) return nodes;
-  const walk = (list: RuleTreeNode[]) => {
+  const walk = (list: RuleTreeNode[]): RuleTreeNode[] => {
     return list
-      .map((node) => {
+      .map((node): RuleTreeNode | null => {
         const filteredChildren = node.children ? walk(node.children) : [];
         const filteredData =
           node.data?.filter((r) => `${r.name} ${r.description ?? ''}`.toLowerCase().includes(q)) ?? [];
         const hasChildren = filteredChildren.length > 0;
         const hasData = filteredData.length > 0;
         if (!hasChildren && !hasData) return null;
-        return {
-          ...node,
-          children: hasChildren ? filteredChildren : undefined,
-          data: hasData ? filteredData : undefined
+        const result: RuleTreeNode = {
+          name: node.name
         };
+        if (hasChildren) {
+          result.children = filteredChildren;
+        }
+        if (hasData) {
+          result.data = filteredData;
+        }
+        return result;
       })
-      .filter((n): n is RuleTreeNode => Boolean(n));
+      .filter((n): n is RuleTreeNode => n !== null);
   };
   return walk(nodes);
 }
@@ -319,6 +324,35 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
     );
   };
 
+  // Renderiza item de data usando descrição como texto principal
+  const renderDataItem = (r: RuleItem) => {
+    const linked = isLinked(r.id);
+    const disabled = busyIds.has(r.id) || bulkBusy;
+    // Extrai apenas a primeira palavra da descrição (ex: "criar" de "criar roles")
+    let displayText = r.description || r.name;
+    if (r.description) {
+      const firstWord = r.description.trim().split(/\s+/)[0];
+      displayText = firstWord || r.name;
+    }
+    // Substitui "Super" por "Geral"
+    if (displayText.toLowerCase() === 'super') {
+      displayText = 'Geral';
+    }
+    return (
+      <ListItem key={r.id} disablePadding secondaryAction={linked ? <Chip size="small" color="success" label="vinculada" /> : undefined}>
+        <ListItemButton onClick={() => !disabled && toggleRule(r.id)} dense disabled={disabled}>
+          <ListItemIcon>
+            <Checkbox edge="start" checked={linked} tabIndex={-1} disableRipple disabled={disabled} />
+          </ListItemIcon>
+          <ListItemText
+            primary={displayText}
+            primaryTypographyProps={{ noWrap: true }}
+          />
+        </ListItemButton>
+      </ListItem>
+    );
+  };
+
   const renderTree = (nodes: RuleTreeNode[], path: string[] = []) =>
     nodes.map((node, idx) => {
       const key = makeGroupKey(path, node.name, idx);
@@ -327,6 +361,19 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
       const hasChildren = node.children?.length;
       const hasData = node.data?.length;
       if (!hasChildren && !hasData) return null;
+      
+      // Se tem apenas data (sem children), renderiza os itens diretamente sem o grupo
+      if (hasData && !hasChildren) {
+        return (
+          <Box key={key} sx={{ borderLeft: path.length ? '1px dashed' : 'none', borderColor: 'divider' }}>
+            <List dense disablePadding sx={{ pl: path.length * 2 }}>
+              {node.data?.map((r) => renderDataItem(r))}
+            </List>
+          </Box>
+        );
+      }
+      
+      // Se tem children (com ou sem data), renderiza como grupo
       return (
         <Box key={key} sx={{ borderLeft: path.length ? '1px dashed' : 'none', borderColor: 'divider' }}>
           <ListItem disableGutters>
@@ -341,9 +388,15 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
               />
             </ListItemButton>
           </ListItem>
+          {/* Renderiza data sempre visível (sem Collapse) usando descrição */}
+          {hasData && (
+            <List dense disablePadding sx={{ pl: 4 }}>
+              {node.data?.map((r) => renderDataItem(r))}
+            </List>
+          )}
+          {/* Renderiza children dentro do Collapse */}
           <Collapse in={open} timeout="auto" unmountOnExit>
             <List dense disablePadding sx={{ pl: 4 }}>
-              {node.data?.map((r) => renderRuleItem(r))}
               {node.children && renderTree(node.children, [...path, `${node.name}-${idx}`])}
             </List>
           </Collapse>

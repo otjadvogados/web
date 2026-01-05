@@ -3,6 +3,8 @@ export type DepartmentRow = {
   name: string;
   description?: string | null;
   company?: { id: string; name: string } | null;
+  signatureUserId?: string | null;
+  signatureUser?: { id: string; name: string } | null;
   createdAt?: string;
   updatedAt?: string;
 };

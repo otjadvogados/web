@@ -34,8 +34,11 @@ import { openSnackbar } from '../../api/snackbar';
 import DepartmentFormDialog from '../../sections/departments/DepartmentFormDialog';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import DeptRolesDrawer from '../../sections/departments/DeptRolesDrawer';
+import Permission from '../../components/Permission';
+import useAuth from '../../hooks/useAuth';
 
 export default function DepartmentsPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<DepartmentRow[]>([]);
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
@@ -121,8 +124,12 @@ export default function DepartmentsPage() {
             <Tooltip title="Cargos">
               <IconButton color="primary" onClick={() => openRoles(dept)}><TeamOutlined /></IconButton>
             </Tooltip>
-            <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(dept.id)}><EditOutlined /></IconButton></Tooltip>
-            <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(dept)}><DeleteOutlined /></IconButton></Tooltip>
+            <Permission resources={['departments.update']}>
+              <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(dept.id)}><EditOutlined /></IconButton></Tooltip>
+            </Permission>
+            <Permission resources={['departments.delete']}>
+              <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(dept)}><DeleteOutlined /></IconButton></Tooltip>
+            </Permission>
           </Stack>
         </Stack>
         {dept.description && <Typography variant="body2" color="text.secondary">{dept.description}</Typography>}
@@ -135,9 +142,10 @@ export default function DepartmentsPage() {
   );
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <MainCard title="Departamentos" contentSX={{ p: 0 }}>
+    <Permission resources={['departments.read']}>
+      <Grid container spacing={3}>
+        <Grid size={12}>
+          <MainCard title="Departamentos" contentSX={{ p: 0 }}>
           <Stack direction={isMobile ? 'column' : 'row'} spacing={isMobile ? 2 : 1.5} sx={{ p: 2, pb: 1 }} alignItems={isMobile ? 'stretch' : 'center'}>
             <TextField
               label="Buscar por nome"
@@ -150,9 +158,11 @@ export default function DepartmentsPage() {
               <Button variant="outlined" startIcon={<ReloadOutlined />} onClick={() => (setPage(0), load())} disabled={loading}>
                 Buscar
               </Button>
-              <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
-                Novo Departamento
-              </Button>
+              <Permission resources={['departments.create']}>
+                <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
+                  Novo Departamento
+                </Button>
+              </Permission>
             </Stack>
           </Stack>
 
@@ -175,7 +185,9 @@ export default function DepartmentsPage() {
                      <TableCell onClick={() => { setSortBy('name'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} sx={{ cursor: 'pointer' }}>Nome</TableCell>
                      <TableCell>Descrição</TableCell>
                      <TableCell>Responsável</TableCell>
-                     <TableCell align="right">Ações</TableCell>
+                     {user?.rules?.some((r: string) => ['departments.update', 'departments.delete'].includes(r)) && (
+                       <TableCell align="right">Ações</TableCell>
+                     )}
                    </TableRow>
                  </TableHead>
                 <TableBody>
@@ -193,20 +205,26 @@ export default function DepartmentsPage() {
                        <TableCell>
                          {d.signatureUser?.name ?? '—'}
                        </TableCell>
-                       <TableCell align="right">
-                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                          <Tooltip title="Cargos">
-                            <IconButton color="primary" onClick={() => openRoles(d)}><TeamOutlined /></IconButton>
-                          </Tooltip>
-                          <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(d.id)}><EditOutlined /></IconButton></Tooltip>
-                          <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(d)}><DeleteOutlined /></IconButton></Tooltip>
-                        </Stack>
-                      </TableCell>
+                       {user?.rules?.some((r: string) => ['departments.update', 'departments.delete'].includes(r)) && (
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <Tooltip title="Cargos">
+                              <IconButton color="primary" onClick={() => openRoles(d)}><TeamOutlined /></IconButton>
+                            </Tooltip>
+                            <Permission resources={['departments.update']}>
+                              <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(d.id)}><EditOutlined /></IconButton></Tooltip>
+                            </Permission>
+                            <Permission resources={['departments.delete']}>
+                              <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(d)}><DeleteOutlined /></IconButton></Tooltip>
+                            </Permission>
+                          </Stack>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                                      {!items.length && (
                      <TableRow>
-                       <TableCell colSpan={4}>
+                       <TableCell colSpan={user?.rules?.some((r: string) => ['departments.update', 'departments.delete'].includes(r)) ? 4 : 3}>
                          <Stack alignItems="center" sx={{ py: 6 }}>
                            <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhum departamento encontrado.'}</Typography>
                          </Stack>
@@ -279,5 +297,6 @@ export default function DepartmentsPage() {
         onChanged={load}
       />
     </Grid>
+    </Permission>
   );
 }

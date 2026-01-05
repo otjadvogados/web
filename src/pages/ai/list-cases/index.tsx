@@ -33,6 +33,8 @@ import { listPieces } from 'api/aiPieces';
 import { openSnackbar } from 'api/snackbar';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import CaseViewDialog from 'sections/ai/list-cases/CaseViewDialog';
+import Permission from 'components/Permission';
+import useAuth from 'hooks/useAuth';
 
 function AuthorCell({ requesterId, userName, userRoleName, userAvatarFileId }: { requesterId?: string; userName?: string | null; userRoleName?: string | null; userAvatarFileId?: string | null }) {
   const avatarUrl = useAvatarUrl(requesterId || null, userAvatarFileId || null);
@@ -59,6 +61,7 @@ function AuthorCell({ requesterId, userName, userRoleName, userAvatarFileId }: {
 
 export default function ListCasesPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
   // Lista e paginação
@@ -245,9 +248,10 @@ export default function ListCasesPage() {
   const isSomeSelected = selected.length > 0 && selected.length < items.length;
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <MainCard
+    <Permission resources={['ai.cases.read']}>
+      <Grid container spacing={3}>
+        <Grid size={12}>
+          <MainCard
           title={
             <Stack direction="row" spacing={1} alignItems="center">
               <AIIcon />
@@ -336,9 +340,11 @@ export default function ListCasesPage() {
                   Limpar
                 </Button>
                 {selectedCount > 0 && (
-                  <Button variant="contained" color="error" startIcon={<DeleteOutlined />} onClick={handleDeleteSelected}>
-                    Excluir selecionados ({selectedCount})
-                  </Button>
+                  <Permission resources={['ai.cases.delete']}>
+                    <Button variant="contained" color="error" startIcon={<DeleteOutlined />} onClick={handleDeleteSelected}>
+                      Excluir selecionados ({selectedCount})
+                    </Button>
+                  </Permission>
                 )}
               </Stack>
             </Stack>
@@ -375,12 +381,16 @@ export default function ListCasesPage() {
                       </Typography>
 
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <Button size="small" color="secondary" startIcon={<EyeOutlined />} onClick={() => handleView(item.id)}>
-                          Ver
-                        </Button>
-                        <Button size="small" color="primary" startIcon={<EditOutlined />} onClick={() => handleEdit(item.id)}>
-                          Editar
-                        </Button>
+                        <Permission resources={['ai.cases.read']}>
+                          <Button size="small" color="secondary" startIcon={<EyeOutlined />} onClick={() => handleView(item.id)}>
+                            Ver
+                          </Button>
+                        </Permission>
+                        <Permission resources={['ai.cases.update']}>
+                          <Button size="small" color="primary" startIcon={<EditOutlined />} onClick={() => handleEdit(item.id)}>
+                            Editar
+                          </Button>
+                        </Permission>
                       </Stack>
                     </Stack>
                   </Box>
@@ -411,7 +421,9 @@ export default function ListCasesPage() {
                       <TableCell>Departamento</TableCell>
                       <TableCell>Redator</TableCell>
                       <TableCell>Criado em</TableCell>
-                      <TableCell align="right">Ações</TableCell>
+                      {user?.rules?.some((r: string) => ['ai.cases.read', 'ai.cases.update'].includes(r)) && (
+                        <TableCell align="right">Ações</TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -442,21 +454,27 @@ export default function ListCasesPage() {
                           />
                         </TableCell>
                         <TableCell>{item.createdAt ? formatDate(item.createdAt) : '—'}</TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Button size="small" color="secondary" startIcon={<EyeOutlined />} onClick={() => handleView(item.id)}>
-                              Ver
-                            </Button>
-                            <Button size="small" color="primary" startIcon={<EditOutlined />} onClick={() => handleEdit(item.id)}>
-                              Editar
-                            </Button>
-                          </Stack>
-                        </TableCell>
+                        {user?.rules?.some((r: string) => ['ai.cases.read', 'ai.cases.update'].includes(r)) && (
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                              <Permission resources={['ai.cases.read']}>
+                                <Button size="small" color="secondary" startIcon={<EyeOutlined />} onClick={() => handleView(item.id)}>
+                                  Ver
+                                </Button>
+                              </Permission>
+                              <Permission resources={['ai.cases.update']}>
+                                <Button size="small" color="primary" startIcon={<EditOutlined />} onClick={() => handleEdit(item.id)}>
+                                  Editar
+                                </Button>
+                              </Permission>
+                            </Stack>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={6}>
+                        <TableCell colSpan={user?.rules?.some((r: string) => ['ai.cases.read', 'ai.cases.update'].includes(r)) ? 7 : 6}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhum caso encontrado.'}
@@ -511,6 +529,7 @@ export default function ListCasesPage() {
 
       {/* Visualizar caso */}
       <CaseViewDialog open={viewOpen} onClose={() => setViewOpen(false)} caseId={viewCaseId} />
-    </Grid>
+      </Grid>
+    </Permission>
   );
 }

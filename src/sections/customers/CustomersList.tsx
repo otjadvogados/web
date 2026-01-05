@@ -50,6 +50,8 @@ import {
   getCompanyBranches
 } from '../../api/customers';
 import { openSnackbar } from '../../api/snackbar';
+import Permission from '../../components/Permission';
+import useAuth from '../../hooks/useAuth';
 
 // ==============================|| CUSTOMERS LIST ||============================== //
 
@@ -189,6 +191,7 @@ function StructureFlag({ customer }: { customer: Customer }) {
 
 export default function CustomersList() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -309,17 +312,20 @@ export default function CustomersList() {
   };
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/clients/new')}
-        >
-          Novo Cliente
-        </Button>
-      </Box>
+    <Permission resources={['customers.read']}>
+      <Box>
+        {/* Header */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Permission resources={['customers.create']}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/clients/new')}
+            >
+              Novo Cliente
+            </Button>
+          </Permission>
+        </Box>
 
       {/* Filtros */}
       <Card sx={{ mb: 3 }}>
@@ -376,19 +382,21 @@ export default function CustomersList() {
                 <TableCell>Status</TableCell>
                 <TableCell>Estrutura</TableCell>
                 <TableCell>Criado em</TableCell>
-                <TableCell align="right">Ações</TableCell>
+                {user?.rules?.some((r: string) => ['customers.update', 'customers.delete'].includes(r)) && (
+                  <TableCell align="right">Ações</TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={user?.rules?.some((r: string) => ['customers.update', 'customers.delete'].includes(r)) ? 6 : 5} align="center">
                     <Typography>Carregando...</Typography>
                   </TableCell>
                 </TableRow>
               ) : customers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={user?.rules?.some((r: string) => ['customers.update', 'customers.delete'].includes(r)) ? 6 : 5} align="center">
                     <Typography color="text.secondary">
                       Nenhum cliente encontrado
                     </Typography>
@@ -424,14 +432,16 @@ export default function CustomersList() {
                     <TableCell>
                       {new Date(customer.createdAt).toLocaleDateString('pt-BR')}
                     </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        onClick={(e) => handleMenuOpen(e, customer)}
-                        size="small"
-                      >
-                        <MoreVertIcon />
-                      </IconButton>
-                    </TableCell>
+                    {user?.rules?.some((r: string) => ['customers.update', 'customers.delete'].includes(r)) && (
+                      <TableCell align="right">
+                        <IconButton
+                          onClick={(e) => handleMenuOpen(e, customer)}
+                          size="small"
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -452,18 +462,22 @@ export default function CustomersList() {
           </ListItemIcon>
           <ListItemText>Visualizar</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleEdit}>
-          <ListItemIcon>
-            <EditIcon />
-          </ListItemIcon>
-          <ListItemText>Editar</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
-          <ListItemIcon>
-            <DeleteIcon />
-          </ListItemIcon>
-          <ListItemText>Excluir</ListItemText>
-        </MenuItem>
+        <Permission resources={['customers.update']}>
+          <MenuItem onClick={handleEdit}>
+            <ListItemIcon>
+              <EditIcon />
+            </ListItemIcon>
+            <ListItemText>Editar</ListItemText>
+          </MenuItem>
+        </Permission>
+        <Permission resources={['customers.delete']}>
+          <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+            <ListItemIcon>
+              <DeleteIcon />
+            </ListItemIcon>
+            <ListItemText>Excluir</ListItemText>
+          </MenuItem>
+        </Permission>
       </Menu>
 
       {/* Dialog de confirmação de exclusão */}
@@ -483,5 +497,6 @@ export default function CustomersList() {
         </DialogActions>
       </Dialog>
     </Box>
+    </Permission>
   );
 }

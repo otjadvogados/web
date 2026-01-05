@@ -41,6 +41,8 @@ import { FormattedMessage } from 'react-intl';
 import UserFormDialog from 'sections/users/UserFormDialog';
 import RolePickerDialog from 'sections/users/RolePickerDialog';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
+import Permission from 'components/Permission';
+import useAuth from 'hooks/useAuth';
 
 // Avatar protegido por token
 function UserAvatar({ id, name, size = 36, avatarFileId }: { id: string; name: string; size?: number; avatarFileId?: string | null }) {
@@ -58,6 +60,7 @@ function UserAvatar({ id, name, size = 36, avatarFileId }: { id: string; name: s
 }
 
 export default function UsersPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<UserRow[]>([]);
   const [page, setPage] = useState(0); // zero-based
   const [limit, setLimit] = useState(10);
@@ -218,16 +221,20 @@ export default function UsersPage() {
                   <TeamOutlined />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Editar">
-                <IconButton size="small" color="secondary" onClick={() => openEdit(user.id)}>
-                  <EditOutlined />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Excluir">
-                <IconButton size="small" color="error" onClick={() => requestDelete(user)}>
-                  <DeleteOutlined />
-                </IconButton>
-              </Tooltip>
+              <Permission resources={['users.update']}>
+                <Tooltip title="Editar">
+                  <IconButton size="small" color="secondary" onClick={() => openEdit(user.id)}>
+                    <EditOutlined />
+                  </IconButton>
+                </Tooltip>
+              </Permission>
+              <Permission resources={['users.delete']}>
+                <Tooltip title="Excluir">
+                  <IconButton size="small" color="error" onClick={() => requestDelete(user)}>
+                    <DeleteOutlined />
+                  </IconButton>
+                </Tooltip>
+              </Permission>
             </Stack>
           </Stack>
 
@@ -304,9 +311,10 @@ export default function UsersPage() {
   );
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <MainCard title="Colaboradores" contentSX={{ p: 0 }}>
+    <Permission resources={['users.read']}>
+      <Grid container spacing={3}>
+        <Grid size={12}>
+          <MainCard title="Colaboradores" contentSX={{ p: 0 }}>
           {/* Cabeçalho responsivo */}
           <Stack 
             direction={isMobile ? "column" : "row"} 
@@ -353,14 +361,16 @@ export default function UsersPage() {
                 {isSmallMobile ? 'Buscar' : 'Buscar'}
               </Button>
               
-              <Button 
-                variant="contained" 
-                startIcon={<UserAddOutlined />} 
-                onClick={openCreate}
-                size={isSmallMobile ? "small" : "medium"}
-              >
-                {isSmallMobile ? 'Novo' : 'Novo colaborador'}
-              </Button>
+              <Permission resources={['users.create']}>
+                <Button 
+                  variant="contained" 
+                  startIcon={<UserAddOutlined />} 
+                  onClick={openCreate}
+                  size={isSmallMobile ? "small" : "medium"}
+                >
+                  {isSmallMobile ? 'Novo' : 'Novo colaborador'}
+                </Button>
+              </Permission>
             </Stack>
           </Stack>
 
@@ -397,7 +407,9 @@ export default function UsersPage() {
                     {hasBirth && <TableCell>Nascimento</TableCell>}
                     <TableCell>Função</TableCell>
                     <TableCell>Departamentos</TableCell>
-                    <TableCell align="right">Ações</TableCell>
+                    {user?.rules?.some((r: string) => ['users.update', 'users.delete'].includes(r)) && (
+                      <TableCell align="right">Ações</TableCell>
+                    )}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -467,16 +479,20 @@ export default function UsersPage() {
                             </IconButton>
                           </Tooltip>
 
-                          <Tooltip title="Editar">
-                            <IconButton color="secondary" onClick={() => openEdit(u.id)}>
-                              <EditOutlined />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Excluir">
-                            <IconButton color="error" onClick={() => requestDelete(u)}>
-                              <DeleteOutlined />
-                            </IconButton>
-                          </Tooltip>
+                          <Permission resources={['users.update']}>
+                            <Tooltip title="Editar">
+                              <IconButton color="secondary" onClick={() => openEdit(u.id)}>
+                                <EditOutlined />
+                              </IconButton>
+                            </Tooltip>
+                          </Permission>
+                          <Permission resources={['users.delete']}>
+                            <Tooltip title="Excluir">
+                              <IconButton color="error" onClick={() => requestDelete(u)}>
+                                <DeleteOutlined />
+                              </IconButton>
+                            </Tooltip>
+                          </Permission>
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -577,5 +593,6 @@ export default function UsersPage() {
         }
       />
     </Grid>
+    </Permission>
   );
 }

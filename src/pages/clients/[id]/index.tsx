@@ -40,6 +40,7 @@ import {
 } from '../../../api/customers';
 import { openSnackbar } from '../../../api/snackbar';
 import CompanyPeoplePanel from '../../../sections/customers/CompanyPeoplePanel';
+import Permission from '../../../components/Permission';
 
 // ==============================|| CLIENT DETAILS PAGE ||============================== //
 
@@ -301,42 +302,45 @@ export default function ClientDetailsPage() {
   };
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBack}
-          sx={{ mr: 2 }}
-        >
-          Voltar
-        </Button>
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="h4" component="h1">
-            {customer.displayName}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-            <Chip
-              icon={getKindIcon()}
-              label={getKindLabel()}
-              color={getKindColor()}
-              size="small"
-            />
-            <Chip
-              label={customer.isActive ? 'Ativo' : 'Inativo'}
-              color={customer.isActive ? 'success' : 'default'}
-              size="small"
-            />
+    <Permission resources={['customers.read']}>
+      <Box>
+        {/* Header */}
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={handleBack}
+            sx={{ mr: 2 }}
+          >
+            Voltar
+          </Button>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="h4" component="h1">
+              {customer.displayName}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+              <Chip
+                icon={getKindIcon()}
+                label={getKindLabel()}
+                color={getKindColor()}
+                size="small"
+              />
+              <Chip
+                label={customer.isActive ? 'Ativo' : 'Inativo'}
+                color={customer.isActive ? 'success' : 'default'}
+                size="small"
+              />
+            </Box>
           </Box>
+          <Permission resources={['customers.update']}>
+            <Button
+              variant="contained"
+              startIcon={<EditIcon />}
+              onClick={handleEdit}
+            >
+              Editar
+            </Button>
+          </Permission>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<EditIcon />}
-          onClick={handleEdit}
-        >
-          Editar
-        </Button>
-      </Box>
 
       {/* Tabs */}
       <Card>
@@ -694,13 +698,15 @@ export default function ClientDetailsPage() {
                 Ações
               </Typography>
               <Stack direction="row" spacing={2}>
-                <Button
-                  variant="contained"
-                  onClick={() => navigate(`/clients/${id}/edit`)}
-                  startIcon={<EditIcon />}
-                >
-                  Editar Relação
-                </Button>
+                <Permission resources={['customers.update']}>
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate(`/clients/${id}/edit`)}
+                    startIcon={<EditIcon />}
+                  >
+                    Editar Relação
+                  </Button>
+                </Permission>
                 {(customer.company as any).parent?.customer && (
                   <Button
                     variant="outlined"
@@ -771,5 +777,6 @@ export default function ClientDetailsPage() {
         )}
       </Card>
     </Box>
+    </Permission>
   );
 }

@@ -39,8 +39,11 @@ import {
 } from 'api/aiRulebooks';
 import RulebookFormDialog from 'sections/ai/rules/RulebookFormDialog';
 import TextCarouselOverlay from 'components/loaders/TextCarouselOverlay';
+import Permission from 'components/Permission';
+import useAuth from 'hooks/useAuth';
 
 export default function AIRulebooksPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<AiRulebook[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -226,9 +229,10 @@ export default function AIRulebooksPage() {
   ), []);
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <MainCard title={titleNode} contentSX={{ p: 0 }}>
+    <Permission resources={['ai.rules.read']}>
+      <Grid container spacing={3}>
+        <Grid size={12}>
+          <MainCard title={titleNode} contentSX={{ p: 0 }}>
           <Stack spacing={1.5} sx={{ p: 2 }}>
             {/* Filtros / Ações */}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ xs: 'stretch', sm: 'center' }}>
@@ -246,9 +250,11 @@ export default function AIRulebooksPage() {
                 <Button variant="text" onClick={onClearFilters} disabled={loading}>
                   Limpar
                 </Button>
-                <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => { setEditId(null); setEditInitial(null); setFormOpen(true); }}>
-                  Nova Regra
-                </Button>
+                <Permission resources={['ai.rules.create']}>
+                  <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => { setEditId(null); setEditInitial(null); setFormOpen(true); }}>
+                    Nova Regra
+                  </Button>
+                </Permission>
               </Stack>
             </Stack>
 
@@ -309,12 +315,16 @@ export default function AIRulebooksPage() {
                         )}
                       </Stack>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(r)}>
-                          Editar
-                        </Button>
-                        <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(r)}>
-                          Excluir
-                        </Button>
+                        <Permission resources={['ai.rules.update']}>
+                          <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(r)}>
+                            Editar
+                          </Button>
+                        </Permission>
+                        <Permission resources={['ai.rules.delete']}>
+                          <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(r)}>
+                            Excluir
+                          </Button>
+                        </Permission>
                       </Stack>
                     </Stack>
                   </Box>
@@ -340,7 +350,9 @@ export default function AIRulebooksPage() {
                       <TableCell>Status</TableCell>
                       <TableCell>Arquivo</TableCell>
                       <TableCell>Criada em</TableCell>
-                      <TableCell align="right">Ações</TableCell>
+                      {user?.rules?.some((r: string) => ['ai.rules.update', 'ai.rules.delete'].includes(r)) && (
+                        <TableCell align="right">Ações</TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -380,30 +392,38 @@ export default function AIRulebooksPage() {
                           </Stack>
                         </TableCell>
                         <TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            {!r.isActive && (
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={() => handleActivate(r.id)}
-                              >
-                                Ativar
-                              </Button>
-                            )}
-                            <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(r)}>
-                              Editar
-                            </Button>
-                            <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(r)}>
-                              Excluir
-                            </Button>
-                          </Stack>
-                        </TableCell>
+                        {user?.rules?.some((r: string) => ['ai.rules.update', 'ai.rules.delete'].includes(r)) && (
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                              {!r.isActive && (
+                                <Permission resources={['ai.rules.update']}>
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    onClick={() => handleActivate(r.id)}
+                                  >
+                                    Ativar
+                                  </Button>
+                                </Permission>
+                              )}
+                              <Permission resources={['ai.rules.update']}>
+                                <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(r)}>
+                                  Editar
+                                </Button>
+                              </Permission>
+                              <Permission resources={['ai.rules.delete']}>
+                                <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(r)}>
+                                  Excluir
+                                </Button>
+                              </Permission>
+                            </Stack>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={7}>
+                        <TableCell colSpan={user?.rules?.some((r: string) => ['ai.rules.update', 'ai.rules.delete'].includes(r)) ? 7 : 6}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhuma regra e tipografia encontrada.'}
@@ -491,6 +511,7 @@ export default function AIRulebooksPage() {
         holdMs={5000}
         startAt="Analisando arquivo…"
       />
-    </Grid>
+      </Grid>
+    </Permission>
   );
 }

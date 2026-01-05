@@ -32,8 +32,11 @@ import { openSnackbar } from '../../api/snackbar';
 import RoleFormDialog from '../../sections/roles/RoleFormDialog';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import RoleRulesDrawer from '../../sections/roles/RoleRulesDrawer';
+import Permission from '../../components/Permission';
+import useAuth from '../../hooks/useAuth';
 
 export default function RolesPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<RoleRow[]>([]);
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
@@ -119,9 +122,15 @@ export default function RolesPage() {
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{role.name}</Typography>
           </Stack>
           <Stack direction="row" spacing={0.5}>
-            <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(role.id)}><EditOutlined /></IconButton></Tooltip>
-            <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(role)}><DeleteOutlined /></IconButton></Tooltip>
-            <Tooltip title="Regras"><IconButton color="primary" onClick={() => openRules(role)}><SafetyOutlined /></IconButton></Tooltip>
+            <Permission resources={['roles.read']}>
+              <Tooltip title="Regras"><IconButton color="primary" onClick={() => openRules(role)}><SafetyOutlined /></IconButton></Tooltip>
+            </Permission>
+            <Permission resources={['roles.update']}>
+              <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(role.id)}><EditOutlined /></IconButton></Tooltip>
+            </Permission>
+            <Permission resources={['roles.delete']}>
+              <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(role)}><DeleteOutlined /></IconButton></Tooltip>
+            </Permission>
           </Stack>
         </Stack>
         {role.description && <Typography variant="body2" color="text.secondary">{role.description}</Typography>}
@@ -134,9 +143,10 @@ export default function RolesPage() {
   );
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <MainCard title="Funções" contentSX={{ p: 0 }}>
+    <Permission resources={['roles.read']}>
+      <Grid container spacing={3}>
+        <Grid size={12}>
+          <MainCard title="Funções" contentSX={{ p: 0 }}>
           <Stack direction={isMobile ? 'column' : 'row'} spacing={isMobile ? 2 : 1.5} sx={{ p: 2, pb: 1 }} alignItems={isMobile ? 'stretch' : 'center'}>
             <TextField
               label="Buscar por nome"
@@ -149,9 +159,11 @@ export default function RolesPage() {
               <Button variant="outlined" startIcon={<ReloadOutlined />} onClick={() => (setPage(0), load())} disabled={loading}>
                 Buscar
               </Button>
-              <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
-                Nova Função
-              </Button>
+              <Permission resources={['roles.create']}>
+                <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
+                  Nova Função
+                </Button>
+              </Permission>
             </Stack>
           </Stack>
 
@@ -173,7 +185,9 @@ export default function RolesPage() {
                    <TableRow>
                      <TableCell onClick={() => { setSortBy('name'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} sx={{ cursor: 'pointer' }}>Nome</TableCell>
                      <TableCell>Descrição</TableCell>
-                     <TableCell align="right">Ações</TableCell>
+                     {user?.rules?.some((r: string) => ['roles.read', 'roles.update', 'roles.delete'].includes(r)) && (
+                       <TableCell align="right">Ações</TableCell>
+                     )}
                    </TableRow>
                  </TableHead>
                 <TableBody>
@@ -188,18 +202,26 @@ export default function RolesPage() {
                                              <TableCell sx={{ maxWidth: 420 }}>
                          <Typography variant="body2" color="text.secondary">{r.description || '—'}</Typography>
                        </TableCell>
-                       <TableCell align="right">
-                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                          <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(r.id)}><EditOutlined /></IconButton></Tooltip>
-                          <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(r)}><DeleteOutlined /></IconButton></Tooltip>
-                          <Tooltip title="Regras"><IconButton color="primary" onClick={() => openRules(r)}><SafetyOutlined /></IconButton></Tooltip>
-                        </Stack>
-                      </TableCell>
+                       {user?.rules?.some((r: string) => ['roles.read', 'roles.update', 'roles.delete'].includes(r)) && (
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <Permission resources={['roles.read']}>
+                              <Tooltip title="Regras"><IconButton color="primary" onClick={() => openRules(r)}><SafetyOutlined /></IconButton></Tooltip>
+                            </Permission>
+                            <Permission resources={['roles.update']}>
+                              <Tooltip title="Editar"><IconButton color="secondary" onClick={() => openEdit(r.id)}><EditOutlined /></IconButton></Tooltip>
+                            </Permission>
+                            <Permission resources={['roles.delete']}>
+                              <Tooltip title="Excluir"><IconButton color="error" onClick={() => requestDelete(r)}><DeleteOutlined /></IconButton></Tooltip>
+                            </Permission>
+                          </Stack>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                                      {!items.length && (
                      <TableRow>
-                       <TableCell colSpan={3}>
+                       <TableCell colSpan={user?.rules?.some((r: string) => ['roles.read', 'roles.update', 'roles.delete'].includes(r)) ? 3 : 2}>
                          <Stack alignItems="center" sx={{ py: 6 }}>
                            <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhuma função encontrada.'}</Typography>
                          </Stack>
@@ -279,5 +301,6 @@ export default function RolesPage() {
         onChanged={load}
       />
     </Grid>
+    </Permission>
   );
 }
