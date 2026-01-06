@@ -27,6 +27,7 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.SettingOutlined,
       isDropdown: true,
+      permissions: ['company.read', 'company.update', 'departments.read', 'departments.create', 'departments.update', 'departments.delete', 'roles.read', 'roles.create', 'roles.update', 'roles.delete'],
       children: [
         {
           id: 'company',
@@ -58,6 +59,7 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.AIIcon,
       isDropdown: true,
+      permissions: ['ai.cases.read', 'ai.cases.create', 'ai.cases.update', 'ai.cases.delete', 'ai.pieces.read', 'ai.pieces.create', 'ai.pieces.update', 'ai.pieces.delete', 'ai.topics.read', 'ai.topics.create', 'ai.topics.update', 'ai.topics.delete', 'ai.topic-specifics.read', 'ai.topic-specifics.create', 'ai.topic-specifics.update', 'ai.topic-specifics.delete', 'ai.rules.read', 'ai.rules.create', 'ai.rules.update', 'ai.rules.delete', 'ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete', 'ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
       children: [
         {
           id: 'ai-cases-list',
@@ -91,7 +93,8 @@ const pages: NavItemType = {
           id: 'ai-topic-specifics',
           title: 'Tópicos específicos',
           type: 'item',
-          url: '/ai/topic-specifics'
+          url: '/ai/topic-specifics',
+          permissions: ['ai.topic-specifics.read', 'ai.topic-specifics.create', 'ai.topic-specifics.update', 'ai.topic-specifics.delete'],
         },
         {
           id: 'ai-rules',
@@ -104,13 +107,15 @@ const pages: NavItemType = {
           id: 'ai-usage',
           title: 'Uso da IA',
           type: 'item',
-          url: '/ai/usage'
+          url: '/ai/usage',
+          permissions: ['ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete'],
         },
         {
           id: 'ai-transcribe',
           title: 'Transcrições',
           type: 'item',
-          url: '/ai/transcribe'
+          url: '/ai/transcribe',
+          permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
         },
 
       ]

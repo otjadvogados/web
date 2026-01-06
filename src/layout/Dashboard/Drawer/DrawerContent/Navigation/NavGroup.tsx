@@ -26,7 +26,9 @@ import Transitions from 'components/@extended/Transitions';
 
 import { MenuOrientation } from 'config';
 import useConfig from 'hooks/useConfig';
+import useAuth from 'hooks/useAuth';
 import { useGetMenuMaster } from 'api/menu';
+import { hasPermission } from 'utils/permissions';
 
 // assets
 import DownOutlined from '@ant-design/icons/DownOutlined';
@@ -90,11 +92,17 @@ export default function NavGroup({
 }: Props) {
   const { pathname } = useLocation();
   const { menuOrientation } = useConfig();
+  const { user } = useAuth();
 
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
 
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
+
+  // Verifica se o usuário tem permissão para ver este grupo
+  if (!hasPermission(user?.rules, item.permissions)) {
+    return null;
+  }
 
   const [anchorEl, setAnchorEl] = useState<VirtualElement | (() => VirtualElement) | null | undefined>(null);
   const [currentItem, setCurrentItem] = useState(item);

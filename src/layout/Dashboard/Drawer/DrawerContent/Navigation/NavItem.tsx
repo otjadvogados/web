@@ -19,7 +19,9 @@ import { FormattedMessage } from 'react-intl';
 
 import { MenuOrientation, ThemeMode, NavActionType } from 'config';
 import useConfig from 'hooks/useConfig';
+import useAuth from 'hooks/useAuth';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
+import { hasPermission } from 'utils/permissions';
 
 // types
 import { LinkTarget, NavItemType } from 'types/menu';
@@ -35,11 +37,18 @@ interface Props {
 
 export default function NavItem({ item, level, isParents = false, setSelectedID }: Props) {
   const { menuMaster } = useGetMenuMaster();
+  const { user } = useAuth();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
 
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
 
   const { mode, menuOrientation } = useConfig();
+  
+  // Verifica se o usuário tem permissão para ver este item
+  if (!hasPermission(user?.rules, item.permissions)) {
+    return null;
+  }
+  
   let itemTarget: LinkTarget = '_self';
   if (item.target) {
     itemTarget = '_blank';

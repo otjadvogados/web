@@ -25,8 +25,10 @@ import Transitions from 'components/@extended/Transitions';
 import { MenuOrientation, ThemeMode } from 'config';
 
 import useConfig from 'hooks/useConfig';
+import useAuth from 'hooks/useAuth';
 import useMenuCollapse from 'hooks/useMenuCollapse';
 import { useGetMenuMaster } from 'api/menu';
+import { hasPermission } from 'utils/permissions';
 
 // third-party
 import { FormattedMessage } from 'react-intl';
@@ -101,12 +103,18 @@ interface Props {
 
 export default function NavCollapse({ menu, level, parentId, setSelectedItems, selectedItems, setSelectedLevel, selectedLevel }: Props) {
   const { menuMaster } = useGetMenuMaster();
+  const { user } = useAuth();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
 
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
 
   const { mode, menuOrientation } = useConfig();
   const navigation = useNavigate();
+
+  // Verifica se o usuário tem permissão para ver este collapse
+  if (!hasPermission(user?.rules, menu.permissions)) {
+    return null;
+  }
 
   const [open, setOpen] = useState<boolean>(false);
   const [selected, setSelected] = useState<string | null | undefined>(null);
