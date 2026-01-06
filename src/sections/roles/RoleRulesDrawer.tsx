@@ -229,13 +229,13 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
           return next;
         });
         setCurrentList((prev) => prev.filter((r) => r.id !== id));
-        openSnackbar({ open: true, message: 'Rule removida do cargo', variant: 'alert', alert: { color: 'success' } } as any);
+        openSnackbar({ open: true, message: 'Permissão removida de um cargo', variant: 'alert', alert: { color: 'success' } } as any);
       } else {
         await addRuleToRole(roleId, id);
         const found = catalogMap.get(id);
         setCurrentIds((prev) => new Set(prev).add(id));
         setCurrentList((prev) => [...prev, found || ({ id, name: id } as RuleItem)]);
-        openSnackbar({ open: true, message: 'Rule adicionada ao cargo', variant: 'alert', alert: { color: 'success' } } as any);
+        openSnackbar({ open: true, message: 'Permissão adicionada a um cargo', variant: 'alert', alert: { color: 'success' } } as any);
       }
       onChanged?.();
     } catch (err: any) {
