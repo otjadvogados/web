@@ -45,7 +45,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
   const { mode, menuOrientation } = useConfig();
   
   // Verifica se o usuário tem permissão para ver este item
-  if (!hasPermission(user?.rules, item.permissions)) {
+  if (!hasPermission(user?.rules, item.permissions, user?.hasSuperRule || false)) {
     return null;
   }
   

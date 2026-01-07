@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import useAuth from 'hooks/useAuth';
+import { usePermissions } from 'hooks/usePermissions';
 
 interface PermissionProps {
   resources: string[];
@@ -14,21 +14,17 @@ interface PermissionProps {
  * @param requireAll - Se true, requer todas as permissões. Se false, requer pelo menos uma (padrão: false)
  */
 export default function Permission({ resources, children, requireAll = false }: PermissionProps) {
-  const { user } = useAuth();
+  const { hasAnyPermission, hasAllPermissions, isSuperAdmin } = usePermissions();
 
-  const hasPermission = () => {
-    if (!user || !user.rules || !Array.isArray(user.rules)) {
-      return false;
-    }
+  // Se for super admin, sempre permite
+  if (isSuperAdmin) {
+    return <>{children}</>;
+  }
 
-    if (requireAll) {
-      return resources.every((resource) => user.rules?.includes(resource));
-    } else {
-      return resources.some((resource) => user.rules?.includes(resource));
-    }
-  };
+  // Verifica permissões
+  const hasAccess = requireAll ? hasAllPermissions(resources) : hasAnyPermission(resources);
 
-  if (!hasPermission()) {
+  if (!hasAccess) {
     return null;
   }
 

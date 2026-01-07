@@ -30,9 +30,11 @@ import { listPieces } from 'api/aiPieces';
 import TopicFormDialog from 'sections/ai/topics/TopicFormDialog';
 import Permission from 'components/Permission';
 import useAuth from 'hooks/useAuth';
+import { usePermissions } from 'hooks/usePermissions';
 
 export default function AITopicsPage() {
   const { user } = useAuth();
+  const { hasAnyPermission } = usePermissions();
   // lista/filtros
   const [items, setItems] = useState<AiTopic[]>([]);
   const [total, setTotal] = useState(0);
@@ -226,7 +228,7 @@ export default function AITopicsPage() {
                       <TableCell>Peça</TableCell>
                       <TableCell>Descrição</TableCell>
                       <TableCell>Criado em</TableCell>
-                      {user?.rules?.some((r: string) => ['ai.topics.update', 'ai.topics.delete'].includes(r)) && (
+                      {hasAnyPermission(['ai.topics.update', 'ai.topics.delete']) && (
                         <TableCell align="right">Ações</TableCell>
                       )}
                     </TableRow>
@@ -248,7 +250,7 @@ export default function AITopicsPage() {
                           </Typography>
                         </TableCell>
                         <TableCell>{t.createdAt ? new Date(t.createdAt).toLocaleString() : '—'}</TableCell>
-                        {user?.rules?.some((r: string) => ['ai.topics.update', 'ai.topics.delete'].includes(r)) && (
+                        {hasAnyPermission(['ai.topics.update', 'ai.topics.delete']) && (
                           <TableCell align="right">
                             <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                               <Permission resources={['ai.topics.update']}>
@@ -268,7 +270,7 @@ export default function AITopicsPage() {
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={user?.rules?.some((r: string) => ['ai.topics.update', 'ai.topics.delete'].includes(r)) ? columns.length : columns.length - 1}>
+                        <TableCell colSpan={hasAnyPermission(['ai.topics.update', 'ai.topics.delete']) ? columns.length : columns.length - 1}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhum tópico encontrado.'}

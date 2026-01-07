@@ -40,8 +40,8 @@ export default function Navigation() {
 
   // Filtra os itens do menu baseado nas permissões do usuário
   const filteredMenuItems = useMemo(() => {
-    return filterMenuItems(menuItems.items, user?.rules);
-  }, [user?.rules]);
+    return filterMenuItems(menuItems.items, user?.rules, user?.hasSuperRule || false);
+  }, [user?.rules, user?.hasSuperRule]);
 
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downLG;
 

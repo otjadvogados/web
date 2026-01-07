@@ -36,6 +36,7 @@ import { SensitiveField } from 'types/privacy';
 import { openSnackbar } from 'api/snackbar';
 import Permission from 'components/Permission';
 import useAuth from 'hooks/useAuth';
+import { usePermissions } from 'hooks/usePermissions';
 
 function scopeLabel(sf: SensitiveField) {
   return 'Global';
@@ -43,6 +44,7 @@ function scopeLabel(sf: SensitiveField) {
 
 export default function SensitiveFieldsPage() {
   const { user } = useAuth();
+  const { hasAnyPermission } = usePermissions();
   const [items, setItems] = useState<SensitiveField[]>([]);
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
@@ -294,7 +296,7 @@ export default function SensitiveFieldsPage() {
                      <TableCell>Módulo</TableCell>
                      <TableCell>Rótulo</TableCell>
                      <TableCell>Status</TableCell>
-                     {user?.rules?.some((r: string) => ['privacy.update', 'privacy.delete'].includes(r)) && (
+                     {hasAnyPermission(['privacy.update', 'privacy.delete']) && (
                        <TableCell align="right">Ações</TableCell>
                      )}
                    </TableRow>
@@ -327,7 +329,7 @@ export default function SensitiveFieldsPage() {
                            />
                          </Permission>
                        </TableCell>
-                      {user?.rules?.some((r: string) => ['privacy.update', 'privacy.delete'].includes(r)) && (
+                      {hasAnyPermission(['privacy.update', 'privacy.delete']) && (
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                             <Permission resources={['privacy.update']}>
@@ -351,7 +353,7 @@ export default function SensitiveFieldsPage() {
                   ))}
                   {!items.length && (
                     <TableRow>
-                      <TableCell colSpan={user?.rules?.some((r: string) => ['privacy.update', 'privacy.delete'].includes(r)) ? 4 : 3}>
+                      <TableCell colSpan={hasAnyPermission(['privacy.update', 'privacy.delete']) ? 4 : 3}>
                         <Stack alignItems="center" sx={{ py: 6 }}>
                           <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhum registro encontrado.'}</Typography>
                         </Stack>

@@ -35,6 +35,7 @@ import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import CaseViewDialog from 'sections/ai/list-cases/CaseViewDialog';
 import Permission from 'components/Permission';
 import useAuth from 'hooks/useAuth';
+import { usePermissions } from 'hooks/usePermissions';
 
 function AuthorCell({ requesterId, userName, userRoleName, userAvatarFileId }: { requesterId?: string; userName?: string | null; userRoleName?: string | null; userAvatarFileId?: string | null }) {
   const avatarUrl = useAvatarUrl(requesterId || null, userAvatarFileId || null);
@@ -61,6 +62,7 @@ function AuthorCell({ requesterId, userName, userRoleName, userAvatarFileId }: {
 
 export default function ListCasesPage() {
   const navigate = useNavigate();
+  const { hasAnyPermission } = usePermissions();
   const { user } = useAuth();
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
@@ -421,7 +423,7 @@ export default function ListCasesPage() {
                       <TableCell>Departamento</TableCell>
                       <TableCell>Redator</TableCell>
                       <TableCell>Criado em</TableCell>
-                      {user?.rules?.some((r: string) => ['ai.cases.read', 'ai.cases.update'].includes(r)) && (
+                      {hasAnyPermission(['ai.cases.read', 'ai.cases.update']) && (
                         <TableCell align="right">Ações</TableCell>
                       )}
                     </TableRow>
@@ -454,7 +456,7 @@ export default function ListCasesPage() {
                           />
                         </TableCell>
                         <TableCell>{item.createdAt ? formatDate(item.createdAt) : '—'}</TableCell>
-                        {user?.rules?.some((r: string) => ['ai.cases.read', 'ai.cases.update'].includes(r)) && (
+                        {hasAnyPermission(['ai.cases.read', 'ai.cases.update']) && (
                           <TableCell align="right">
                             <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                               <Permission resources={['ai.cases.read']}>
@@ -474,7 +476,7 @@ export default function ListCasesPage() {
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={user?.rules?.some((r: string) => ['ai.cases.read', 'ai.cases.update'].includes(r)) ? 7 : 6}>
+                        <TableCell colSpan={hasAnyPermission(['ai.cases.read', 'ai.cases.update']) ? 7 : 6}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhum caso encontrado.'}

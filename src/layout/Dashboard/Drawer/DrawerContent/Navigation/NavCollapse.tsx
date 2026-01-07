@@ -112,7 +112,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
   const navigation = useNavigate();
 
   // Verifica se o usuário tem permissão para ver este collapse
-  if (!hasPermission(user?.rules, menu.permissions)) {
+  if (!hasPermission(user?.rules, menu.permissions, user?.hasSuperRule || false)) {
     return null;
   }
 

@@ -43,6 +43,7 @@ import RolePickerDialog from 'sections/users/RolePickerDialog';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import Permission from 'components/Permission';
 import useAuth from 'hooks/useAuth';
+import { usePermissions } from 'hooks/usePermissions';
 
 // Avatar protegido por token
 function UserAvatar({ id, name, size = 36, avatarFileId }: { id: string; name: string; size?: number; avatarFileId?: string | null }) {
@@ -61,6 +62,7 @@ function UserAvatar({ id, name, size = 36, avatarFileId }: { id: string; name: s
 
 export default function UsersPage() {
   const { user } = useAuth();
+  const { hasAnyPermission } = usePermissions();
   const [items, setItems] = useState<UserRow[]>([]);
   const [page, setPage] = useState(0); // zero-based
   const [limit, setLimit] = useState(10);
@@ -407,7 +409,7 @@ export default function UsersPage() {
                     {hasBirth && <TableCell>Nascimento</TableCell>}
                     <TableCell>Função</TableCell>
                     <TableCell>Departamentos</TableCell>
-                    {user?.rules?.some((r: string) => ['users.update', 'users.delete'].includes(r)) && (
+                    {hasAnyPermission(['users.update', 'users.delete']) && (
                       <TableCell align="right">Ações</TableCell>
                     )}
                   </TableRow>

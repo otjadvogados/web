@@ -53,6 +53,7 @@ export type UserProfile = {
     website?: string;
   };
   rules?: string[];
+  hasSuperRule?: boolean;
 };
 
 export interface AuthProps {

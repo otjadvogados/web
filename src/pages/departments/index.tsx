@@ -36,9 +36,11 @@ import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import DeptRolesDrawer from '../../sections/departments/DeptRolesDrawer';
 import Permission from '../../components/Permission';
 import useAuth from '../../hooks/useAuth';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function DepartmentsPage() {
   const { user } = useAuth();
+  const { hasAnyPermission } = usePermissions();
   const [items, setItems] = useState<DepartmentRow[]>([]);
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
@@ -185,7 +187,7 @@ export default function DepartmentsPage() {
                      <TableCell onClick={() => { setSortBy('name'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} sx={{ cursor: 'pointer' }}>Nome</TableCell>
                      <TableCell>Descrição</TableCell>
                      <TableCell>Responsável</TableCell>
-                     {user?.rules?.some((r: string) => ['departments.update', 'departments.delete'].includes(r)) && (
+                     {hasAnyPermission(['departments.update', 'departments.delete']) && (
                        <TableCell align="right">Ações</TableCell>
                      )}
                    </TableRow>
@@ -205,7 +207,7 @@ export default function DepartmentsPage() {
                        <TableCell>
                          {d.signatureUser?.name ?? '—'}
                        </TableCell>
-                       {user?.rules?.some((r: string) => ['departments.update', 'departments.delete'].includes(r)) && (
+                       {hasAnyPermission(['departments.update', 'departments.delete']) && (
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                             <Tooltip title="Cargos">
@@ -224,7 +226,7 @@ export default function DepartmentsPage() {
                   ))}
                                      {!items.length && (
                      <TableRow>
-                       <TableCell colSpan={user?.rules?.some((r: string) => ['departments.update', 'departments.delete'].includes(r)) ? 4 : 3}>
+                       <TableCell colSpan={hasAnyPermission(['departments.update', 'departments.delete']) ? 4 : 3}>
                          <Stack alignItems="center" sx={{ py: 6 }}>
                            <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhum departamento encontrado.'}</Typography>
                          </Stack>

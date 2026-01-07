@@ -100,7 +100,7 @@ export default function NavGroup({
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
 
   // Verifica se o usuário tem permissão para ver este grupo
-  if (!hasPermission(user?.rules, item.permissions)) {
+  if (!hasPermission(user?.rules, item.permissions, user?.hasSuperRule || false)) {
     return null;
   }
 

@@ -41,9 +41,11 @@ import RulebookFormDialog from 'sections/ai/rules/RulebookFormDialog';
 import TextCarouselOverlay from 'components/loaders/TextCarouselOverlay';
 import Permission from 'components/Permission';
 import useAuth from 'hooks/useAuth';
+import { usePermissions } from 'hooks/usePermissions';
 
 export default function AIRulebooksPage() {
   const { user } = useAuth();
+  const { hasAnyPermission } = usePermissions();
   const [items, setItems] = useState<AiRulebook[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -350,7 +352,7 @@ export default function AIRulebooksPage() {
                       <TableCell>Status</TableCell>
                       <TableCell>Arquivo</TableCell>
                       <TableCell>Criada em</TableCell>
-                      {user?.rules?.some((r: string) => ['ai.rules.update', 'ai.rules.delete'].includes(r)) && (
+                      {hasAnyPermission(['ai.rules.update', 'ai.rules.delete']) && (
                         <TableCell align="right">Ações</TableCell>
                       )}
                     </TableRow>
@@ -392,7 +394,7 @@ export default function AIRulebooksPage() {
                           </Stack>
                         </TableCell>
                         <TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</TableCell>
-                        {user?.rules?.some((r: string) => ['ai.rules.update', 'ai.rules.delete'].includes(r)) && (
+                        {hasAnyPermission(['ai.rules.update', 'ai.rules.delete']) && (
                           <TableCell align="right">
                             <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                               {!r.isActive && (
@@ -423,7 +425,7 @@ export default function AIRulebooksPage() {
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={user?.rules?.some((r: string) => ['ai.rules.update', 'ai.rules.delete'].includes(r)) ? 7 : 6}>
+                        <TableCell colSpan={hasAnyPermission(['ai.rules.update', 'ai.rules.delete']) ? 7 : 6}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhuma regra e tipografia encontrada.'}

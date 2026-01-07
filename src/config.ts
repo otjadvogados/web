@@ -66,6 +66,10 @@ export enum AuthProvider {
 
 export const APP_AUTH: AuthProvider = AuthProvider.JWT;
 
+// ==============================|| PERMISSIONS CONSTANT ||============================== //
+
+export const SUPER_RULE = 'administrator';
+
 // ==============================|| THEME CONFIG ||============================== //
 
 const config: DefaultConfigProps = {

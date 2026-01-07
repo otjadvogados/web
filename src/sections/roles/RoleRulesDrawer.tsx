@@ -328,14 +328,10 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
   const renderDataItem = (r: RuleItem) => {
     const linked = isLinked(r.id);
     const disabled = busyIds.has(r.id) || bulkBusy;
-    // Extrai apenas a primeira palavra da descrição (ex: "criar" de "criar roles")
+    // Usa a descrição completa
     let displayText = r.description || r.name;
-    if (r.description) {
-      const firstWord = r.description.trim().split(/\s+/)[0];
-      displayText = firstWord || r.name;
-    }
-    // Substitui "Super" por "Geral"
-    if (displayText.toLowerCase() === 'super') {
+    // Substitui "Super" por "Geral" apenas se a descrição completa for "Super"
+    if (displayText.toLowerCase().trim() === 'super') {
       displayText = 'Geral';
     }
     return (

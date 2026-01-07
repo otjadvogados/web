@@ -34,9 +34,11 @@ import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import RoleRulesDrawer from '../../sections/roles/RoleRulesDrawer';
 import Permission from '../../components/Permission';
 import useAuth from '../../hooks/useAuth';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function RolesPage() {
   const { user } = useAuth();
+  const { hasAnyPermission } = usePermissions();
   const [items, setItems] = useState<RoleRow[]>([]);
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
@@ -185,7 +187,7 @@ export default function RolesPage() {
                    <TableRow>
                      <TableCell onClick={() => { setSortBy('name'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} sx={{ cursor: 'pointer' }}>Nome</TableCell>
                      <TableCell>Descrição</TableCell>
-                     {user?.rules?.some((r: string) => ['roles.read', 'roles.update', 'roles.delete'].includes(r)) && (
+                     {hasAnyPermission(['roles.read', 'roles.update', 'roles.delete']) && (
                        <TableCell align="right">Ações</TableCell>
                      )}
                    </TableRow>
@@ -202,7 +204,7 @@ export default function RolesPage() {
                                              <TableCell sx={{ maxWidth: 420 }}>
                          <Typography variant="body2" color="text.secondary">{r.description || '—'}</Typography>
                        </TableCell>
-                       {user?.rules?.some((r: string) => ['roles.read', 'roles.update', 'roles.delete'].includes(r)) && (
+                       {hasAnyPermission(['roles.read', 'roles.update', 'roles.delete']) && (
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                             <Permission resources={['roles.read']}>
@@ -221,7 +223,7 @@ export default function RolesPage() {
                   ))}
                                      {!items.length && (
                      <TableRow>
-                       <TableCell colSpan={user?.rules?.some((r: string) => ['roles.read', 'roles.update', 'roles.delete'].includes(r)) ? 3 : 2}>
+                       <TableCell colSpan={hasAnyPermission(['roles.read', 'roles.update', 'roles.delete']) ? 3 : 2}>
                          <Stack alignItems="center" sx={{ py: 6 }}>
                            <Typography variant="body2" color="text.secondary">{loading ? 'Carregando...' : 'Nenhuma função encontrada.'}</Typography>
                          </Stack>

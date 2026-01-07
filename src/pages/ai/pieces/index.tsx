@@ -33,9 +33,11 @@ import PieceFormDialog from '../../../sections/ai/pieces/PieceFormDialog';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import Permission from 'components/Permission';
 import useAuth from 'hooks/useAuth';
+import { usePermissions } from 'hooks/usePermissions';
 
 export default function AIPiecesPage() {
   const { user } = useAuth();
+  const { hasAnyPermission } = usePermissions();
   // filtros/lista
   const [items, setItems] = useState<AiPiece[]>([]);
   const [total, setTotal] = useState(0);
@@ -352,7 +354,7 @@ export default function AIPiecesPage() {
                       <TableCell>Status</TableCell>
                       <TableCell>Documento</TableCell>
                       <TableCell>Criada em</TableCell>
-                      {user?.rules?.some((r: string) => ['ai.pieces.update', 'ai.pieces.delete'].includes(r)) && (
+                      {hasAnyPermission(['ai.pieces.update', 'ai.pieces.delete']) && (
                         <TableCell align="right">Ações</TableCell>
                       )}
                     </TableRow>
@@ -418,7 +420,7 @@ export default function AIPiecesPage() {
                         <TableCell>
                           {p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}
                         </TableCell>
-                        {user?.rules?.some((r: string) => ['ai.pieces.update', 'ai.pieces.delete'].includes(r)) && (
+                        {hasAnyPermission(['ai.pieces.update', 'ai.pieces.delete']) && (
                           <TableCell align="right">
                             <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                               <Permission resources={['ai.pieces.update']}>
@@ -438,7 +440,7 @@ export default function AIPiecesPage() {
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={user?.rules?.some((r: string) => ['ai.pieces.update', 'ai.pieces.delete'].includes(r)) ? 8 : 7}>
+                        <TableCell colSpan={hasAnyPermission(['ai.pieces.update', 'ai.pieces.delete']) ? 8 : 7}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhuma peça encontrada.'}

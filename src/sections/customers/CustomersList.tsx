@@ -52,6 +52,7 @@ import {
 import { openSnackbar } from '../../api/snackbar';
 import Permission from '../../components/Permission';
 import useAuth from '../../hooks/useAuth';
+import { usePermissions } from '../../hooks/usePermissions';
 
 // ==============================|| CUSTOMERS LIST ||============================== //
 
@@ -192,6 +193,7 @@ function StructureFlag({ customer }: { customer: Customer }) {
 export default function CustomersList() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { hasAnyPermission, hasPermission } = usePermissions();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -382,7 +384,7 @@ export default function CustomersList() {
                 <TableCell>Status</TableCell>
                 <TableCell>Estrutura</TableCell>
                 <TableCell>Criado em</TableCell>
-                {user?.rules?.some((r: string) => ['customers.update', 'customers.delete'].includes(r)) && (
+                {hasAnyPermission(['customers.read', 'customers.update', 'customers.delete']) && (
                   <TableCell align="right">Ações</TableCell>
                 )}
               </TableRow>
@@ -390,13 +392,13 @@ export default function CustomersList() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={user?.rules?.some((r: string) => ['customers.update', 'customers.delete'].includes(r)) ? 6 : 5} align="center">
+                  <TableCell colSpan={hasAnyPermission(['customers.read', 'customers.update', 'customers.delete']) ? 6 : 5} align="center">
                     <Typography>Carregando...</Typography>
                   </TableCell>
                 </TableRow>
               ) : customers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={user?.rules?.some((r: string) => ['customers.update', 'customers.delete'].includes(r)) ? 6 : 5} align="center">
+                  <TableCell colSpan={hasAnyPermission(['customers.read', 'customers.update', 'customers.delete']) ? 6 : 5} align="center">
                     <Typography color="text.secondary">
                       Nenhum cliente encontrado
                     </Typography>
@@ -432,7 +434,7 @@ export default function CustomersList() {
                     <TableCell>
                       {new Date(customer.createdAt).toLocaleDateString('pt-BR')}
                     </TableCell>
-                    {user?.rules?.some((r: string) => ['customers.update', 'customers.delete'].includes(r)) && (
+                    {hasAnyPermission(['customers.read', 'customers.update', 'customers.delete']) && (
                       <TableCell align="right">
                         <IconButton
                           onClick={(e) => handleMenuOpen(e, customer)}
@@ -456,28 +458,30 @@ export default function CustomersList() {
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={handleView}>
-          <ListItemIcon>
-            <ViewIcon />
-          </ListItemIcon>
-          <ListItemText>Visualizar</ListItemText>
-        </MenuItem>
-        <Permission resources={['customers.update']}>
+        {hasPermission('customers.read') && (
+          <MenuItem onClick={handleView}>
+            <ListItemIcon>
+              <ViewIcon />
+            </ListItemIcon>
+            <ListItemText>Visualizar</ListItemText>
+          </MenuItem>
+        )}
+        {hasPermission('customers.update') && (
           <MenuItem onClick={handleEdit}>
             <ListItemIcon>
               <EditIcon />
             </ListItemIcon>
             <ListItemText>Editar</ListItemText>
           </MenuItem>
-        </Permission>
-        <Permission resources={['customers.delete']}>
+        )}
+        {hasPermission('customers.delete') && (
           <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
             <ListItemIcon>
               <DeleteIcon />
             </ListItemIcon>
             <ListItemText>Excluir</ListItemText>
           </MenuItem>
-        </Permission>
+        )}
       </Menu>
 
       {/* Dialog de confirmação de exclusão */}
