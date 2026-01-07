@@ -5,13 +5,17 @@ import AppstoreOutlined from '@ant-design/icons/AppstoreOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
 import AudioOutlined from '@ant-design/icons/AudioOutlined';
+import FunctionOutlined from '@ant-design/icons/FunctionOutlined';
+import RocketOutlined from '@ant-design/icons/RocketOutlined';
+import ThunderboltOutlined from '@ant-design/icons/ThunderboltOutlined';
+import ToolOutlined from '@ant-design/icons/ToolOutlined';
 import AIIcon from 'components/icons/AIIcon';
 
 // type
 import { NavItemType } from 'types/menu';
 
 // icons
-const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined, UserOutlined, AudioOutlined, AIIcon };
+const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined, UserOutlined, AudioOutlined, FunctionOutlined, RocketOutlined, ThunderboltOutlined, ToolOutlined, AIIcon };
 
 // ==============================|| MENU ITEMS - PAGES ||============================== //
 
@@ -27,7 +31,9 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.SettingOutlined,
       isDropdown: true,
-      permissions: ['company.read', 'company.update', 'departments.read', 'departments.create', 'departments.update', 'departments.delete', 'roles.read', 'roles.create', 'roles.update', 'roles.delete'],
+      permissions: ['company.read', 'company.update', 'departments.read', 'departments.create', 'departments.update', 'departments.delete', 'roles.read', 'roles.create', 
+        'roles.update', 'roles.delete', 'ai.rules.read', 'ai.rules.create', 'ai.rules.update', 
+        'ai.rules.delete','ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete'],
       children: [
         {
           id: 'company',
@@ -49,17 +55,31 @@ const pages: NavItemType = {
           type: 'item',
           url: '/roles',
           permissions: ['roles.read', 'roles.create', 'roles.update', 'roles.delete'],
-        }
+        },
+        {
+          id: 'ai-rules',
+          title: 'Regras e tipografia',
+          type: 'item',
+          url: '/ai/rules',
+          permissions: ['ai.rules.read', 'ai.rules.create', 'ai.rules.update', 'ai.rules.delete'],
+        },
+        {
+          id: 'ai-usage',
+          title: 'Uso da IA',
+          type: 'item',
+          url: '/ai/usage',
+          permissions: ['ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete'],
+        },
       ]
     },
-    // 👇 Inteligência Artificial
+
     {
       id: 'ai',
-      title: 'Inteligência Artificial',
+      title: 'Criação de Casos',
       type: 'collapse',
       icon: icons.AIIcon,
       isDropdown: true,
-      permissions: ['ai.cases.read', 'ai.cases.create', 'ai.cases.update', 'ai.cases.delete', 'ai.pieces.read', 'ai.pieces.create', 'ai.pieces.update', 'ai.pieces.delete', 'ai.topics.read', 'ai.topics.create', 'ai.topics.update', 'ai.topics.delete', 'ai.topic-specifics.read', 'ai.topic-specifics.create', 'ai.topic-specifics.update', 'ai.topic-specifics.delete', 'ai.rules.read', 'ai.rules.create', 'ai.rules.update', 'ai.rules.delete', 'ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete', 'ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
+      permissions: ['ai.cases.read', 'ai.cases.create', 'ai.cases.update', 'ai.cases.delete', 'ai.pieces.read', 'ai.pieces.create', 'ai.pieces.update', 'ai.pieces.delete', 'ai.topics.read', 'ai.topics.create', 'ai.topics.update', 'ai.topics.delete', 'ai.topic-specifics.read', 'ai.topic-specifics.create', 'ai.topic-specifics.update', 'ai.topic-specifics.delete'],
       children: [
         {
           id: 'ai-cases-list',
@@ -96,20 +116,19 @@ const pages: NavItemType = {
           url: '/ai/topic-specifics',
           permissions: ['ai.topic-specifics.read', 'ai.topic-specifics.create', 'ai.topic-specifics.update', 'ai.topic-specifics.delete'],
         },
-        {
-          id: 'ai-rules',
-          title: 'Regras e tipografia',
-          type: 'item',
-          url: '/ai/rules',
-          permissions: ['ai.rules.read', 'ai.rules.create', 'ai.rules.update', 'ai.rules.delete'],
-        },
-        {
-          id: 'ai-usage',
-          title: 'Uso da IA',
-          type: 'item',
-          url: '/ai/usage',
-          permissions: ['ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete'],
-        },
+      ]
+    },
+    // 👇 Inteligência Artificial
+    {
+      id: 'features',
+      title: 'Funcionalidades',
+      type: 'collapse',
+      icon: icons.ToolOutlined,
+      isDropdown: true,
+      permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
+      children: [
+        
+        
         {
           id: 'ai-transcribe',
           title: 'Transcrições',

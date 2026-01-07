@@ -11,6 +11,7 @@ import Button from '@mui/material/Button';
 import { listTopicSpecifics, AiTopicSpecific, getTopicSpecific } from 'api/aiTopicSpecifics';
 import { openSnackbar } from 'api/snackbar';
 import { useCaseWizard } from '../CaseWizardContext';
+import Tooltip from 'components/@extended/Tooltip';
 
 export default function StepSpecs() {
   const { topics, specs, setSpecs, specDetails, setSpecDetails, downloadSpecDocx } = useCaseWizard();
@@ -54,6 +55,21 @@ export default function StepSpecs() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [specs.map(s => s.id).join('|')]);
 
+  // Remove da seleção qualquer tópico específico que esteja sem DOCX (mesma regra da Peça)
+  useEffect(() => {
+    if (!specs.length || !allOpts.length) return;
+    const byId = new Map(allOpts.map((o) => [o.id, o]));
+    const next = specs.filter((s) => {
+      const current = byId.get(s.id);
+      // se não encontramos o item na lista carregada, não conseguimos afirmar — mantém
+      if (!current) return true;
+      return !!current.docxFileId;
+    });
+    if (next.length !== specs.length) {
+      setSpecs(next);
+    }
+  }, [allOpts.map(o => `${o.id}:${o.docxFileId ? 1 : 0}`).join('|'), specs.map(s => s.id).join('|'), setSpecs]);
+
   // options filtradas por tópico + busca local
   const optionsByTopic = useMemo(() => {
     const base: Record<string, AiTopicSpecific[]> = {};
@@ -66,7 +82,9 @@ export default function StepSpecs() {
   // helper: atualiza seleção global a partir da seleção daquele tópico
   const handleChangeForTopic = (topicId: string, selectedForTopic: AiTopicSpecific[]) => {
     const others = specs.filter((s) => s.topicId !== topicId);
-    setSpecs([...others, ...selectedForTopic]);
+    // Só permite selecionar tópicos específicos com DOCX
+    const allowed = selectedForTopic.filter((s) => !!s.docxFileId);
+    setSpecs([...others, ...allowed]);
   };
 
   // --- DnD handlers para a lista de selecionados (abaixo) ---
@@ -111,6 +129,7 @@ export default function StepSpecs() {
               value={valueForTopic}
               onChange={(_, v) => handleChangeForTopic(topicId, v)}
               getOptionLabel={(o) => o?.name ?? ''}
+              getOptionDisabled={(option) => !option.docxFileId}
               isOptionEqualToValue={(o, v) => o.id === v.id}
               renderTags={(value, getTagProps) =>
                 value.map((option, index) => (
@@ -122,31 +141,62 @@ export default function StepSpecs() {
                   />
                 ))
               }
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    sx={{ width: '100%', justifyContent: 'space-between' }}
+              renderOption={(props, option) => {
+                const isDisabled = !option.docxFileId;
+                return (
+                  <Tooltip
+                    title={isDisabled ? 'Este tópico específico não possui DOCX (anexo) e não pode ser selecionado' : ''}
+                    arrow
+                    placement="top"
                   >
-                    <span style={{ flex: 1 }}>{option.name}</span>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      {/* aqui o chip com o nome do tópico é opcional, pois já estamos
-                          dentro do bloco daquele tópico – mas mantive por compat */}
-                      {option.topic && (
-                        <Chip
-                          size="small"
-                          label={option.topic.name}
-                          color="primary"
-                          variant="outlined"
-                        />
-                      )}
-                      {option.docxFileId && <Chip size="small" label="DOCX" />}
-                    </Stack>
-                  </Stack>
-                </li>
-              )}
+                    <li
+                      {...props}
+                      key={option.id}
+                      style={{
+                        ...props.style,
+                        opacity: isDisabled ? 0.5 : 1,
+                        cursor: isDisabled ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        sx={{ width: '100%', justifyContent: 'space-between' }}
+                      >
+                        <Stack sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            variant="body2"
+                            noWrap
+                            title={option.name}
+                            sx={{ color: isDisabled ? 'text.disabled' : 'text.primary' }}
+                          >
+                            {option.name}
+                          </Typography>
+                          {isDisabled && (
+                            <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.25 }}>
+                              Sem DOCX disponível
+                            </Typography>
+                          )}
+                        </Stack>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          {/* aqui o chip com o nome do tópico é opcional, pois já estamos
+                              dentro do bloco daquele tópico – mas mantive por compat */}
+                          {option.topic && (
+                            <Chip
+                              size="small"
+                              label={option.topic.name}
+                              color="primary"
+                              variant="outlined"
+                            />
+                          )}
+                          {option.docxFileId && <Chip size="small" label="DOCX" />}
+                        </Stack>
+                      </Stack>
+                    </li>
+                  </Tooltip>
+                );
+              }}
               renderInput={(params) => (
                 <TextField
                   {...params}
