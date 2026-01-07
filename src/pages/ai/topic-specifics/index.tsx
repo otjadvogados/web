@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -15,6 +16,8 @@ import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 import Chip from '@mui/material/Chip';
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { Theme } from '@mui/material/styles';
 import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
@@ -23,6 +26,7 @@ import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import UploadOutlined from '@ant-design/icons/UploadOutlined';
 import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
+import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
 import MainCard from 'components/MainCard';
 import AIIcon from 'components/icons/AIIcon';
@@ -40,6 +44,7 @@ import { listTopics } from 'api/aiTopics';
 import TopicSpecificFormDialog from 'sections/ai/topic-specifics/TopicSpecificFormDialog';
 
 export default function AITopicSpecificsPage() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<AiTopicSpecific[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -50,6 +55,9 @@ export default function AITopicSpecificsPage() {
   const [sortBy, setSortBy] = useState<'createdAt' | 'name'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(false);
+  
+  // Verifica se há estado do wizard salvo
+  const [wizardState, setWizardState] = useState<{ step: number; timestamp: number } | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -99,6 +107,32 @@ export default function AITopicSpecificsPage() {
     })();
   }, []);
 
+  // Verifica se há estado do wizard salvo ao carregar a página
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('wizard_return_state');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Verifica se o estado não é muito antigo (mais de 2 horas)
+        const twoHours = 2 * 60 * 60 * 1000;
+        if (Date.now() - parsed.timestamp < twoHours) {
+          setWizardState(parsed);
+        } else {
+          sessionStorage.removeItem('wizard_return_state');
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Função para voltar ao wizard na etapa salva
+  const returnToWizard = () => {
+    if (wizardState) {
+      // Salva o estado novamente antes de navegar (para restaurar no wizard)
+      sessionStorage.setItem('wizard_return_state', JSON.stringify(wizardState));
+      navigate('/ai/cases/create');
+    }
+  };
+
   const onSearch = () => { setPage(0); load(); };
   const onClearFilters = () => { setSearch(''); setTopicId(''); setPage(0); load(); };
 
@@ -119,7 +153,10 @@ export default function AITopicSpecificsPage() {
       }
       setUploadingId(pendingUploadId);
       await uploadTopicSpecificDocx(pendingUploadId, file);
-      openSnackbar({ open: true, message: 'Documento anexado com sucesso!', variant: 'alert', alert: { color: 'success' } } as any);
+      const message = wizardState 
+        ? 'Documento anexado com sucesso! Você pode voltar para continuar criando o caso.' 
+        : 'Documento anexado com sucesso!';
+      openSnackbar({ open: true, message, variant: 'alert', alert: { color: 'success' } } as any);
       load();
     } catch (err: any) {
       openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha no upload do documento', variant: 'alert', alert: { color: 'error' } } as any);
@@ -158,6 +195,30 @@ export default function AITopicSpecificsPage() {
   return (
     <Grid container spacing={3}>
       <Grid size={12}>
+        {/* Alerta para voltar ao wizard se houver estado salvo */}
+        {wizardState && (
+          <Alert 
+            severity="info" 
+            icon={<ArrowLeftOutlined />}
+            sx={{ mb: 2 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                variant="outlined"
+                startIcon={<ArrowLeftOutlined />}
+                onClick={returnToWizard}
+              >
+                Voltar para Criar Caso
+              </Button>
+            }
+          >
+            <AlertTitle>Voltar para criação de caso</AlertTitle>
+            <Typography variant="body2">
+              Você pode voltar para a etapa de criação de caso onde parou. Suas seleções serão mantidas.
+            </Typography>
+          </Alert>
+        )}
         <MainCard
           title={
             <Stack direction="row" spacing={1} alignItems="center">

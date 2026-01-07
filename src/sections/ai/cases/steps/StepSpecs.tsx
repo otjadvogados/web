@@ -6,15 +6,24 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
+import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
+import Box from '@mui/material/Box';
 import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
+import WarningOutlined from '@ant-design/icons/WarningOutlined';
+import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
+import LinkOutlined from '@ant-design/icons/LinkOutlined';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import { listTopicSpecifics, AiTopicSpecific, getTopicSpecific } from 'api/aiTopicSpecifics';
 import { openSnackbar } from 'api/snackbar';
 import { useCaseWizard } from '../CaseWizardContext';
 import Tooltip from 'components/@extended/Tooltip';
+import { useNavigate } from 'react-router-dom';
 
 export default function StepSpecs() {
-  const { topics, specs, setSpecs, specDetails, setSpecDetails, downloadSpecDocx } = useCaseWizard();
+  const { topics, specs, setSpecs, specDetails, setSpecDetails, downloadSpecDocx, saveWizardState } = useCaseWizard();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   // lista completa de tópicos específicos dos tópicos selecionados
   const [allOpts, setAllOpts] = useState<AiTopicSpecific[]>([]);
@@ -59,12 +68,29 @@ export default function StepSpecs() {
   useEffect(() => {
     if (!specs.length || !allOpts.length) return;
     const byId = new Map(allOpts.map((o) => [o.id, o]));
+    const toRemove: AiTopicSpecific[] = [];
     const next = specs.filter((s) => {
       const current = byId.get(s.id);
       // se não encontramos o item na lista carregada, não conseguimos afirmar — mantém
       if (!current) return true;
-      return !!current.docxFileId;
+      if (!current.docxFileId) {
+        toRemove.push(s);
+        return false;
+      }
+      return true;
     });
+    
+    // Se detectou specs sem DOCX que foram removidos, exibe alerta
+    if (toRemove.length > 0) {
+      const names = toRemove.map(s => s.name).join(', ');
+      openSnackbar({
+        open: true,
+        message: `Os seguintes tópicos específicos foram removidos por não possuírem arquivo DOCX: ${names}. Faça upload do arquivo antes de selecioná-los novamente.`,
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+    }
+    
     if (next.length !== specs.length) {
       setSpecs(next);
     }
@@ -82,9 +108,43 @@ export default function StepSpecs() {
   // helper: atualiza seleção global a partir da seleção daquele tópico
   const handleChangeForTopic = (topicId: string, selectedForTopic: AiTopicSpecific[]) => {
     const others = specs.filter((s) => s.topicId !== topicId);
+    // Detecta quais tópicos específicos tentaram ser selecionados mas não têm DOCX
+    const withoutDocx = selectedForTopic.filter((s) => !s.docxFileId);
+    
+    // Se tentou selecionar algum sem DOCX, exibe alerta
+    if (withoutDocx.length > 0) {
+      const names = withoutDocx.map(s => s.name).join(', ');
+      openSnackbar({
+        open: true,
+        message: `Não é possível selecionar tópicos específicos sem arquivo DOCX. Tópicos: ${names}. Faça upload do arquivo primeiro.`,
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    }
+    
     // Só permite selecionar tópicos específicos com DOCX
     const allowed = selectedForTopic.filter((s) => !!s.docxFileId);
     setSpecs([...others, ...allowed]);
+  };
+
+  // Identifica tópicos específicos selecionados que não têm DOCX
+  // Verifica tanto specDetails (dados atualizados) quanto allOpts (lista carregada)
+  const specsWithoutDocx = useMemo(() => {
+    const byId = new Map(allOpts.map((o) => [o.id, o]));
+    return specs.filter(s => {
+      // Prioriza dados de allOpts (mais atualizado), depois specDetails
+      const fromOpts = byId.get(s.id);
+      if (fromOpts !== undefined) {
+        return !fromOpts.docxFileId;
+      }
+      const detail = specDetails[s.id];
+      return !detail?.docxFileId;
+    });
+  }, [specs, specDetails, allOpts]);
+
+  // Remove um tópico específico da seleção
+  const removeSpec = (specId: string) => {
+    setSpecs(specs.filter(s => s.id !== specId));
   };
 
   // --- DnD handlers para a lista de selecionados (abaixo) ---
@@ -104,13 +164,145 @@ export default function StepSpecs() {
   };
   const onDragEnd = () => setDragIndex(null);
 
+  // Detecta tópicos específicos disponíveis sem DOCX (de todos os tópicos selecionados)
+  const availableSpecsWithoutDocx = useMemo(() => {
+    return allOpts.filter(s => !s.docxFileId);
+  }, [allOpts]);
+
   return (
-    <Stack spacing={0.5}>
+    <Stack spacing={1.5}>
       <Typography fontWeight={700}>5. Tópicos Específicos</Typography>
       {!topics.length && (
         <Typography variant="body2" color="text.secondary">
           Selecione ao menos 1 tópico na etapa anterior.
         </Typography>
+      )}
+
+      {/* Alerta quando há tópicos específicos disponíveis sem arquivo DOCX */}
+      {topics.length > 0 && availableSpecsWithoutDocx.length > 0 && (
+        <Alert 
+          severity="warning" 
+          icon={<WarningOutlined />}
+          sx={{ mt: 1 }}
+        >
+          <AlertTitle>Atenção: Tópicos Específicos sem arquivo DOCX</AlertTitle>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Existem {availableSpecsWithoutDocx.length} tópico(s) específico(s) disponível(is) sem arquivo DOCX e não poderão ser selecionados:
+          </Typography>
+          <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+            {availableSpecsWithoutDocx.slice(0, 5).map(s => (
+              <Box
+                key={s.id}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  p: 0.75,
+                  bgcolor: 'warning.lighter',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'warning.main'
+                }}
+              >
+                <Typography variant="body2">
+                  <strong>{s.name}</strong>
+                  {s.topic && (
+                    <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                      (tópico: {s.topic.name})
+                    </Typography>
+                  )}
+                </Typography>
+              </Box>
+            ))}
+            {availableSpecsWithoutDocx.length > 5 && (
+              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                ... e mais {availableSpecsWithoutDocx.length - 5} tópico(s) específico(s)
+              </Typography>
+            )}
+          </Stack>
+          <Typography variant="body2">
+            <strong>Para selecionar estes tópicos:</strong> Acesse a página de Tópicos Específicos e faça upload do arquivo DOCX para cada um deles.
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<LinkOutlined />}
+            onClick={() => {
+              // Salva o estado completo do wizard antes de navegar
+              saveWizardState();
+              navigate('/ai/topic-specifics');
+            }}
+            sx={{ alignSelf: 'flex-start', mt: 1 }}
+          >
+            Ir para Tópicos Específicos
+          </Button>
+        </Alert>
+      )}
+
+      {/* Alerta quando há tópicos específicos selecionados sem arquivo DOCX */}
+      {specsWithoutDocx.length > 0 && (
+        <Alert 
+          severity="error" 
+          icon={<WarningOutlined />}
+          sx={{ mt: 1 }}
+        >
+          <AlertTitle>Não é possível continuar sem arquivo DOCX</AlertTitle>
+          <Typography variant="body2" sx={{ mb: 1.5 }}>
+            Os seguintes tópicos específicos não possuem arquivo DOCX e precisam ser corrigidos antes de continuar:
+          </Typography>
+          <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+            {specsWithoutDocx.map(s => (
+              <Box
+                key={s.id}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  p: 1,
+                  bgcolor: 'error.lighter',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'error.main'
+                }}
+              >
+                <Typography variant="body2" fontWeight={600}>
+                  {s.name}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => removeSpec(s.id)}
+                  color="error"
+                  title="Remover este tópico específico"
+                >
+                  <CloseCircleOutlined />
+                </IconButton>
+              </Box>
+            ))}
+          </Stack>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            <strong>Opções para resolver:</strong>
+          </Typography>
+          <Stack spacing={1}>
+            <Typography variant="body2" component="div">
+              • <strong>Remover o tópico:</strong> Clique no ícone X ao lado do tópico acima
+            </Typography>
+            <Typography variant="body2" component="div">
+              • <strong>Fazer upload do arquivo:</strong> Acesse a página de Tópicos Específicos para fazer upload do DOCX
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<LinkOutlined />}
+              onClick={() => {
+                // Salva o estado completo do wizard antes de navegar
+                saveWizardState();
+                navigate('/ai/topic-specifics');
+              }}
+              sx={{ alignSelf: 'flex-start', mt: 0.5 }}
+            >
+              Ir para Tópicos Específicos
+            </Button>
+          </Stack>
+        </Alert>
       )}
 
       {/* Um campo de seleção/busca para CADA tópico selecionado */}

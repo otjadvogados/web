@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -58,7 +58,7 @@ function CreateCaseWizardInner() {
     dept, customers, piece, topic, topics, specs,
     pieceDetail, topicDetail, payloadPreview,
     downloadPieceDocx, buildFormData, buildCaseContextFormData, formPreview,
-    validateAttachments, hasOcrErrors
+    validateAttachments, hasOcrErrors, restoreWizardState
   } = useCaseWizard();
 
   const navigate = useNavigate();
@@ -71,6 +71,34 @@ function CreateCaseWizardInner() {
   const [result, setResult] = useState<CaseContextResponse | null>(null);
   const [rtRunId, setRtRunId] = useState<string | null>(null);
   const [rtOpen, setRtOpen] = useState(false);
+
+  // Restaura o estado completo do wizard se houver estado salvo
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = sessionStorage.getItem('wizard_return_state');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          // Verifica se o estado não é muito antigo (mais de 2 horas)
+          const twoHours = 2 * 60 * 60 * 1000;
+          if (Date.now() - parsed.timestamp < twoHours && parsed.step !== undefined) {
+            await restoreWizardState();
+            openSnackbar({
+              open: true,
+              message: `Estado restaurado! Você retornou para a etapa de ${steps[parsed.step]?.label || 'Criação de Caso'}`,
+              variant: 'alert',
+              alert: { color: 'success' }
+            } as any);
+          } else {
+            sessionStorage.removeItem('wizard_return_state');
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao restaurar estado do wizard:', err);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restoreWizardState]);
 
   const doSubmit = async () => {
     try {

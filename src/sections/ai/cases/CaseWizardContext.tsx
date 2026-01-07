@@ -1,9 +1,9 @@
 import { createContext, useContext, useMemo, useState, useEffect, useRef } from 'react';
-import { Department } from 'api/departments';
-import { Customer } from 'api/customers';
-import { AiPiece, fetchPieceDocx } from 'api/aiPieces';
-import { AiTopic } from 'api/aiTopics';
-import { AiTopicSpecific, fetchTopicSpecificDocx } from 'api/aiTopicSpecifics';
+import { Department, getDepartment } from 'api/departments';
+import { Customer, getCustomer } from 'api/customers';
+import { AiPiece, fetchPieceDocx, getPiece } from 'api/aiPieces';
+import { AiTopic, getTopic } from 'api/aiTopics';
+import { AiTopicSpecific, fetchTopicSpecificDocx, getTopicSpecific } from 'api/aiTopicSpecifics';
 import { openSnackbar } from 'api/snackbar';
 import type { CaseContextFields, AttachmentBox, CaseAttachmentMeta, CaseCommonAttachmentMeta } from 'api/aiCases';
 
@@ -29,6 +29,17 @@ export type CaseCommonAttachmentItem = {
   ocrResult?: OcrTestResponse;
 };
 
+type WizardState = {
+  step: number;
+  deptId: string | null;
+  customerIds: string[];
+  pieceId: string | null;
+  topicIds: string[];
+  specIds: string[];
+  instruction: string;
+  timestamp: number;
+};
+
 type Ctx = {
   step: number;
   setStep: (n: number) => void;
@@ -41,6 +52,9 @@ type Ctx = {
   /** NOVO: múltiplos tópicos selecionados */
   topics: OptionTopic[]; setTopics: (v: OptionTopic[]) => void;
   specs: OptionSpec[]; setSpecs: (v: OptionSpec[]) => void;
+  // save/restore state
+  saveWizardState: () => void;
+  restoreWizardState: () => Promise<void>;
   // details (preview)
   pieceDetail: OptionPiece | null; setPieceDetail: (v: OptionPiece|null) => void;
   topicDetail: OptionTopic | null; setTopicDetail: (v: OptionTopic|null) => void;
@@ -106,6 +120,9 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const [topic, setTopic] = useState<OptionTopic | null>(null); // principal (primeiro)
   const [topics, setTopics] = useState<OptionTopic[]>([]);      // NOVO: múltiplos
   const [specs, setSpecs] = useState<OptionSpec[]>([]);
+  
+  // Flag para desabilitar resets automáticos durante restauração
+  const isRestoringRef = useRef(false);
 
   const [pieceDetail, setPieceDetail] = useState<OptionPiece | null>(null);
   const [topicDetail, setTopicDetail] = useState<OptionTopic | null>(null);
@@ -167,12 +184,24 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     setCommonAttachments((prev) => prev.map((a) => (a.id === id ? { ...a, ocrResult } : a)));
   };
 
-  // encadeamento de resets
-  useEffect(() => { setPiece(null); setTopic(null); setTopics([]); setSpecs([]); }, [dept?.id, customers.map(c=>c.id).join('|')]);
-  useEffect(() => { setTopic(null); setTopics([]); setSpecs([]); }, [piece?.id]);
-  useEffect(() => { setSpecs([]); }, [topic?.id]);
+  // encadeamento de resets (desabilitado durante restauração)
+  useEffect(() => { 
+    if (isRestoringRef.current) return;
+    setPiece(null); setTopic(null); setTopics([]); setSpecs([]); 
+  }, [dept?.id, customers.map(c=>c.id).join('|')]);
+  useEffect(() => { 
+    if (isRestoringRef.current) return;
+    setTopic(null); setTopics([]); setSpecs([]); 
+  }, [piece?.id]);
+  useEffect(() => { 
+    if (isRestoringRef.current) return;
+    setSpecs([]); 
+  }, [topic?.id]);
   // NOVO: se a lista de tópicos mudar (mesmo que o primeiro permaneça igual), limpar specs
-  useEffect(() => { setSpecs([]); }, [topics.map(t => t.id).join('|')]);
+  useEffect(() => { 
+    if (isRestoringRef.current) return;
+    setSpecs([]); 
+  }, [topics.map(t => t.id).join('|')]);
 
   // remove anexos de specs que não estão mais selecionados
   useEffect(() => {
@@ -248,7 +277,16 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       case 1: return true;       // cliente é opcional
       case 2: return !!piece?.id && !!piece?.docxFileId; // peça com DOCX obrigatório
       case 3: return topics.length > 0; // agora exige >=1 tópico
-      case 4: return specs.length > 0;
+      case 4: {
+        // Valida se há specs selecionados e se todos têm DOCX
+        if (specs.length === 0) return false;
+        // Verifica se todos os specs têm docxFileId usando specDetails (que tem dados atualizados)
+        const specsWithoutDocx = specs.filter(s => {
+          const detail = specDetails[s.id];
+          return !detail?.docxFileId;
+        });
+        return specsWithoutDocx.length === 0;
+      }
       case 5: return validateAttachments().valid; // valida se todos os specs têm anexos
       default: return false;
     }
@@ -441,6 +479,126 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  // Salva o estado completo do wizard no sessionStorage
+  const saveWizardState = () => {
+    try {
+      const state: WizardState = {
+        step,
+        deptId: dept?.id ?? null,
+        customerIds: customers.map(c => c.id),
+        pieceId: piece?.id ?? null,
+        topicIds: topics.map(t => t.id),
+        specIds: specs.map(s => s.id),
+        instruction,
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem('wizard_return_state', JSON.stringify(state));
+    } catch (err) {
+      console.error('Erro ao salvar estado do wizard:', err);
+    }
+  };
+
+  // Restaura o estado completo do wizard do sessionStorage
+  const restoreWizardState = async () => {
+    try {
+      const saved = sessionStorage.getItem('wizard_return_state');
+      if (!saved) return;
+
+      const state: WizardState = JSON.parse(saved);
+      
+      // Verifica se o estado não é muito antigo (mais de 2 horas)
+      const twoHours = 2 * 60 * 60 * 1000;
+      if (Date.now() - state.timestamp > twoHours) {
+        sessionStorage.removeItem('wizard_return_state');
+        return;
+      }
+
+      // Ativa flag de restauração para desabilitar resets automáticos
+      isRestoringRef.current = true;
+
+      // Restaura a etapa primeiro
+      setStep(state.step);
+
+      // Restaura departamento e clientes em paralelo
+      const deptPromise = state.deptId ? getDepartment(state.deptId) : Promise.resolve(null);
+      const customersPromises = state.customerIds.length > 0
+        ? Promise.all(state.customerIds.map(id => getCustomer(id)))
+        : Promise.resolve([]);
+
+      const [deptData, customersData] = await Promise.all([deptPromise, customersPromises]);
+
+      // Define departamento
+      if (deptData) {
+        setDept({ id: deptData.id, name: deptData.name });
+      }
+
+      // Define clientes
+      if (customersData.length > 0) {
+        setCustomers(customersData.map(c => ({
+          id: c.id,
+          displayName: c.displayName,
+          name: c.name,
+          kind: c.kind,
+          isMatriz: c.isMatriz,
+          isFilial: c.isFilial,
+          parentCustomerId: c.parentCustomerId
+        })));
+      }
+
+      // Restaura peça
+      if (state.pieceId) {
+        try {
+          const pieceData = await getPiece(state.pieceId);
+          setPiece(pieceData);
+        } catch (err) {
+          console.error('Erro ao restaurar peça:', err);
+        }
+      }
+
+      // Restaura tópicos
+      if (state.topicIds.length > 0) {
+        try {
+          const topicsData = await Promise.all(
+            state.topicIds.map(id => getTopic(id))
+          );
+          setTopics(topicsData);
+        } catch (err) {
+          console.error('Erro ao restaurar tópicos:', err);
+        }
+      }
+
+      // Restaura tópicos específicos
+      if (state.specIds.length > 0) {
+        try {
+          const specsData = await Promise.all(
+            state.specIds.map(id => getTopicSpecific(id))
+          );
+          setSpecs(specsData);
+        } catch (err) {
+          console.error('Erro ao restaurar tópicos específicos:', err);
+        }
+      }
+
+      // Restaura instrução
+      if (state.instruction) {
+        setInstruction(state.instruction);
+      }
+
+      // Aguarda um pouco para garantir que todos os estados foram atualizados
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Remove o estado salvo após restaurar
+      sessionStorage.removeItem('wizard_return_state');
+      
+      // Desativa flag de restauração
+      isRestoringRef.current = false;
+    } catch (err) {
+      console.error('Erro ao restaurar estado do wizard:', err);
+      sessionStorage.removeItem('wizard_return_state');
+      isRestoringRef.current = false;
+    }
+  };
+
   return (
     <CaseWizardContext.Provider value={{
       step, setStep,
@@ -459,7 +617,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       commonAttachments, addCommonAttachments, removeCommonAttachment, updateCommonAttachmentOcr,
       canNext, maxStep, payloadPreview, validateAttachments, hasOcrErrors,
       downloadPieceDocx, downloadSpecDocx,
-      buildFormData, buildCaseContextFormData, formPreview
+      buildFormData, buildCaseContextFormData, formPreview,
+      saveWizardState, restoreWizardState
     }}>
       {children}
     </CaseWizardContext.Provider>
