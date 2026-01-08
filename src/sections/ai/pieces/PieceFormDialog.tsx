@@ -29,6 +29,8 @@ import { AiPiece, createPiece, updatePiece, UpdatePieceDTO } from 'api/aiPieces'
 import { listDepartments } from 'api/departments';
 import { listCustomers } from 'api/customers';
 import { openSnackbar } from 'api/snackbar';
+import CaseChecklistDialog from 'components/CaseChecklistDialog';
+import { getPieceChecklist } from 'sections/ai/cases/checklists';
 
 type Props = {
   open: boolean;
@@ -60,9 +62,57 @@ export default function PieceFormDialog({ open, onClose, editingId, initial, onS
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deptCatalog, setDeptCatalog] = useState<Array<{ id: string; name: string }>>([]);
   const [custCatalog, setCustCatalog] = useState<Array<{ id: string; displayName?: string; name?: string }>>([]);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [pendingValues, setPendingValues] = useState<any>(null);
 
   useEffect(() => { if (!open) setIsSubmitting(false); }, [open]);
   const handleClose = () => { if (!isSubmitting) onClose(); };
+
+  const doSave = async (values: any, setSubmitting: any, setErrors: any) => {
+    try {
+      setIsSubmitting(true);
+      if (isEdit && editingId) {
+        const payload: UpdatePieceDTO = {
+          name: values.name?.trim() || initial?.name,
+          departmentId: values.departmentId || initial?.departmentId,
+          // customerId: '' -> não alterar; null -> limpar; string -> trocar
+          customerId: (values.customerId === '' ? undefined : values.customerId),
+          instruction: typeof values.instruction === 'string' ? (values.instruction?.trim() || null) : values.instruction ?? undefined,
+          isActive: typeof values.isActive === 'boolean' ? values.isActive : initial?.isActive,
+          allowAiEdit: typeof (values as any).allowAiEdit === 'boolean' ? (values as any).allowAiEdit : (initial as any)?.allowAiEdit
+        };
+        await updatePiece(editingId, payload);
+        openSnackbar({ open: true, message: 'Peça atualizada!', variant: 'alert', alert: { color: 'success' } } as any);
+      } else {
+        const payload = {
+          name: values.name.trim(),
+          departmentId: values.departmentId,
+          customerId: (values.customerId === '' ? undefined : values.customerId),
+          instruction: values.instruction?.trim() || null,
+          isActive: !!values.isActive,
+          allowAiEdit: typeof (values as any).allowAiEdit === 'boolean' ? !!(values as any).allowAiEdit : true
+        };
+        await createPiece(payload);
+        openSnackbar({ open: true, message: 'Peça criada!', variant: 'alert', alert: { color: 'success' } } as any);
+      }
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err.message || 'Falha ao salvar';
+      setErrors({ name: msg });
+      openSnackbar({ open: true, message: msg, variant: 'alert', alert: { color: 'error' } } as any);
+    } finally {
+      setSubmitting(false);
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleChecklistConfirm = async () => {
+    if (!pendingValues) return;
+    setShowChecklist(false);
+    await doSave(pendingValues.values, pendingValues.setSubmitting, pendingValues.setErrors);
+    setPendingValues(null);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -118,42 +168,15 @@ export default function PieceFormDialog({ open, onClose, editingId, initial, onS
         }}
         validationSchema={isEdit ? schemaEdit : schemaCreate}
         onSubmit={async (values, { setSubmitting, setErrors }) => {
-          try {
-            setIsSubmitting(true);
-            if (isEdit && editingId) {
-              const payload: UpdatePieceDTO = {
-                name: values.name?.trim() || initial?.name,
-                departmentId: values.departmentId || initial?.departmentId,
-                // customerId: '' -> não alterar; null -> limpar; string -> trocar
-                customerId: (values.customerId === '' ? undefined : values.customerId),
-                instruction: typeof values.instruction === 'string' ? (values.instruction?.trim() || null) : values.instruction ?? undefined,
-                isActive: typeof values.isActive === 'boolean' ? values.isActive : initial?.isActive,
-                allowAiEdit: typeof (values as any).allowAiEdit === 'boolean' ? (values as any).allowAiEdit : (initial as any)?.allowAiEdit
-              };
-              await updatePiece(editingId, payload);
-              openSnackbar({ open: true, message: 'Peça atualizada!', variant: 'alert', alert: { color: 'success' } } as any);
-            } else {
-              const payload = {
-                name: values.name.trim(),
-                departmentId: values.departmentId,
-                customerId: (values.customerId === '' ? undefined : values.customerId),
-                instruction: values.instruction?.trim() || null,
-                isActive: !!values.isActive,
-                allowAiEdit: typeof (values as any).allowAiEdit === 'boolean' ? !!(values as any).allowAiEdit : true
-              };
-              await createPiece(payload);
-              openSnackbar({ open: true, message: 'Peça criada!', variant: 'alert', alert: { color: 'success' } } as any);
-            }
-            onSaved();
-            onClose();
-          } catch (err: any) {
-            const msg = err?.response?.data?.message || err.message || 'Falha ao salvar';
-            setErrors({ name: msg });
-            openSnackbar({ open: true, message: msg, variant: 'alert', alert: { color: 'error' } } as any);
-          } finally {
-            setSubmitting(false);
-            setIsSubmitting(false);
+          // Se for criação (não edição), mostra checklist antes de salvar
+          if (!isEdit) {
+            setPendingValues({ values, setSubmitting, setErrors });
+            setShowChecklist(true);
+            return;
           }
+          
+          // Se for edição, salva diretamente
+          await doSave(values, setSubmitting, setErrors);
         }}
       >
         {({ values, errors, touched, handleBlur, handleChange, handleSubmit, setFieldValue, isSubmitting }) => (
@@ -274,6 +297,32 @@ export default function PieceFormDialog({ open, onClose, editingId, initial, onS
           </>
         )}
       </Formik>
+
+      {/* Checklist antes de criar a peça */}
+      {!isEdit && (
+        <CaseChecklistDialog
+          open={showChecklist}
+          title="Checklist Final - Conferência antes de Criar a Peça"
+          sections={getPieceChecklist(
+            !!pendingValues?.values?.customerId && pendingValues.values.customerId !== '',
+            pendingValues?.values?.customerId && pendingValues.values.customerId !== ''
+              ? (custCatalog.find(c => c.id === pendingValues.values.customerId)?.displayName || 
+                 custCatalog.find(c => c.id === pendingValues.values.customerId)?.name || 
+                 null)
+              : null,
+            false, // Não temos informações de anexos na criação de peça
+            0
+          )}
+          confirmText="Criar Peça"
+          cancelText="Cancelar"
+          allowSkip={false}
+          onConfirm={handleChecklistConfirm}
+          onCancel={() => {
+            setShowChecklist(false);
+            setPendingValues(null);
+          }}
+        />
+      )}
     </Dialog>
   );
 }

@@ -242,8 +242,71 @@ export function getInfoChecklist(
 /**
  * Checklist de Conferência da Peça - exibido antes de gerar o caso
  */
-export function getPieceChecklist(): ChecklistSection[] {
+export function getPieceChecklist(
+  hasCustomer: boolean = false,
+  customerName?: string | null,
+  hasAttachments: boolean = false,
+  attachmentsCount: number = 0
+): ChecklistSection[] {
   return [
+    {
+      id: 'customer-standard',
+      title: 'Padrão do Cliente',
+      defaultExpanded: true,
+      description: 'Verificar se o modelo de peça segue o padrão específico do cliente',
+      items: [
+        {
+          id: 'check-customer-standard',
+          label: 'Conferência se o modelo de peça segue o padrão do cliente',
+          required: true,
+          checked: false,
+          description: hasCustomer && customerName
+            ? `Verificar conformidade com o padrão do cliente: ${customerName} (ex.: Atacadão, Carrefour, Mufato)`
+            : hasCustomer
+            ? 'Verificar conformidade com o padrão do cliente selecionado'
+            : 'Selecione um cliente para validar o padrão da peça'
+        }
+      ]
+    },
+    {
+      id: 'security',
+      title: 'Segurança da Informação',
+      defaultExpanded: true,
+      description: 'Garantir que a peça não contenha dados sensíveis expostos indevidamente',
+      items: [
+        {
+          id: 'check-sensitive-data',
+          label: 'Garantir que a peça não contenha dados sensíveis expostos indevidamente',
+          required: true,
+          checked: false,
+          description: 'Verificar ausência de CPF, CNPJ, senhas, informações bancárias ou outros dados sensíveis expostos indevidamente na peça'
+        }
+      ]
+    },
+    {
+      id: 'proofs-documents',
+      title: 'Controle de Provas e Documentos',
+      defaultExpanded: true,
+      description: 'Confirmação de que foram anexadas as provas/documentos corretos',
+      items: [
+        {
+          id: 'check-proofs-attached',
+          label: 'Confirmação de que foram anexadas as provas/documentos corretos',
+          required: true,
+          checked: hasAttachments,
+          description: hasAttachments
+            ? `${attachmentsCount} anexo(s) encontrado(s). Verificar se são os documentos corretos (prints, laudos, cálculos)`
+            : 'Nenhum anexo encontrado. Verificar se as provas necessárias foram anexadas (prints, laudos, cálculos)'
+        },
+        {
+          id: 'check-proof-placeholders',
+          label: 'Identificação de espaços reservados para colagem de provas',
+          required: false,
+          checked: false,
+          description: 'Quando aplicável, verificar se há espaços reservados no documento para colagem de provas'
+        }
+      ]
+    },
     {
       id: 'placeholders',
       title: 'Placeholders',
