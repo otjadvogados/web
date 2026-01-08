@@ -96,6 +96,43 @@ export type CaseResult = {
   userRoleName?: string | null;
   userAvatarFileId?: string | null;
   customers: string[] | null | Array<{ id: string; name: string; displayName?: string }>;
+  /** Status do fluxo de aprovação */
+  status?: 'pending' | 'finalized' | 'approved' | 'released' | null;
+  /** Dados do fluxo de aprovação */
+  approvalFlow?: {
+    // Criou
+    createdBy?: string | null;
+    createdByUser?: {
+      id: string;
+      name: string;
+      avatarFileId?: string | null;
+    } | null;
+    createdAt?: string | null;
+    // Finalizou
+    finalizedBy?: string | null;
+    finalizedByUser?: {
+      id: string;
+      name: string;
+      avatarFileId?: string | null;
+    } | null;
+    finalizedAt?: string | null;
+    // Aprovou
+    approvedBy?: string | null;
+    approvedByUser?: {
+      id: string;
+      name: string;
+      avatarFileId?: string | null;
+    } | null;
+    approvedAt?: string | null;
+    // Liberou
+    releasedBy?: string | null;
+    releasedByUser?: {
+      id: string;
+      name: string;
+      avatarFileId?: string | null;
+    } | null;
+    releasedAt?: string | null;
+  } | null;
   html?: string; // ← Novo campo (igual ao /context)
   htmlMain?: string; // ← Mantido para compatibilidade
   _infos?: Record<string, any>; // ← Novo campo (igual ao /context)
@@ -153,6 +190,7 @@ export type ListCaseResultsQuery = {
   createdFrom?: string;
   createdTo?: string;
   tags?: Record<string, string>;
+  includeApprovalFlow?: boolean;
 };
 
 /**
@@ -168,7 +206,8 @@ export async function listCaseResults(q: ListCaseResultsQuery = {}) {
     customerId: q.customerId || undefined,
     customerName: q.customerName || undefined,
     createdFrom: q.createdFrom || undefined,
-    createdTo: q.createdTo || undefined
+    createdTo: q.createdTo || undefined,
+    includeApprovalFlow: q.includeApprovalFlow !== undefined ? q.includeApprovalFlow : true
   };
 
   // Adicionar tags como query params (tags[chave]=valor)
@@ -188,6 +227,47 @@ export async function listCaseResults(q: ListCaseResultsQuery = {}) {
 export async function getCaseResult(id: string) {
   const { data } = await axios.get<{ ok: boolean; item: CaseResult }>(`/ai/cases/results/${id}`);
   return data.item;
+}
+
+/**
+ * GET /ai/cases/results/:id/approval-flow - Obter apenas o fluxo de aprovação
+ */
+export async function getCaseApprovalFlow(id: string) {
+  const { data } = await axios.get<{
+    id: string;
+    caseResultId: string;
+    status: 'pending' | 'finalized' | 'approved' | 'released';
+    createdBy?: string | null;
+    createdByUser?: {
+      id: string;
+      name: string;
+      avatarFileId?: string | null;
+    } | null;
+    createdAt?: string | null;
+    finalizedBy?: string | null;
+    finalizedByUser?: {
+      id: string;
+      name: string;
+      avatarFileId?: string | null;
+    } | null;
+    finalizedAt?: string | null;
+    approvedBy?: string | null;
+    approvedByUser?: {
+      id: string;
+      name: string;
+      avatarFileId?: string | null;
+    } | null;
+    approvedAt?: string | null;
+    releasedBy?: string | null;
+    releasedByUser?: {
+      id: string;
+      name: string;
+      avatarFileId?: string | null;
+    } | null;
+    releasedAt?: string | null;
+    notes?: string | null;
+  }>(`/ai/cases/results/${id}/approval-flow`);
+  return data;
 }
 
 /**
@@ -212,6 +292,63 @@ export async function deleteCaseResults(ids: string[]) {
   const { data } = await axios.delete<{ message: string }>('/ai/cases/results', {
     data: { ids }
   });
+  return data;
+}
+
+/**
+ * POST /ai/cases/results/:id/finalize - Finalizar caso
+ * O backend deve preencher automaticamente os campos:
+ * - finalized_by (ID do usuário autenticado)
+ * - finalized_at (timestamp atual)
+ * - status (muda para 'finalized')
+ */
+export async function finalizeCase(id: string, notes?: string) {
+  const payload: { notes?: string } = {};
+  if (notes?.trim()) {
+    payload.notes = notes.trim();
+  }
+  const { data } = await axios.post<{ message: string; data: CaseResult }>(
+    `/ai/cases/results/${id}/finalize`,
+    payload
+  );
+  return data;
+}
+
+/**
+ * POST /ai/cases/results/:id/approve - Aprovar caso
+ * O backend deve preencher automaticamente os campos:
+ * - approved_by (ID do usuário autenticado)
+ * - approved_at (timestamp atual)
+ * - status (muda para 'approved')
+ */
+export async function approveCase(id: string, notes?: string) {
+  const payload: { notes?: string } = {};
+  if (notes?.trim()) {
+    payload.notes = notes.trim();
+  }
+  const { data } = await axios.post<{ message: string; data: CaseResult }>(
+    `/ai/cases/results/${id}/approve`,
+    payload
+  );
+  return data;
+}
+
+/**
+ * POST /ai/cases/results/:id/release - Liberar caso
+ * O backend deve preencher automaticamente os campos:
+ * - released_by (ID do usuário autenticado)
+ * - released_at (timestamp atual)
+ * - status (muda para 'released')
+ */
+export async function releaseCase(id: string, notes?: string) {
+  const payload: { notes?: string } = {};
+  if (notes?.trim()) {
+    payload.notes = notes.trim();
+  }
+  const { data } = await axios.post<{ message: string; data: CaseResult }>(
+    `/ai/cases/results/${id}/release`,
+    payload
+  );
   return data;
 }
 

@@ -21,13 +21,18 @@ import Box from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { Theme } from '@mui/material/styles';
 import Checkbox from '@mui/material/Checkbox';
+import Menu from '@mui/material/Menu';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
 import AIIcon from 'components/icons/AIIcon';
 import MainCard from 'components/MainCard';
-import { listCaseResults, deleteCaseResults, CaseResult } from 'api/aiCases';
+import { listCaseResults, deleteCaseResults, finalizeCase, approveCase, releaseCase, CaseResult } from 'api/aiCases';
 import { listDepartments } from 'api/departments';
 import { listPieces } from 'api/aiPieces';
 import { openSnackbar } from 'api/snackbar';
@@ -57,6 +62,263 @@ function AuthorCell({ requesterId, userName, userRoleName, userAvatarFileId }: {
         ) : null}
       </Stack>
     </Stack>
+  );
+}
+
+function StatusCell({ 
+  status, 
+  caseId, 
+  requesterId, 
+  onStatusChange 
+}: { 
+  status?: 'pending' | 'finalized' | 'approved' | 'released' | null;
+  caseId: string;
+  requesterId?: string;
+  onStatusChange: () => void;
+}) {
+  const { user } = useAuth();
+  const { hasAnyPermission } = usePermissions();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [currentAction, setCurrentAction] = useState<'finalize' | 'approve' | 'release' | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  const getStatusConfig = (s?: string | null) => {
+    switch (s) {
+      case 'pending':
+        return { label: 'Pendente', color: 'warning' as const };
+      case 'finalized':
+        return { label: 'Finalizado', color: 'info' as const };
+      case 'approved':
+        return { label: 'Aprovado', color: 'primary' as const };
+      case 'released':
+        return { label: 'Liberado', color: 'success' as const };
+      default:
+        return { label: '—', color: 'default' as const };
+    }
+  };
+
+  const config = getStatusConfig(status);
+  const isRequester = user?.id === requesterId;
+  const hasUpdatePermission = hasAnyPermission(['ai.cases.update']);
+
+  // Determina ações disponíveis baseado no status
+  const getAvailableActions = () => {
+    if (!hasUpdatePermission) return [];
+    
+    const actions: Array<{ key: 'finalize' | 'approve' | 'release'; label: string; disabled?: boolean }> = [];
+    
+    // Sempre mostra todas as ações, mas desabilita as que não são válidas no fluxo
+    if (status === 'pending') {
+      // Pendente: pode finalizar (se for o criador)
+      actions.push({ 
+        key: 'finalize', 
+        label: 'Finalizar', 
+        disabled: !isRequester 
+      });
+      actions.push({ 
+        key: 'approve', 
+        label: 'Aprovar', 
+        disabled: true // Não pode aprovar direto de pending
+      });
+      actions.push({ 
+        key: 'release', 
+        label: 'Liberar', 
+        disabled: true // Não pode liberar direto de pending
+      });
+    } else if (status === 'finalized') {
+      // Finalizado: pode aprovar ou liberar
+      actions.push({ 
+        key: 'finalize', 
+        label: 'Finalizar', 
+        disabled: true // Já está finalizado
+      });
+      actions.push({ 
+        key: 'approve', 
+        label: 'Aprovar', 
+        disabled: false 
+      });
+      actions.push({ 
+        key: 'release', 
+        label: 'Liberar', 
+        disabled: false 
+      });
+    } else if (status === 'approved') {
+      // Aprovado: pode liberar
+      actions.push({ 
+        key: 'finalize', 
+        label: 'Finalizar', 
+        disabled: true // Já passou dessa etapa
+      });
+      actions.push({ 
+        key: 'approve', 
+        label: 'Aprovar', 
+        disabled: true // Já está aprovado
+      });
+      actions.push({ 
+        key: 'release', 
+        label: 'Liberar', 
+        disabled: false 
+      });
+    } else if (status === 'released') {
+      // Liberado: nenhuma ação disponível (status final)
+      actions.push({ 
+        key: 'finalize', 
+        label: 'Finalizar', 
+        disabled: true 
+      });
+      actions.push({ 
+        key: 'approve', 
+        label: 'Aprovar', 
+        disabled: true 
+      });
+      actions.push({ 
+        key: 'release', 
+        label: 'Liberar', 
+        disabled: true 
+      });
+    } else {
+      // Status desconhecido: mostra todas as opções
+      actions.push({ 
+        key: 'finalize', 
+        label: 'Finalizar', 
+        disabled: !isRequester 
+      });
+      actions.push({ 
+        key: 'approve', 
+        label: 'Aprovar', 
+        disabled: false 
+      });
+      actions.push({ 
+        key: 'release', 
+        label: 'Liberar', 
+        disabled: false 
+      });
+    }
+    
+    return actions;
+  };
+
+  const availableActions = getAvailableActions();
+  const canChangeStatus = hasUpdatePermission;
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    if (canChangeStatus) {
+      setAnchorEl(event.currentTarget);
+    }
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleActionClick = (action: 'finalize' | 'approve' | 'release') => {
+    setCurrentAction(action);
+    setActionDialogOpen(true);
+    handleClose();
+  };
+
+  const handleConfirmAction = async () => {
+    if (!currentAction) return;
+    
+    try {
+      setProcessing(true);
+      
+      switch (currentAction) {
+        case 'finalize':
+          await finalizeCase(caseId);
+          break;
+        case 'approve':
+          await approveCase(caseId);
+          break;
+        case 'release':
+          await releaseCase(caseId);
+          break;
+      }
+      
+      openSnackbar({
+        open: true,
+        message: `Status alterado com sucesso!`,
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+      
+      setActionDialogOpen(false);
+      setCurrentAction(null);
+      onStatusChange();
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || 'Falha ao alterar status',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCancelAction = () => {
+    setActionDialogOpen(false);
+    setCurrentAction(null);
+  };
+
+  return (
+    <>
+      <Chip 
+        size="small" 
+        label={config.label} 
+        color={config.color}
+        onClick={canChangeStatus ? handleClick : undefined}
+        sx={{ 
+          cursor: canChangeStatus ? 'pointer' : 'default',
+          '&:hover': canChangeStatus ? { opacity: 0.8 } : {}
+        }}
+      />
+      
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleClose}
+      >
+        {availableActions.map((action) => (
+          <MenuItem 
+            key={action.key} 
+            onClick={() => !action.disabled && handleActionClick(action.key)}
+            disabled={action.disabled}
+          >
+            {action.label}
+          </MenuItem>
+        ))}
+      </Menu>
+
+      <Dialog open={actionDialogOpen} onClose={handleCancelAction} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {currentAction === 'finalize' && 'Finalizar Caso'}
+          {currentAction === 'approve' && 'Aprovar Caso'}
+          {currentAction === 'release' && 'Liberar Caso'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            {currentAction === 'finalize' && 'Deseja finalizar este caso? Após finalizar, ele ficará aguardando aprovação ou liberação.'}
+            {currentAction === 'approve' && 'Deseja aprovar este caso? Após aprovar, ele ficará aguardando liberação pela empresa.'}
+            {currentAction === 'release' && 'Deseja liberar este caso? Esta é a etapa final do fluxo de aprovação.'}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelAction} disabled={processing}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirmAction} 
+            variant="contained" 
+            disabled={processing}
+          >
+            {processing ? 'Processando...' : 'Confirmar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
@@ -376,7 +638,43 @@ export default function ListCasesPage() {
                           size="small"
                           label={`Depto: ${item.departmentName || (item.infos as any)?.piece?.department?.name || item.department?.name || '—'}`}
                         />
+                        <StatusCell 
+                          status={item.status} 
+                          caseId={item.id}
+                          requesterId={item.requesterId}
+                          onStatusChange={load}
+                        />
                       </Stack>
+
+                      {(() => {
+                        const approvedBy = item.approvalFlow?.approvedBy;
+                        const approvedByUser = item.approvalFlow?.approvedByUser;
+                        
+                        if (approvedByUser?.name) {
+                          return (
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography variant="caption" color="text.secondary">
+                                Aprovado por:
+                              </Typography>
+                              <AuthorCell
+                                requesterId={approvedBy}
+                                userName={approvedByUser.name}
+                                userAvatarFileId={approvedByUser.avatarFileId}
+                              />
+                            </Stack>
+                          );
+                        }
+                        
+                        if (approvedBy) {
+                          return (
+                            <Typography variant="caption" color="text.secondary">
+                              Aprovado por: ID {approvedBy}
+                            </Typography>
+                          );
+                        }
+                        
+                        return null;
+                      })()}
 
                       <Typography variant="caption" color="text.secondary">
                         Criado em {item.createdAt ? formatDate(item.createdAt) : '—'}
@@ -422,6 +720,8 @@ export default function ListCasesPage() {
                       <TableCell>Peça</TableCell>
                       <TableCell>Departamento</TableCell>
                       <TableCell>Redator</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Aprovado por</TableCell>
                       <TableCell>Criado em</TableCell>
                       {hasAnyPermission(['ai.cases.read', 'ai.cases.update']) && (
                         <TableCell align="right">Ações</TableCell>
@@ -455,6 +755,42 @@ export default function ListCasesPage() {
                             userAvatarFileId={item.userAvatarFileId}
                           />
                         </TableCell>
+                        <TableCell>
+                          <StatusCell 
+                            status={item.status} 
+                            caseId={item.id}
+                            requesterId={item.requesterId}
+                            onStatusChange={load}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            // Tenta várias formas de acessar os dados do aprovador
+                            const approvedBy = item.approvalFlow?.approvedBy;
+                            const approvedByUser = item.approvalFlow?.approvedByUser;
+                            
+                            if (approvedByUser?.name) {
+                              return (
+                                <AuthorCell
+                                  requesterId={approvedBy}
+                                  userName={approvedByUser.name}
+                                  userAvatarFileId={approvedByUser.avatarFileId}
+                                />
+                              );
+                            }
+                            
+                            // Fallback: se tiver apenas o ID, mostra o ID
+                            if (approvedBy) {
+                              return (
+                                <Typography variant="body2" color="text.secondary">
+                                  ID: {approvedBy}
+                                </Typography>
+                              );
+                            }
+                            
+                            return '—';
+                          })()}
+                        </TableCell>
                         <TableCell>{item.createdAt ? formatDate(item.createdAt) : '—'}</TableCell>
                         {hasAnyPermission(['ai.cases.read', 'ai.cases.update']) && (
                           <TableCell align="right">
@@ -476,7 +812,7 @@ export default function ListCasesPage() {
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={hasAnyPermission(['ai.cases.read', 'ai.cases.update']) ? 7 : 6}>
+                        <TableCell colSpan={hasAnyPermission(['ai.cases.read', 'ai.cases.update']) ? 9 : 8}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhum caso encontrado.'}
