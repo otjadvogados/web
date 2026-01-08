@@ -75,10 +75,17 @@ export default function AIUsagePage() {
       };
       if (model) params.model = model;
       if (userId) params.userId = userId;
-      if (fromDate) params.from = new Date(fromDate).toISOString();
+      if (fromDate) {
+        // Criar data à meia-noite no timezone local
+        // Parsear "YYYY-MM-DD" e criar explicitamente no timezone local
+        const [year, month, day] = fromDate.split('-').map(Number);
+        const from = new Date(year, month - 1, day, 0, 0, 0, 0); // month é 0-indexed
+        params.from = from.toISOString();
+      }
       if (toDate) {
-        const to = new Date(toDate);
-        to.setHours(23, 59, 59, 999);
+        // Criar data às 23:59:59.999 no timezone local para incluir todo o dia
+        const [year, month, day] = toDate.split('-').map(Number);
+        const to = new Date(year, month - 1, day, 23, 59, 59, 999); // month é 0-indexed
         params.to = to.toISOString();
       }
 
@@ -162,14 +169,24 @@ export default function AIUsagePage() {
   };
 
   const onClearFilters = () => {
+    // Limpar todos os filtros primeiro
     setModel('');
     setUserId('');
     setSelectedUser(null);
     setUserSearch('');
     setFromDate('');
     setToDate('');
-    setPage(0);
-    loadRecords();
+    
+    // Forçar mudança em page para acionar o useEffect
+    // Se já estiver em 0, mudamos temporariamente para 1 e depois para 0
+    if (page === 0) {
+      setPage(1);
+      setTimeout(() => {
+        setPage(0);
+      }, 50);
+    } else {
+      setPage(0);
+    }
   };
 
   const formatNumber = (num?: number) => {
