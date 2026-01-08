@@ -32,6 +32,8 @@ import StepAttachments from 'sections/ai/cases/steps/StepAttachments';
 import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
 import { ensureRealtimeConnected } from 'api/realtime';
 import Permission from 'components/Permission';
+import CaseChecklistDialog from 'components/CaseChecklistDialog';
+import { getInitialChecklist, getInfoChecklist, getPieceChecklist } from 'sections/ai/cases/checklists';
 
 const steps = [
   { key: 'dept', label: 'Departamento' },
@@ -71,6 +73,11 @@ function CreateCaseWizardInner() {
   const [result, setResult] = useState<CaseContextResponse | null>(null);
   const [rtRunId, setRtRunId] = useState<string | null>(null);
   const [rtOpen, setRtOpen] = useState(false);
+  
+  // Estados dos checklists
+  const [showInitialChecklist, setShowInitialChecklist] = useState(false);
+  const [showFinalChecklist, setShowFinalChecklist] = useState(false);
+  const [initialChecklistCompleted, setInitialChecklistCompleted] = useState(false);
 
   // Restaura o estado completo do wizard se houver estado salvo
   useEffect(() => {
@@ -89,12 +96,30 @@ function CreateCaseWizardInner() {
               variant: 'alert',
               alert: { color: 'success' }
             } as any);
+            // Se restaurou estado, não mostra checklist inicial novamente
+            setInitialChecklistCompleted(true);
           } else {
             sessionStorage.removeItem('wizard_return_state');
+          }
+        } else {
+          // Se não há estado salvo, verifica se já mostrou o checklist inicial nesta sessão
+          const checklistShown = sessionStorage.getItem('case_initial_checklist_shown');
+          if (!checklistShown) {
+            // Pequeno delay para garantir que o componente está montado
+            setTimeout(() => {
+              setShowInitialChecklist(true);
+            }, 300);
+          } else {
+            setInitialChecklistCompleted(true);
           }
         }
       } catch (err) {
         console.error('Erro ao restaurar estado do wizard:', err);
+        // Em caso de erro, mostra o checklist inicial
+        const checklistShown = sessionStorage.getItem('case_initial_checklist_shown');
+        if (!checklistShown) {
+          setShowInitialChecklist(true);
+        }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,6 +150,36 @@ function CreateCaseWizardInner() {
       setTimeout(() => setRtOpen(false), 800);
     }
   };
+
+  // Intercepta o clique no botão "Criar Caso" para mostrar checklist final
+  const handleCreateCaseClick = () => {
+    setShowFinalChecklist(true);
+  };
+
+  // Handler para quando o checklist inicial é completado
+  const handleInitialChecklistConfirm = () => {
+    setShowInitialChecklist(false);
+    setInitialChecklistCompleted(true);
+    sessionStorage.setItem('case_initial_checklist_shown', 'true');
+  };
+
+  // Handler para quando o checklist inicial é pulado
+  const handleInitialChecklistSkip = () => {
+    setShowInitialChecklist(false);
+    setInitialChecklistCompleted(true);
+    sessionStorage.setItem('case_initial_checklist_shown', 'skipped');
+  };
+
+  // Handler para quando o checklist final é completado
+  const handleFinalChecklistConfirm = () => {
+    setShowFinalChecklist(false);
+    doSubmit();
+  };
+
+  // Calcula se tem matriz/filial baseado nos clientes selecionados
+  const hasMatrizFilial = useMemo(() => {
+    return customers.some(c => c.isMatriz || c.isFilial);
+  }, [customers]);
 
   const formNode = useMemo(() => {
     switch (step) {
@@ -198,7 +253,7 @@ function CreateCaseWizardInner() {
                   ) : (
                     <Button
                       variant="contained"
-                      onClick={doSubmit}
+                      onClick={handleCreateCaseClick}
                       disabled={submitting || !dept?.id || !piece?.id || !validateAttachments().valid || hasOcrErrors().hasErrors}
                       startIcon={submitting ? <CircularProgress size={16} /> : undefined}
                     >
@@ -471,6 +526,43 @@ function CreateCaseWizardInner() {
           knownRunId={rtRunId ?? undefined}
           onDetectRunId={(rid) => setRtRunId(rid)}
           onRequestClose={() => setRtOpen(false)}
+        />
+
+        {/* Checklist inicial */}
+        <CaseChecklistDialog
+          open={showInitialChecklist}
+          title="Checklist Swift Soft Inicial"
+          sections={getInitialChecklist()}
+          confirmText="Continuar"
+          cancelText="Cancelar"
+          allowSkip={true}
+          onConfirm={handleInitialChecklistConfirm}
+          onCancel={() => {
+            setShowInitialChecklist(false);
+            setInitialChecklistCompleted(true);
+            sessionStorage.setItem('case_initial_checklist_shown', 'skipped');
+          }}
+          onSkip={handleInitialChecklistSkip}
+        />
+
+        {/* Checklist final (antes de gerar caso) */}
+        <CaseChecklistDialog
+          open={showFinalChecklist}
+          title="Checklist Final - Conferência antes de Gerar Caso"
+          sections={[
+            ...getInfoChecklist(
+              customers.length > 0,
+              hasMatrizFilial,
+              topics.length > 0,
+              specs.length > 0
+            ),
+            ...getPieceChecklist()
+          ]}
+          confirmText="Gerar Caso"
+          cancelText="Cancelar"
+          allowSkip={false}
+          onConfirm={handleFinalChecklistConfirm}
+          onCancel={() => setShowFinalChecklist(false)}
         />
       </Grid>
     </Grid>
