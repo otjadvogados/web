@@ -83,11 +83,21 @@ export default function CaseChecklistDialog({
     }
   }, [open, sections]);
 
-  const handleToggle = (itemId: string) => {
-    setCheckedItems((prev) => ({
-      ...prev,
-      [itemId]: !prev[itemId]
-    }));
+  const handleToggle = (itemId: string, item?: ChecklistItem) => {
+    setCheckedItems((prev) => {
+      const newState = { ...prev };
+      const newValue = !prev[itemId];
+      newState[itemId] = newValue;
+      
+      // Se o item tem subitens e foi clicado, marca/desmarca todos os subitens
+      if (item?.subItems && item.subItems.length > 0) {
+        item.subItems.forEach((subItem) => {
+          newState[subItem.id] = newValue;
+        });
+      }
+      
+      return newState;
+    });
   };
 
   // Valida se todos os itens obrigatórios estão marcados
@@ -196,7 +206,7 @@ export default function CaseChecklistDialog({
                         control={
                           <Checkbox
                             checked={checkedItems[item.id] || false}
-                            onChange={() => handleToggle(item.id)}
+                            onChange={() => handleToggle(item.id, item)}
                             color="primary"
                           />
                         }

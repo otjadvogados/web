@@ -33,7 +33,7 @@ import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay'
 import { ensureRealtimeConnected } from 'api/realtime';
 import Permission from 'components/Permission';
 import CaseChecklistDialog from 'components/CaseChecklistDialog';
-import { getInitialChecklist, getInfoChecklist, getPieceChecklist } from 'sections/ai/cases/checklists';
+import { getInitialChecklist, getInfoChecklist } from 'sections/ai/cases/checklists';
 
 const steps = [
   { key: 'dept', label: 'Departamento' },
@@ -80,6 +80,7 @@ function CreateCaseWizardInner() {
   const [initialChecklistCompleted, setInitialChecklistCompleted] = useState(false);
 
   // Restaura o estado completo do wizard se houver estado salvo
+  // Este useEffect só roda uma vez quando o componente é montado
   useEffect(() => {
     (async () => {
       try {
@@ -96,34 +97,24 @@ function CreateCaseWizardInner() {
               variant: 'alert',
               alert: { color: 'success' }
             } as any);
-            // Se restaurou estado, não mostra checklist inicial novamente
+            // Se restaurou estado, não mostra checklist inicial
             setInitialChecklistCompleted(true);
+            return;
           } else {
             sessionStorage.removeItem('wizard_return_state');
           }
-        } else {
-          // Se não há estado salvo, verifica se já mostrou o checklist inicial nesta sessão
-          const checklistShown = sessionStorage.getItem('case_initial_checklist_shown');
-          if (!checklistShown) {
-            // Pequeno delay para garantir que o componente está montado
-            setTimeout(() => {
-              setShowInitialChecklist(true);
-            }, 300);
-          } else {
-            setInitialChecklistCompleted(true);
-          }
         }
+        
+        // Mostra o checklist inicial imediatamente ao entrar na página
+        setShowInitialChecklist(true);
       } catch (err) {
         console.error('Erro ao restaurar estado do wizard:', err);
-        // Em caso de erro, mostra o checklist inicial
-        const checklistShown = sessionStorage.getItem('case_initial_checklist_shown');
-        if (!checklistShown) {
-          setShowInitialChecklist(true);
-        }
+        // Em caso de erro, mostra o checklist inicial imediatamente
+        setShowInitialChecklist(true);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restoreWizardState]);
+  }, []); // Array vazio garante que só executa na montagem do componente
 
   const doSubmit = async () => {
     try {
@@ -167,7 +158,7 @@ function CreateCaseWizardInner() {
   const handleInitialChecklistSkip = () => {
     setShowInitialChecklist(false);
     setInitialChecklistCompleted(true);
-    sessionStorage.setItem('case_initial_checklist_shown', 'skipped');
+    sessionStorage.setItem('case_initial_checklist_shown', 'true');
   };
 
   // Handler para quando o checklist final é completado
@@ -224,46 +215,54 @@ function CreateCaseWizardInner() {
           }
           contentSX={{ p: 0 }}
         >
-          <Grid container spacing={0}>
-            {/* Formulário com transição */}
-            <Grid size={{ xs: 12 }} sx={{ p: 2 }}>
-              <Stack spacing={1.5}>
-                <Stepper activeStep={step} alternativeLabel sx={{ mb: 1 }}>
-                  {steps.map((s) => (
-                    <Step key={s.key}>
-                      <StepLabel>{s.label}</StepLabel>
-                    </Step>
-                  ))}
-                </Stepper>
+          {initialChecklistCompleted ? (
+            <Grid container spacing={0}>
+              {/* Formulário com transição */}
+              <Grid size={{ xs: 12 }} sx={{ p: 2 }}>
+                <Stack spacing={1.5}>
+                  <Stepper activeStep={step} alternativeLabel sx={{ mb: 1 }}>
+                    {steps.map((s) => (
+                      <Step key={s.key}>
+                        <StepLabel>{s.label}</StepLabel>
+                      </Step>
+                    ))}
+                  </Stepper>
 
-                <Divider />
+                  <Divider />
 
-                <Slide in appear direction="left" timeout={220} mountOnEnter unmountOnExit>
-                  <div>{formNode}</div>
-                </Slide>
+                  <Slide in appear direction="left" timeout={220} mountOnEnter unmountOnExit>
+                    <div>{formNode}</div>
+                  </Slide>
 
-                <Divider />
+                  <Divider />
 
-                <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
-                  <Button variant="outlined" onClick={onBack} disabled={step === 0}>Voltar</Button>
-                  {step < maxStep ? (
-                    <Button variant="contained" onClick={onNext} disabled={!canNext(step)}>
-                      Próximo
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="contained"
-                      onClick={handleCreateCaseClick}
-                      disabled={submitting || !dept?.id || !piece?.id || !validateAttachments().valid || hasOcrErrors().hasErrors}
-                      startIcon={submitting ? <CircularProgress size={16} /> : undefined}
-                    >
-                      {submitting ? 'Enviando…' : 'Criar Caso'}
-                    </Button>
-                  )}
+                  <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+                    <Button variant="outlined" onClick={onBack} disabled={step === 0}>Voltar</Button>
+                    {step < maxStep ? (
+                      <Button variant="contained" onClick={onNext} disabled={!canNext(step)}>
+                        Próximo
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        onClick={handleCreateCaseClick}
+                        disabled={submitting || !dept?.id || !piece?.id || !validateAttachments().valid || hasOcrErrors().hasErrors}
+                        startIcon={submitting ? <CircularProgress size={16} /> : undefined}
+                      >
+                        {submitting ? 'Enviando…' : 'Criar Caso'}
+                      </Button>
+                    )}
+                  </Stack>
                 </Stack>
-              </Stack>
+              </Grid>
             </Grid>
-          </Grid>
+          ) : (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="body1" color="text.secondary">
+                Aguarde o checklist inicial ser concluído para continuar...
+              </Typography>
+            </Box>
+          )}
 
           {/* Drawer de linha do tempo / preview */}
           <Drawer
@@ -531,7 +530,7 @@ function CreateCaseWizardInner() {
         {/* Checklist inicial */}
         <CaseChecklistDialog
           open={showInitialChecklist}
-          title="Checklist Swift Soft Inicial"
+          title="Checklist  Inicial"
           sections={getInitialChecklist()}
           confirmText="Continuar"
           cancelText="Cancelar"
@@ -540,7 +539,7 @@ function CreateCaseWizardInner() {
           onCancel={() => {
             setShowInitialChecklist(false);
             setInitialChecklistCompleted(true);
-            sessionStorage.setItem('case_initial_checklist_shown', 'skipped');
+            sessionStorage.setItem('case_initial_checklist_shown', 'true');
           }}
           onSkip={handleInitialChecklistSkip}
         />
@@ -549,15 +548,12 @@ function CreateCaseWizardInner() {
         <CaseChecklistDialog
           open={showFinalChecklist}
           title="Checklist Final - Conferência antes de Gerar Caso"
-          sections={[
-            ...getInfoChecklist(
-              customers.length > 0,
-              hasMatrizFilial,
-              topics.length > 0,
-              specs.length > 0
-            ),
-            ...getPieceChecklist()
-          ]}
+          sections={getInfoChecklist(
+            customers.length > 0,
+            hasMatrizFilial,
+            topics.length > 0,
+            specs.length > 0
+          )}
           confirmText="Gerar Caso"
           cancelText="Cancelar"
           allowSkip={false}
