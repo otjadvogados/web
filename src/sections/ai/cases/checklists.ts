@@ -535,3 +535,103 @@ export function getInfoChecklist(
   ];
 }
 
+/**
+ * Checklist de Validação - exibido na página de edição do caso
+ */
+export function getValidationChecklist(): ChecklistSection[] {
+  return [
+    {
+      id: 'user-validation',
+      title: '1. Validação de Usuário',
+      defaultExpanded: true,
+      collapsible: true,
+      items: [
+        {
+          id: 'check-responsible',
+          label: 'Conferir se o responsável pela peça está devidamente cadastrado no sistema',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'check-cpf-oab',
+          label: 'Validar CPF e OAB (formato, dígito verificador e situação ativa)',
+          required: false,
+          checked: false
+        }
+      ]
+    },
+    {
+      id: 'norms-standardization',
+      title: '2. Normas e Padronização',
+      defaultExpanded: true,
+      collapsible: true,
+      items: [
+        {
+          id: 'check-abnt',
+          label: 'Verificação automática de conformidade com as normas da ABNT',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'check-internal-standardization',
+          label: 'Conferência da padronização interna da peça, incluindo:',
+          required: false,
+          checked: false,
+          subItems: [
+            {
+              id: 'check-font-size',
+              label: 'Fonte e tamanho',
+              required: false,
+              checked: false
+            },
+            {
+              id: 'check-margins',
+              label: 'Margens',
+              required: false,
+              checked: false
+            },
+            {
+              id: 'check-spacing',
+              label: 'Espaçamento',
+              required: false,
+              checked: false
+            },
+            {
+              id: 'check-citations',
+              label: 'Citações e referências',
+              required: false,
+              checked: false
+            },
+            {
+              id: 'check-page-numbering',
+              label: 'Numeração de páginas e seções',
+              required: false,
+              checked: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'proofs-documents',
+      title: '3. Controle de Provas e Documentos',
+      defaultExpanded: true,
+      collapsible: true,
+      items: [
+        {
+          id: 'check-required-docs',
+          label: 'Confirmação de que todas as provas e documentos obrigatórios foram corretamente anexados (prints, laudos, cálculos, anexos técnicos)',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'check-proof-placeholders',
+          label: 'Identificação explícita de espaços reservados para colagem/menção de provas, quando aplicável, garantindo coerência entre o texto da peça e os documentos anexos',
+          required: false,
+          checked: false
+        }
+      ]
+    }
+  ];
+}
+
