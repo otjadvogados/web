@@ -60,6 +60,9 @@ const EditClientPage = Loadable(lazy(() => import('pages/clients/[id]/edit')));
 // NOVO: Bloqueios de Conta
 const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
 
+// NOVO: Dashboard
+const DashboardPage = Loadable(lazy(() => import('pages/dashboard')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -81,6 +84,10 @@ const MainRoutes = {
         {
           path: 'account',
           element: <AccountSettings />
+        },
+        {
+          path: 'dashboard',
+          element: <DashboardPage />
         },
         {
           path: 'users',
