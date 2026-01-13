@@ -12,6 +12,7 @@ export type TranscriptionRecord = {
 };
 
 export type TranscribeRequestParams = {
+  customerId?: string; // ID do cliente (opcional)
   language?: string;
   prompt?: string;
   temperature?: number;
@@ -53,6 +54,10 @@ export async function transcribeFile(
   const formData = new FormData();
   formData.append('file', file);
 
+  // Sempre envia customerId se fornecido (mesmo que seja string vazia, o backend pode precisar)
+  if (params?.customerId !== undefined && params.customerId !== null && params.customerId !== '') {
+    formData.append('customerId', params.customerId);
+  }
   if (params?.language) formData.append('language', params.language);
   if (params?.prompt) formData.append('prompt', params.prompt);
   if (params?.temperature !== undefined) formData.append('temperature', params.temperature.toString());

@@ -134,8 +134,6 @@ const pages: NavItemType = {
       isDropdown: true,
       permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
       children: [
-        
-        
         {
           id: 'ai-transcribe',
           title: 'Transcrições',
@@ -143,7 +141,13 @@ const pages: NavItemType = {
           url: '/ai/transcribe',
           permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
         },
-
+        {
+          id: 'reports',
+          title: 'Relatórios',
+          type: 'item',
+          url: '/reports',
+          permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
+        },
       ]
     },
     // 👇 submenu "Colaboradores"

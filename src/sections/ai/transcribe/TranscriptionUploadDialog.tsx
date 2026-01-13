@@ -10,12 +10,17 @@ import Box from '@mui/material/Box';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
+import Chip from '@mui/material/Chip';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import UploadOutlined from '@ant-design/icons/UploadOutlined';
 import AudioOutlined from '@ant-design/icons/AudioOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
 import { transcribeFile, TranscriptionRecord, TranscribeRequestParams } from 'api/aiTranscribe';
 import { openSnackbar } from 'api/snackbar';
+import { listCustomersAdvanced, type Customer, sortCustomersMatrizFilialPF } from 'api/customers';
+import useDebounced from 'utils/useDebounced';
 
 type Props = {
   open: boolean;
@@ -23,12 +28,23 @@ type Props = {
   onSuccess: (record: TranscriptionRecord) => void;
 };
 
+type CustomerOption = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
+
+const labelCustomer = (c?: CustomerOption | null) => (c?.displayName ?? c?.name ?? '');
+
 export default function TranscriptionUploadDialog({ open, onClose, onSuccess }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [diarize, setDiarize] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
+  
+  // Customer selection
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerOption | null>(null);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const debouncedCustomerSearch = useDebounced(customerSearchTerm);
+  const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -36,8 +52,46 @@ export default function TranscriptionUploadDialog({ open, onClose, onSuccess }: 
       setSelectedFile(null);
       setDiarize(false);
       setIsSubmitting(false);
+      setSelectedCustomer(null);
+      setCustomerSearchTerm('');
     }
   }, [open]);
+
+  // Load customers when search term changes
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoadingCustomers(true);
+        const res = await listCustomersAdvanced({
+          page: 1,
+          limit: 20,
+          search: debouncedCustomerSearch || undefined,
+          includeHierarchy: true
+        });
+        const list = (res?.data ?? []) as CustomerOption[];
+        setCustomerOptions(sortCustomersMatrizFilialPF(list));
+      } catch (err: any) {
+        openSnackbar({
+          open: true,
+          message: err?.response?.data?.message || 'Falha ao buscar clientes',
+          variant: 'alert',
+          alert: { color: 'error' }
+        } as any);
+      } finally {
+        setLoadingCustomers(false);
+      }
+    })();
+  }, [debouncedCustomerSearch]);
+
+  const getCustomerBadge = (c: CustomerOption) => {
+    if (c.kind === 'PERSON') return 'PF';
+    if (c.kind === 'COMPANY') {
+      if (c.isFilial) return 'Filial';
+      if (c.isMatriz) return 'Matriz';
+      return 'Empresa';
+    }
+    return '';
+  };
 
   const handleFileSelect = (file: File | null) => {
     if (!file) return;
@@ -114,6 +168,7 @@ export default function TranscriptionUploadDialog({ open, onClose, onSuccess }: 
 
       const params: TranscribeRequestParams = {};
       if (diarize) params.diarize = diarize;
+      if (selectedCustomer?.id) params.customerId = selectedCustomer.id;
 
       const record = await transcribeFile(selectedFile, params);
       onSuccess(record);
@@ -236,6 +291,53 @@ export default function TranscriptionUploadDialog({ open, onClose, onSuccess }: 
               </Stack>
             )}
           </Box>
+
+          {/* Seleção de Cliente */}
+          <Autocomplete
+            options={customerOptions}
+            value={selectedCustomer}
+            onChange={(_, newValue) => setSelectedCustomer(newValue)}
+            onInputChange={(_, newInputValue) => setCustomerSearchTerm(newInputValue)}
+            getOptionLabel={(option) => labelCustomer(option)}
+            loading={loadingCustomers}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Cliente (opcional)"
+                placeholder="Buscar cliente..."
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loadingCustomers ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  )
+                }}
+              />
+            )}
+            renderOption={(props, option) => {
+              const badge = getCustomerBadge(option);
+              return (
+                <li {...props} key={option.id}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
+                    <Typography sx={{ flex: 1 }}>{labelCustomer(option)}</Typography>
+                    {badge && (
+                      <Chip
+                        size="small"
+                        label={badge}
+                        color={option.kind === 'PERSON' ? 'default' : option.isFilial ? 'secondary' : 'primary'}
+                      />
+                    )}
+                  </Stack>
+                </li>
+              );
+            }}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            noOptionsText="Nenhum cliente encontrado"
+            clearOnEscape
+            fullWidth
+          />
 
           {/* Opções */}
           <Stack spacing={2}>

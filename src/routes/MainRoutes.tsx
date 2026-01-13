@@ -31,6 +31,8 @@ const AITopicSpecificsPage = Loadable(lazy(() => import('pages/ai/topic-specific
 const AIUsagePage = Loadable(lazy(() => import('pages/ai/usage')));
 // NOVO: AI > Transcrições
 const AITranscribePage = Loadable(lazy(() => import('pages/ai/transcribe')));
+// NOVO: Relatórios
+const ReportsPage = Loadable(lazy(() => import('pages/reports')));
 // NOVO: AI > Criar Caso
 const CreateCasePage = Loadable(lazy(() => import('pages/ai/cases/create')));
 // NOVO: AI > Listar Casos
@@ -161,6 +163,10 @@ const MainRoutes = {
         {
           path: 'ai/transcribe',
           element: <AITranscribePage />
+        },
+        {
+          path: 'reports',
+          element: <ReportsPage />
         },
       ]
     },
