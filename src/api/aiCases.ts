@@ -36,6 +36,8 @@ export type CaseContextFields = {
   attachmentsMeta?: CaseAttachmentMeta[];
   /** NOVO: metadados dos arquivos em comum para todos os tópicos específicos */
   commonAttachmentsMeta?: CaseCommonAttachmentMeta[];
+  /** NOVO: dados do checklist inicial (para salvar no Redis) */
+  initialChecklist?: Record<string, boolean>;
 };
 
 export type CaseContextResponse = {

@@ -29,7 +29,7 @@ import { getCaseResult, updateCaseResultHtml, CaseResult, finalizeCase, approveC
 import { openSnackbar } from 'api/snackbar';
 import { convertHtmlToDocx } from 'api/aiDocs';
 import Permission from 'components/Permission';
-import { getValidationChecklist, type ChecklistSection } from 'sections/ai/cases/checklists';
+import { getValidationChecklist } from 'sections/ai/cases/checklists';
 import useAuth from 'hooks/useAuth';
 import { usePermissions } from 'hooks/usePermissions';
 
@@ -73,11 +73,20 @@ export default function EditCasePage() {
 
     try {
       setSaving(true);
+      // Inclui os dados do checklist de validação nas tags para garantir que esteja salvo
+      const tags = {
+        ...(caseData?.tags || {}),
+        validationChecklist: checkedItems
+      };
+      
       await updateCaseResultHtml(id, {
         html,
-        tags: caseData?.tags || {},
+        tags,
         replaceTags: false
       });
+
+      // Atualiza o caseData local para refletir as mudanças
+      setCaseData(prev => prev ? { ...prev, tags } : null);
 
       openSnackbar({
         open: true,
@@ -155,6 +164,8 @@ export default function EditCasePage() {
         '';
       
       setHtml(htmlContent);
+      
+      // A restauração do checklist será feita automaticamente pelo useEffect que monitora caseData?.tags?.validationChecklist
     } catch (err: any) {
       openSnackbar({
         open: true,
@@ -306,9 +317,17 @@ export default function EditCasePage() {
   const isReleased = caseData?.status === 'released';
   const validationChecklist = useMemo(() => getValidationChecklist(), []);
 
-  // Inicializa os itens marcados quando o checklist abre
+  // Restaura os dados do checklist quando o caseData é carregado pela primeira vez
   useEffect(() => {
-    if (checklistOpen) {
+    if (!caseData) return;
+    
+    const savedChecklist = caseData?.tags?.validationChecklist as Record<string, boolean> | undefined;
+    
+    // Se houver dados salvos, restaura
+    if (savedChecklist && typeof savedChecklist === 'object' && Object.keys(savedChecklist).length > 0) {
+      setCheckedItems(savedChecklist);
+    } else if (Object.keys(checkedItems).length === 0) {
+      // Só inicializa com valores padrão se não houver dados salvos E não houver estado local
       const initial: Record<string, boolean> = {};
       validationChecklist.forEach((section) => {
         section.items.forEach((item) => {
@@ -320,7 +339,8 @@ export default function EditCasePage() {
       });
       setCheckedItems(initial);
     }
-  }, [checklistOpen, validationChecklist]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseData?.id]); // Só executa quando o caso muda (nova carga), não quando tags mudam após auto-save
 
   const handleChecklistToggle = (itemId: string, item?: { subItems?: Array<{ id: string }> }) => {
     setCheckedItems((prev) => {
@@ -337,6 +357,54 @@ export default function EditCasePage() {
       return newState;
     });
   };
+
+  // Auto-save do checklist no Redis quando os itens são alterados (com debounce)
+  useEffect(() => {
+    if (!id || Object.keys(checkedItems).length === 0 || !caseData) return;
+    
+    // Verifica se houve mudança real comparando com os dados salvos
+    const savedChecklist = caseData?.tags?.validationChecklist as Record<string, boolean> | undefined;
+    const savedChecklistStr = savedChecklist ? JSON.stringify(savedChecklist) : '';
+    const currentChecklistStr = JSON.stringify(checkedItems);
+    
+    if (savedChecklistStr === currentChecklistStr) {
+      return; // Não houve mudança, não precisa salvar
+    }
+    
+    // Debounce para evitar muitas chamadas ao Redis
+    const timeoutId = setTimeout(async () => {
+      // Verifica novamente se ainda há diferença (pode ter mudado durante o debounce)
+      const currentSavedChecklist = caseData?.tags?.validationChecklist as Record<string, boolean> | undefined;
+      const currentSavedStr = currentSavedChecklist ? JSON.stringify(currentSavedChecklist) : '';
+      if (currentSavedStr === currentChecklistStr) {
+        return; // Já foi salvo por outra mudança
+      }
+      
+      // Salva o checklist nas tags do caso (o backend salvará no Redis)
+      const tags = {
+        ...(caseData?.tags || {}),
+        validationChecklist: checkedItems
+      };
+      
+      try {
+        // Salva em background (não bloqueia a UI)
+        await updateCaseResultHtml(id, {
+          html,
+          tags,
+          replaceTags: false
+        });
+        
+        // Atualiza o caseData local para refletir que foi salvo
+        setCaseData(prev => prev ? { ...prev, tags } : null);
+      } catch (err) {
+        console.error('Erro ao salvar checklist no Redis:', err);
+        // Não mostra erro ao usuário para não interromper o fluxo
+      }
+    }, 500); // Aguarda 500ms após a última alteração antes de salvar (reduzido de 800ms para resposta mais rápida)
+    
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkedItems, id, html]); // Removido checklistOpen para salvar mesmo quando fechado
 
   if (loading) {
     return (

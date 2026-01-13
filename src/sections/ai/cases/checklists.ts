@@ -6,484 +6,156 @@ import type { ChecklistSection } from 'components/CaseChecklistDialog';
 export function getInitialChecklist(): ChecklistSection[] {
   return [
     {
-      id: 'phase1-analysis',
-      title: ' ANÁLISE DA INICIAL E DO PROCESSO',
+      id: 'phase1-content',
+      title: '1.1 Primeira fase: Conferir conteúdo e pedidos da inicial',
       defaultExpanded: true,
       collapsible: true,
       items: [
         {
-          id: 'phase1-petition',
-          label: 'Conferência da Petição Inicial',
+          id: 'phase1-initial-content',
+          label: 'Conferir conteúdo e pedidos da inicial (incluindo a íntegra do processo até o momento da defesa)',
           required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'petition-full-reading',
-              label: 'Leitura integral da petição inicial',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'petition-requests',
-              label: 'Identificação clara dos pedidos formulados',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'petition-cause',
-              label: 'Identificação da causa de pedir (fatos e fundamentos jurídicos)',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'petition-implicit',
-              label: 'Verificação de pedidos implícitos ou cumulativos',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'petition-values',
-              label: 'Conferência de valores atribuídos aos pedidos (se houver)',
-              required: false,
-              checked: false
-            }
-          ]
-        },
-        {
-          id: 'phase1-process',
-          label: 'Análise do Processo até o Momento da Defesa',
-          required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'process-full-review',
-              label: 'Conferir a íntegra do processo até a data atual',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'process-author-docs',
-              label: 'Verificar documentos já juntados pela parte autora',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'process-decisions',
-              label: 'Conferir decisões/interlocutórias já proferidas',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'process-deadlines',
-              label: 'Identificar prazos processuais relevantes',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'process-preliminaries',
-              label: 'Verificar eventuais preliminares já levantadas',
-              required: false,
-              checked: false
-            }
-          ]
+          checked: false
         }
       ]
     },
     {
-      id: 'phase2-validation',
-      title: 'DOCUMENTOS DO CLIENTE',
+      id: 'phase2-documents',
+      title: '1.2 Segunda fase: Verificar os documentos disponibilizados pelo cliente e se correspondem aos pedidos',
       defaultExpanded: true,
       collapsible: true,
       items: [
         {
-          id: 'phase2-general',
-          label: 'Validação Geral',
+          id: 'doc-contract-work',
+          label: 'Contrato de trabalho e aditivos',
           required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'validation-complete',
-              label: 'Conferir se os documentos entregues pelo cliente estão completos',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'validation-correspond',
-              label: 'Verificar se os documentos correspondem aos pedidos da inicial',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'validation-missing',
-              label: 'Identificar documentos faltantes ou inconsistentes',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'validation-dates',
-              label: 'Conferir datas, assinaturas e validade formal',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'validation-coherence',
-              label: 'Verificar coerência entre documentos (ex.: jornada × holerite)',
-              required: false,
-              checked: false
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 'basic-labor-docs',
-      title: 'DOCUMENTOS TRABALHISTAS BÁSICOS',
-      defaultExpanded: true,
-      collapsible: true,
-      items: [
-        {
-          id: 'basic-contract',
-          label: 'Contrato e Vínculo',
-          required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'contract-work',
-              label: 'Contrato de trabalho',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'contract-additives',
-              label: 'Aditivos contratuais',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'contract-extension',
-              label: 'Prorrogação de contrato de trabalho',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'contract-ctps',
-              label: 'Atualização da CTPS / ficha atualizada',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'contract-employee-record',
-              label: 'Ficha de Registro de Empregado',
-              required: false,
-              checked: false
-            }
-          ]
+          checked: false
         },
         {
-          id: 'basic-health',
-          label: 'Saúde Ocupacional',
+          id: 'doc-contract-extension',
+          label: 'Prorrogação de contrato de trabalho',
           required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'health-aso-admission',
-              label: 'ASO admissional',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'health-aso-periodic',
-              label: 'ASO periódico (se houver)',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'health-aso-dismissal',
-              label: 'ASO demissional',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'health-complementary',
-              label: 'Exames médicos complementares (se aplicável)',
-              required: false,
-              checked: false
-            }
-          ]
+          checked: false
         },
         {
-          id: 'basic-payment',
-          label: 'Remuneração e Pagamentos',
+          id: 'doc-aso',
+          label: 'ASO (aso, exame admissional, exame demissional)',
           required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'payment-payslips',
-              label: 'Holerites / contracheques',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'payment-trct',
-              label: 'TRCT',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'payment-tqrct',
-              label: 'TQRCT',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'payment-severance',
-              label: 'Comprovantes de pagamento das verbas rescisórias',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'payment-bank',
-              label: 'Comprovantes bancários de pagamento de salário',
-              required: false,
-              checked: false
-            }
-          ]
+          checked: false
         },
         {
-          id: 'basic-workday',
-          label: 'Jornada de Trabalho',
+          id: 'doc-payslips',
+          label: 'Holerites',
           required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'workday-control',
-              label: 'Controle de jornada (cartão ponto/manual/eletrônico)',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'workday-extension',
-              label: 'Acordo de prorrogação de jornada',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'workday-compensation',
-              label: 'Acordo de compensação',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'workday-hours-bank',
-              label: 'Banco de horas (acordo + controles)',
-              required: false,
-              checked: false
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 'discipline-occurrences',
-      title: 'DISCIPLINA E OCORRÊNCIAS',
-      defaultExpanded: true,
-      collapsible: true,
-      items: [
-        {
-          id: 'discipline-penalties',
-          label: 'Penalidades',
-          required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'penalties-warnings',
-              label: 'Advertências',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'penalties-suspensions',
-              label: 'Suspensões',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'penalties-just-cause',
-              label: 'Justa causa:',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'penalties-investigation',
-              label: 'Sindicância',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'penalties-notice',
-              label: 'Aviso de justa causa',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'penalties-history',
-              label: 'Histórico de penalidades anteriores',
-              required: false,
-              checked: false
-            }
-          ]
+          checked: false
         },
         {
-          id: 'discipline-certificates',
-          label: 'Atestados e Afastamentos',
+          id: 'doc-time-control',
+          label: 'Controle de jornada',
           required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'certificates-medical',
-              label: 'Atestados médicos',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'certificates-social-security',
-              label: 'Afastamentos previdenciários (se houver)',
-              required: false,
-              checked: false
-            }
-          ]
+          checked: false
         },
         {
-          id: 'discipline-accident',
-          label: 'Acidente de Trabalho',
+          id: 'doc-trct',
+          label: 'TRCT- TQRCT- Comprovante de pagamento',
           required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'accident-cat',
-              label: 'CAT',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'accident-leave',
-              label: 'Documentos de afastamento',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'accident-inss',
-              label: 'Comunicação ao INSS (se aplicável)',
-              required: false,
-              checked: false
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 'benefits-charges',
-      title: 'BENEFÍCIOS E ENCARGOS',
-      defaultExpanded: true,
-      collapsible: true,
-      items: [
-        {
-          id: 'benefits-fgts',
-          label: 'FGTS e Benefícios',
-          required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'fgts-analytical',
-              label: 'Extrato Analítico do FGTS',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'fgts-transport',
-              label: 'Extrato do Vale Transporte',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'fgts-others',
-              label: 'Outros benefícios previstos em contrato ou norma coletiva',
-              required: false,
-              checked: false
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 'specific-docs',
-      title: 'DOCUMENTOS ESPECÍFICOS (QUANDO APLICÁVEL)',
-      defaultExpanded: true,
-      collapsible: true,
-      items: [
-        {
-          id: 'specific-outsourcing',
-          label: 'Terceirização',
-          required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'outsourcing-contract',
-              label: 'Contrato com a empresa terceirizada',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'outsourcing-supervision',
-              label: 'Comprovação de fiscalização do contrato (se houver)',
-              required: false,
-              checked: false
-            }
-          ]
+          checked: false
         },
         {
-          id: 'specific-safety',
-          label: 'Segurança e Saúde do Trabalho',
+          id: 'doc-warnings',
+          label: 'Advertência e suspensão',
           required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'safety-ppp',
-              label: 'PPP',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'safety-pcmso',
-              label: 'PCMSO',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'safety-ppra',
-              label: 'PPRA',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'safety-ltcat',
-              label: 'LTCAT',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'safety-epi',
-              label: 'Fichas/recibos de entrega de EPI',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'safety-training',
-              label: 'Treinamentos de segurança (se houver)',
-              required: false,
-              checked: false
-            }
-          ]
+          checked: false
+        },
+        {
+          id: 'doc-certificates',
+          label: 'Atestados',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-work-accident',
+          label: 'Docs de acidentes de trabalho (CAT, afastamento etc)',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-just-cause',
+          label: 'Justa Causa (sindicância, aviso de JC, penalidades)',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-schedule-agreement',
+          label: 'Acordo de prorrogação e/ou compensação e/ou banco de horas',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-ctps',
+          label: 'Atualização de CTPS/ ficha atualizada',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-employee-record',
+          label: 'Ficha de Registro de Empregado',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-fgts',
+          label: 'Extrato Analítico do FGTS',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-bank-statement',
+          label: 'Comprovante Bancário',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-transport-voucher',
+          label: 'Extrato do Vale Transporte',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-outsourcing-contract',
+          label: 'Contrato com a terceirizada, quando for o caso',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-ppp',
+          label: 'PPP',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-pcmso',
+          label: 'PCMSO',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-ppra',
+          label: 'PPRA',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-ltcat',
+          label: 'LTCAT',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'doc-epi',
+          label: 'Fichas/Recibo de entrega de EPI\'s',
+          required: false,
+          checked: false
         }
       ]
     }
@@ -541,92 +213,84 @@ export function getInfoChecklist(
 export function getValidationChecklist(): ChecklistSection[] {
   return [
     {
-      id: 'user-validation',
-      title: '1. Validação de Usuário',
+      id: 'information-check',
+      title: 'CONFERÊNCIA DE INFORMAÇÕES',
       defaultExpanded: true,
       collapsible: true,
+      description: 'Verificar se todas as inclusões referentes ao caso concreto estão corretas, como:',
       items: [
         {
-          id: 'check-responsible',
-          label: 'Conferir se o responsável pela peça está devidamente cadastrado no sistema',
+          id: 'check-customer',
+          label: 'Cliente selecionado',
           required: false,
           checked: false
         },
         {
-          id: 'check-cpf-oab',
-          label: 'Validar CPF e OAB (formato, dígito verificador e situação ativa)',
+          id: 'check-matriz-filial',
+          label: 'Matriz/filial',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'check-topics',
+          label: 'Tópicos',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'check-topic-specifics',
+          label: 'Tópicos Específicos',
           required: false,
           checked: false
         }
       ]
     },
     {
-      id: 'norms-standardization',
-      title: '2. Normas e Padronização',
+      id: 'piece-check',
+      title: 'CONFERÊNCIA DA PEÇA',
       defaultExpanded: true,
       collapsible: true,
+      description: 'Verificar se todas as inclusões referentes ao caso concreto estão corretas, dentre elas:',
       items: [
         {
-          id: 'check-abnt',
-          label: 'Verificação automática de conformidade com as normas da ABNT',
+          id: 'check-placeholders',
+          label: 'Placeholders: Vara, número do processo, nome das partes (cliente), matriz/filial, assinaturas, timbre, normas da ABNT',
           required: false,
           checked: false
         },
         {
-          id: 'check-internal-standardization',
-          label: 'Conferência da padronização interna da peça, incluindo:',
-          required: false,
-          checked: false,
-          subItems: [
-            {
-              id: 'check-font-size',
-              label: 'Fonte e tamanho',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'check-margins',
-              label: 'Margens',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'check-spacing',
-              label: 'Espaçamento',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'check-citations',
-              label: 'Citações e referências',
-              required: false,
-              checked: false
-            },
-            {
-              id: 'check-page-numbering',
-              label: 'Numeração de páginas e seções',
-              required: false,
-              checked: false
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 'proofs-documents',
-      title: '3. Controle de Provas e Documentos',
-      defaultExpanded: true,
-      collapsible: true,
-      items: [
-        {
-          id: 'check-required-docs',
-          label: 'Confirmação de que todas as provas e documentos obrigatórios foram corretamente anexados (prints, laudos, cálculos, anexos técnicos)',
+          id: 'check-contract-data',
+          label: 'Dados do contrato: admissão/demissão (incluir modalidade); função (histórico funcional); último salário',
           required: false,
           checked: false
         },
         {
-          id: 'check-proof-placeholders',
-          label: 'Identificação explícita de espaços reservados para colagem/menção de provas, quando aplicável, garantindo coerência entre o texto da peça e os documentos anexos',
+          id: 'check-preliminaries',
+          label: 'Preliminares: prescrição; inépcias; limitação de valores (obrigatório); ilegitimidade; litispendência; coisa julgada',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'check-requests',
+          label: 'Pedidos: conforme documento de ordem de tópicos',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'check-topics-impugnation',
+          label: 'Impugnação de todos os tópicos (principais e subsidiários/alternativos/eventuais)',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'check-mandatory-topics',
+          label: 'Presença de todos os tópicos obrigatórios',
+          required: false,
+          checked: false
+        },
+        {
+          id: 'check-documents-impugnation',
+          label: 'Impugnação a documentos juntados no processo',
           required: false,
           checked: false
         }

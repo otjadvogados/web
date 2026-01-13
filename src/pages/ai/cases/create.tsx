@@ -33,7 +33,7 @@ import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay'
 import { ensureRealtimeConnected } from 'api/realtime';
 import Permission from 'components/Permission';
 import CaseChecklistDialog from 'components/CaseChecklistDialog';
-import { getInitialChecklist, getInfoChecklist } from 'sections/ai/cases/checklists';
+import { getInitialChecklist } from 'sections/ai/cases/checklists';
 
 const steps = [
   { key: 'dept', label: 'Departamento' },
@@ -76,8 +76,8 @@ function CreateCaseWizardInner() {
   
   // Estados dos checklists
   const [showInitialChecklist, setShowInitialChecklist] = useState(false);
-  const [showFinalChecklist, setShowFinalChecklist] = useState(false);
   const [initialChecklistCompleted, setInitialChecklistCompleted] = useState(false);
+  const [initialChecklistData, setInitialChecklistData] = useState<Record<string, boolean> | null>(null);
 
   // Restaura o estado completo do wizard se houver estado salvo
   // Este useEffect só roda uma vez quando o componente é montado
@@ -99,9 +99,30 @@ function CreateCaseWizardInner() {
             } as any);
             // Se restaurou estado, não mostra checklist inicial
             setInitialChecklistCompleted(true);
+            // Restaura dados do checklist se houver
+            const savedChecklist = sessionStorage.getItem('case_initial_checklist_data');
+            if (savedChecklist) {
+              try {
+                setInitialChecklistData(JSON.parse(savedChecklist));
+              } catch (e) {
+                console.error('Erro ao restaurar dados do checklist:', e);
+              }
+            }
             return;
           } else {
             sessionStorage.removeItem('wizard_return_state');
+          }
+        }
+        
+        // Restaura dados do checklist se houver
+        const savedChecklist = sessionStorage.getItem('case_initial_checklist_data');
+        if (savedChecklist) {
+          try {
+            setInitialChecklistData(JSON.parse(savedChecklist));
+            setInitialChecklistCompleted(true);
+            return; // Não mostra o checklist se já foi preenchido
+          } catch (e) {
+            console.error('Erro ao restaurar dados do checklist:', e);
           }
         }
         
@@ -124,6 +145,18 @@ function CreateCaseWizardInner() {
       // tenta conectar ANTES do POST para não perder eventos iniciais
       await ensureRealtimeConnected(2500);
       const fd = buildCaseContextFormData();
+      
+      // Adiciona os dados do checklist inicial ao FormData para salvar no Redis
+      if (initialChecklistData && Object.keys(initialChecklistData).length > 0) {
+        // Recupera o fields atual do FormData e adiciona o checklist
+        const fieldsJson = fd.get('fields') as string;
+        if (fieldsJson) {
+          const fields = JSON.parse(fieldsJson);
+          fields.initialChecklist = initialChecklistData;
+          fd.set('fields', JSON.stringify(fields));
+        }
+      }
+      
       const res = await postCaseContext(fd);
       setResult(res);
       if (res?.data?.runId) setRtRunId(res.data.runId || null);
@@ -142,13 +175,11 @@ function CreateCaseWizardInner() {
     }
   };
 
-  // Intercepta o clique no botão "Criar Caso" para mostrar checklist final
-  const handleCreateCaseClick = () => {
-    setShowFinalChecklist(true);
-  };
-
   // Handler para quando o checklist inicial é completado
-  const handleInitialChecklistConfirm = () => {
+  const handleInitialChecklistConfirm = (checkedItems: Record<string, boolean>) => {
+    // Salva as seleções do checklist no sessionStorage e estado local
+    setInitialChecklistData(checkedItems);
+    sessionStorage.setItem('case_initial_checklist_data', JSON.stringify(checkedItems));
     setShowInitialChecklist(false);
     setInitialChecklistCompleted(true);
     sessionStorage.setItem('case_initial_checklist_shown', 'true');
@@ -156,21 +187,13 @@ function CreateCaseWizardInner() {
 
   // Handler para quando o checklist inicial é pulado
   const handleInitialChecklistSkip = () => {
+    // Limpa dados do checklist se foi pulado
+    setInitialChecklistData(null);
+    sessionStorage.removeItem('case_initial_checklist_data');
     setShowInitialChecklist(false);
     setInitialChecklistCompleted(true);
     sessionStorage.setItem('case_initial_checklist_shown', 'true');
   };
-
-  // Handler para quando o checklist final é completado
-  const handleFinalChecklistConfirm = () => {
-    setShowFinalChecklist(false);
-    doSubmit();
-  };
-
-  // Calcula se tem matriz/filial baseado nos clientes selecionados
-  const hasMatrizFilial = useMemo(() => {
-    return customers.some(c => c.isMatriz || c.isFilial);
-  }, [customers]);
 
   const formNode = useMemo(() => {
     switch (step) {
@@ -245,7 +268,7 @@ function CreateCaseWizardInner() {
                     ) : (
                       <Button
                         variant="contained"
-                        onClick={handleCreateCaseClick}
+                        onClick={doSubmit}
                         disabled={submitting || !dept?.id || !piece?.id || !validateAttachments().valid || hasOcrErrors().hasErrors}
                         startIcon={submitting ? <CircularProgress size={16} /> : undefined}
                       >
@@ -544,22 +567,6 @@ function CreateCaseWizardInner() {
           onSkip={handleInitialChecklistSkip}
         />
 
-        {/* Checklist final (antes de gerar caso) */}
-        <CaseChecklistDialog
-          open={showFinalChecklist}
-          title="Checklist Final - Conferência antes de Gerar Caso"
-          sections={getInfoChecklist(
-            customers.length > 0,
-            hasMatrizFilial,
-            topics.length > 0,
-            specs.length > 0
-          )}
-          confirmText="Gerar Caso"
-          cancelText="Cancelar"
-          allowSkip={false}
-          onConfirm={handleFinalChecklistConfirm}
-          onCancel={() => setShowFinalChecklist(false)}
-        />
       </Grid>
     </Grid>
   );
