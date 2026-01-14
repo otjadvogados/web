@@ -17,18 +17,22 @@ import AlertTitle from '@mui/material/AlertTitle';
 import IconButton from '@mui/material/IconButton';
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
 import QuestionCircleOutlined from '@ant-design/icons/QuestionCircleOutlined';
-import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import RightOutlined from '@ant-design/icons/RightOutlined';
 import CopyOutlined from '@ant-design/icons/CopyOutlined';
+import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import {
   generateAudit,
   generateQuestions,
   getAudit,
   getQuestions,
+  deleteQuestion,
   type Inconsistency,
   type UncomprehendedContext,
   type SuggestedQuestion,
-  type QuestionCategory,
   type QuestionPriority
 } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
@@ -51,9 +55,15 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
   const [auditGeneratedAt, setAuditGeneratedAt] = useState<string | null>(null);
   const [questionsGeneratedAt, setQuestionsGeneratedAt] = useState<string | null>(null);
   
-  const [questionFilter, setQuestionFilter] = useState<{ category?: QuestionCategory; priority?: QuestionPriority }>({});
+  const [questionFilter, setQuestionFilter] = useState<{ priority?: QuestionPriority }>({});
   const [expandedInconsistencies, setExpandedInconsistencies] = useState<string[]>([]);
   const [expandedContexts, setExpandedContexts] = useState<string[]>([]);
+  const [deleteQuestionDialog, setDeleteQuestionDialog] = useState<{ open: boolean; questionId: string | null; questionText: string }>({
+    open: false,
+    questionId: null,
+    questionText: ''
+  });
+  const [deletingQuestion, setDeletingQuestion] = useState(false);
 
   const handleGenerateAudit = async () => {
     try {
@@ -142,7 +152,22 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
     try {
       setLoadingQuestions(true);
       const data = await getQuestions(caseId);
-      setQuestions(data.questions || []);
+      console.log('Resposta completa do getQuestions:', data);
+      const questionsData = data.questions || [];
+      // Debug: verificar se as perguntas têm ID
+      console.log('Perguntas carregadas (primeira pergunta completa):', questionsData[0]);
+      console.log('Todas as chaves da primeira pergunta:', questionsData[0] ? Object.keys(questionsData[0]) : []);
+      console.log('Perguntas carregadas:', questionsData.map((q, i) => ({ 
+        index: i,
+        id: q.id,
+        questionId: (q as any).questionId,
+        _id: (q as any)._id,
+        hasId: !!q.id,
+        idType: typeof q.id,
+        question: q.question?.substring(0, 50),
+        allKeys: Object.keys(q)
+      })));
+      setQuestions(questionsData);
       setQuestionsGeneratedAt(data.generatedAt || null);
     } catch (err: any) {
       // Se não houver perguntas, apenas limpa os dados
@@ -187,6 +212,15 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
     }
   };
 
+  const getSeverityLabel = (severity: string) => {
+    const labels: Record<string, string> = {
+      high: 'Alta',
+      medium: 'Média',
+      low: 'Baixa'
+    };
+    return labels[severity] || severity;
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high':
@@ -200,16 +234,6 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
     }
   };
 
-  const getCategoryLabel = (category: string) => {
-    const labels: Record<string, string> = {
-      facts: 'Fatos',
-      evidence: 'Provas',
-      witnesses: 'Testemunhas',
-      legal: 'Jurídico',
-      other: 'Outros'
-    };
-    return labels[category] || category;
-  };
 
   const getPriorityLabel = (priority: string) => {
     const labels: Record<string, string> = {
@@ -221,22 +245,13 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
   };
 
   const filteredQuestions = questions.filter((q) => {
-    if (questionFilter.category && q.category !== questionFilter.category) return false;
-    if (questionFilter.priority && q.priority !== questionFilter.priority) return false;
+    if (questionFilter.priority !== undefined && questionFilter.priority !== '' && q.priority !== questionFilter.priority) return false;
     return true;
   });
 
-  const questionsByCategory = filteredQuestions.reduce((acc, q) => {
-    if (!acc[q.category]) acc[q.category] = [];
-    acc[q.category].push(q);
-    return acc;
-  }, {} as Record<QuestionCategory, SuggestedQuestion[]>);
-
-  const sortedQuestionsByCategory = Object.entries(questionsByCategory).sort((a, b) => {
+  const sortedQuestions = filteredQuestions.sort((a, b) => {
     const priorityOrder: Record<QuestionPriority, number> = { high: 3, medium: 2, low: 1 };
-    const aMaxPriority = Math.max(...a[1].map((q) => priorityOrder[q.priority]));
-    const bMaxPriority = Math.max(...b[1].map((q) => priorityOrder[q.priority]));
-    return bMaxPriority - aMaxPriority;
+    return priorityOrder[b.priority] - priorityOrder[a.priority];
   });
 
   const handleCopyQuestion = (question: string) => {
@@ -247,6 +262,60 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
       variant: 'alert',
       alert: { color: 'success' }
     } as any);
+  };
+
+  const handleDeleteQuestion = (questionId: string | undefined, questionText: string, questionIndex: number) => {
+    console.log('handleDeleteQuestion chamado:', { questionId, questionText, questionIndex, hasId: !!questionId, idType: typeof questionId });
+    
+    if (!questionId) {
+      openSnackbar({
+        open: true,
+        message: 'Pergunta não possui ID para remoção',
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+      return;
+    }
+    
+    setDeleteQuestionDialog({
+      open: true,
+      questionId,
+      questionText
+    });
+  };
+
+  const confirmDeleteQuestion = async () => {
+    if (!deleteQuestionDialog.questionId) return;
+
+    try {
+      setDeletingQuestion(true);
+      await deleteQuestion(caseId, deleteQuestionDialog.questionId);
+      
+      // Remove a pergunta da lista local
+      setQuestions((prev) => prev.filter((q) => q.id !== deleteQuestionDialog.questionId));
+      
+      openSnackbar({
+        open: true,
+        message: 'Pergunta removida com sucesso',
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+      
+      setDeleteQuestionDialog({ open: false, questionId: null, questionText: '' });
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || 'Falha ao remover pergunta',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setDeletingQuestion(false);
+    }
+  };
+
+  const cancelDeleteQuestion = () => {
+    setDeleteQuestionDialog({ open: false, questionId: null, questionText: '' });
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -284,26 +353,6 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
         >
           {hasQuestions ? 'Regenerar Perguntas' : 'Gerar Perguntas'}
         </Button>
-        {hasAudit && (
-          <Button
-            variant="outlined"
-            startIcon={<ReloadOutlined />}
-            onClick={loadAudit}
-            disabled={loadingAudit}
-          >
-            Recarregar Auditoria
-          </Button>
-        )}
-        {hasQuestions && (
-          <Button
-            variant="outlined"
-            startIcon={<ReloadOutlined />}
-            onClick={loadQuestions}
-            disabled={loadingQuestions}
-          >
-            Recarregar Perguntas
-          </Button>
-        )}
       </Stack>
 
       {/* Informações de geração */}
@@ -362,7 +411,7 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
                   <AccordionSummary expandIcon={<RightOutlined />}>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%', mr: 2 }}>
                       <Chip
-                        label={inc.severity}
+                        label={getSeverityLabel(inc.severity)}
                         color={getSeverityColor(inc.severity)}
                         size="small"
                       />
@@ -449,106 +498,89 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
               <Typography variant="h6" fontWeight={700}>
                 Perguntas Sugeridas ({questions.length})
               </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                <TextField
-                  select
-                  size="small"
-                  label="Categoria"
-                  value={questionFilter.category || ''}
-                  onChange={(e) =>
-                    setQuestionFilter((prev) => ({
-                      ...prev,
-                      category: e.target.value as QuestionCategory | undefined
-                    }))
-                  }
-                  sx={{ minWidth: 140 }}
-                >
-                  <MenuItem value="">Todas</MenuItem>
-                  <MenuItem value="facts">Fatos</MenuItem>
-                  <MenuItem value="evidence">Provas</MenuItem>
-                  <MenuItem value="witnesses">Testemunhas</MenuItem>
-                  <MenuItem value="legal">Jurídico</MenuItem>
-                  <MenuItem value="other">Outros</MenuItem>
-                </TextField>
-                <TextField
-                  select
-                  size="small"
-                  label="Prioridade"
-                  value={questionFilter.priority || ''}
-                  onChange={(e) =>
-                    setQuestionFilter((prev) => ({
-                      ...prev,
-                      priority: e.target.value as QuestionPriority | undefined
-                    }))
-                  }
-                  sx={{ minWidth: 120 }}
-                >
-                  <MenuItem value="">Todas</MenuItem>
-                  <MenuItem value="high">Alta</MenuItem>
-                  <MenuItem value="medium">Média</MenuItem>
-                  <MenuItem value="low">Baixa</MenuItem>
-                </TextField>
-              </Stack>
+              <TextField
+                select
+                size="small"
+                label="Prioridade"
+                value={questionFilter.priority || ''}
+                onChange={(e) =>
+                  setQuestionFilter((prev) => ({
+                    ...prev,
+                    priority: e.target.value === '' ? undefined : (e.target.value as QuestionPriority)
+                  }))
+                }
+                sx={{ minWidth: 120 }}
+              >
+                <MenuItem value="">Todas</MenuItem>
+                <MenuItem value="high">Alta</MenuItem>
+                <MenuItem value="medium">Média</MenuItem>
+                <MenuItem value="low">Baixa</MenuItem>
+              </TextField>
             </Stack>
             <Divider />
-            
-            {/* Contadores por categoria */}
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              {Object.entries(questionsByCategory).map(([category, qs]) => (
-                <Chip
-                  key={category}
-                  label={`${getCategoryLabel(category)}: ${qs.length}`}
-                  size="small"
-                  variant="outlined"
-                />
-              ))}
-            </Stack>
 
-            {/* Perguntas agrupadas por categoria */}
-            <Stack spacing={2}>
-              {sortedQuestionsByCategory.map(([category, qs]) => (
-                <Box key={category}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-                    {getCategoryLabel(category)} ({qs.length})
-                  </Typography>
+            {/* Perguntas ordenadas por prioridade */}
+            <Stack spacing={1}>
+              {sortedQuestions.map((q, idx) => (
+                <Paper key={q.id || idx} variant="outlined" sx={{ p: 1.5 }}>
                   <Stack spacing={1}>
-                    {qs
-                      .sort((a, b) => {
-                        const priorityOrder: Record<QuestionPriority, number> = { high: 3, medium: 2, low: 1 };
-                        return priorityOrder[b.priority] - priorityOrder[a.priority];
-                      })
-                      .map((q, idx) => (
-                        <Paper key={q.id || idx} variant="outlined" sx={{ p: 1.5 }}>
-                          <Stack spacing={1}>
-                            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                                <Chip
-                                  label={getPriorityLabel(q.priority)}
-                                  color={getPriorityColor(q.priority)}
-                                  size="small"
-                                />
-                                <Typography variant="body2" fontWeight={600}>
-                                  {q.question}
-                                </Typography>
-                              </Stack>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleCopyQuestion(q.question)}
-                                title="Copiar pergunta"
-                              >
-                                <CopyOutlined />
-                              </IconButton>
-                            </Stack>
-                            {q.reasoning && (
-                              <Typography variant="caption" color="text.secondary">
-                                {q.reasoning}
-                              </Typography>
-                            )}
-                          </Stack>
-                        </Paper>
-                      ))}
+                    <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ width: '100%' }}>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+                        <Chip
+                          label={getPriorityLabel(q.priority)}
+                          color={getPriorityColor(q.priority)}
+                          size="small"
+                          sx={{ flexShrink: 0 }}
+                        />
+                        <Typography variant="body2" fontWeight={600} sx={{ flex: 1, wordBreak: 'break-word' }}>
+                          {q.question}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0, ml: 1 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleCopyQuestion(q.question)}
+                          title="Copiar pergunta"
+                          sx={{ flexShrink: 0 }}
+                        >
+                          <CopyOutlined />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            console.log('Botão deletar clicado:', { q, id: q.id, hasId: !!q.id, idType: typeof q.id, allKeys: Object.keys(q) });
+                            if (!q.id) {
+                              openSnackbar({
+                                open: true,
+                                message: 'Esta pergunta não possui ID. O backend precisa retornar o ID das perguntas para permitir a remoção.',
+                                variant: 'alert',
+                                alert: { color: 'warning' }
+                              } as any);
+                              return;
+                            }
+                            handleDeleteQuestion(q.id, q.question, idx);
+                          }}
+                          title={q.id ? "Remover pergunta" : "Pergunta sem ID - o backend precisa retornar o ID"}
+                          color="error"
+                          sx={{ 
+                            flexShrink: 0,
+                            opacity: q.id ? 1 : 0.3,
+                            visibility: 'visible',
+                            display: 'inline-flex',
+                            cursor: q.id ? 'pointer' : 'not-allowed'
+                          }}
+                        >
+                          <DeleteOutlined />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
+                    {q.reasoning && (
+                      <Typography variant="caption" color="text.secondary">
+                        {q.reasoning}
+                      </Typography>
+                    )}
                   </Stack>
-                </Box>
+                </Paper>
               ))}
             </Stack>
           </Stack>
@@ -562,6 +594,35 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
           Use os botões acima para gerar auditoria e perguntas para este caso.
         </Alert>
       )}
+
+      {/* Diálogo de confirmação para deletar pergunta */}
+      <Dialog open={deleteQuestionDialog.open} onClose={cancelDeleteQuestion} maxWidth="sm" fullWidth>
+        <DialogTitle>Remover Pergunta</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Deseja realmente remover esta pergunta?
+          </Typography>
+          <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'background.default' }}>
+            <Typography variant="body2" fontWeight={600}>
+              {deleteQuestionDialog.questionText}
+            </Typography>
+          </Paper>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelDeleteQuestion} disabled={deletingQuestion}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={confirmDeleteQuestion}
+            variant="contained"
+            color="error"
+            disabled={deletingQuestion}
+            startIcon={deletingQuestion ? <CircularProgress size={16} /> : <DeleteOutlined />}
+          >
+            {deletingQuestion ? 'Removendo...' : 'Remover'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

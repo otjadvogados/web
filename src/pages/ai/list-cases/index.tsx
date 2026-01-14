@@ -32,12 +32,9 @@ import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
-import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
-import QuestionCircleOutlined from '@ant-design/icons/QuestionCircleOutlined';
-import MoreOutlined from '@ant-design/icons/MoreOutlined';
 import AIIcon from 'components/icons/AIIcon';
 import MainCard from 'components/MainCard';
-import { listCaseResults, deleteCaseResults, finalizeCase, approveCase, releaseCase, CaseResult, generateAudit, generateQuestions } from 'api/aiCases';
+import { listCaseResults, deleteCaseResults, finalizeCase, approveCase, releaseCase, CaseResult } from 'api/aiCases';
 import { listDepartments } from 'api/departments';
 import { listPieces } from 'api/aiPieces';
 import { openSnackbar } from 'api/snackbar';
@@ -360,11 +357,6 @@ export default function ListCasesPage() {
   const [deleting, setDeleting] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewCaseId, setViewCaseId] = useState<string | null>(null);
-  
-  // Ações de auditoria e perguntas
-  const [generatingAuditId, setGeneratingAuditId] = useState<string | null>(null);
-  const [generatingQuestionsId, setGeneratingQuestionsId] = useState<string | null>(null);
-  const [actionMenuAnchor, setActionMenuAnchor] = useState<{ el: HTMLElement; caseId: string } | null>(null);
 
   async function load() {
     try {
@@ -503,53 +495,6 @@ export default function ListCasesPage() {
     navigate(`/ai/cases/${caseId}/edit`);
   };
 
-  const handleGenerateAudit = async (caseId: string) => {
-    try {
-      setGeneratingAuditId(caseId);
-      await generateAudit(caseId);
-      openSnackbar({
-        open: true,
-        message: 'Auditoria gerada com sucesso!',
-        variant: 'alert',
-        alert: { color: 'success' }
-      } as any);
-      load(); // Recarrega a lista para atualizar os badges
-    } catch (err: any) {
-      openSnackbar({
-        open: true,
-        message: err?.response?.data?.message || 'Falha ao gerar auditoria',
-        variant: 'alert',
-        alert: { color: 'error' }
-      } as any);
-    } finally {
-      setGeneratingAuditId(null);
-      setActionMenuAnchor(null);
-    }
-  };
-
-  const handleGenerateQuestions = async (caseId: string) => {
-    try {
-      setGeneratingQuestionsId(caseId);
-      await generateQuestions(caseId);
-      openSnackbar({
-        open: true,
-        message: 'Perguntas geradas com sucesso!',
-        variant: 'alert',
-        alert: { color: 'success' }
-      } as any);
-      load(); // Recarrega a lista para atualizar os badges
-    } catch (err: any) {
-      openSnackbar({
-        open: true,
-        message: err?.response?.data?.message || 'Falha ao gerar perguntas',
-        variant: 'alert',
-        alert: { color: 'error' }
-      } as any);
-    } finally {
-      setGeneratingQuestionsId(null);
-      setActionMenuAnchor(null);
-    }
-  };
 
   const formatDate = (dateStr: string) => {
     try {
@@ -757,41 +702,7 @@ export default function ListCasesPage() {
                             Editar
                           </Button>
                         </Permission>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => setActionMenuAnchor({ el: e.currentTarget, caseId: item.id })}
-                        >
-                          <MoreOutlined />
-                        </IconButton>
                       </Stack>
-                      <Menu
-                        anchorEl={actionMenuAnchor?.el || null}
-                        open={Boolean(actionMenuAnchor && actionMenuAnchor.caseId === item.id)}
-                        onClose={() => setActionMenuAnchor(null)}
-                      >
-                        <MenuItem
-                          onClick={() => handleGenerateAudit(item.id)}
-                          disabled={generatingAuditId === item.id || generatingQuestionsId === item.id}
-                        >
-                          {generatingAuditId === item.id ? (
-                            <CircularProgress size={16} sx={{ mr: 1 }} />
-                          ) : (
-                            <FileTextOutlined style={{ marginRight: 8 }} />
-                          )}
-                          {item.hasAudit ? 'Regenerar Auditoria' : 'Fazer Auditoria'}
-                        </MenuItem>
-                        <MenuItem
-                          onClick={() => handleGenerateQuestions(item.id)}
-                          disabled={generatingAuditId === item.id || generatingQuestionsId === item.id}
-                        >
-                          {generatingQuestionsId === item.id ? (
-                            <CircularProgress size={16} sx={{ mr: 1 }} />
-                          ) : (
-                            <QuestionCircleOutlined style={{ marginRight: 8 }} />
-                          )}
-                          {item.hasQuestions ? 'Regenerar Perguntas' : 'Gerar Perguntas'}
-                        </MenuItem>
-                      </Menu>
                     </Stack>
                   </Box>
                 ))}
@@ -919,41 +830,7 @@ export default function ListCasesPage() {
                                   Editar
                                 </Button>
                               </Permission>
-                              <IconButton
-                                size="small"
-                                onClick={(e) => setActionMenuAnchor({ el: e.currentTarget, caseId: item.id })}
-                              >
-                                <MoreOutlined />
-                              </IconButton>
                             </Stack>
-                            <Menu
-                              anchorEl={actionMenuAnchor?.el || null}
-                              open={Boolean(actionMenuAnchor && actionMenuAnchor.caseId === item.id)}
-                              onClose={() => setActionMenuAnchor(null)}
-                            >
-                              <MenuItem
-                                onClick={() => handleGenerateAudit(item.id)}
-                                disabled={generatingAuditId === item.id || generatingQuestionsId === item.id}
-                              >
-                                {generatingAuditId === item.id ? (
-                                  <CircularProgress size={16} sx={{ mr: 1 }} />
-                                ) : (
-                                  <FileTextOutlined style={{ marginRight: 8 }} />
-                                )}
-                                {item.hasAudit ? 'Regenerar Auditoria' : 'Fazer Auditoria'}
-                              </MenuItem>
-                              <MenuItem
-                                onClick={() => handleGenerateQuestions(item.id)}
-                                disabled={generatingAuditId === item.id || generatingQuestionsId === item.id}
-                              >
-                                {generatingQuestionsId === item.id ? (
-                                  <CircularProgress size={16} sx={{ mr: 1 }} />
-                                ) : (
-                                  <QuestionCircleOutlined style={{ marginRight: 8 }} />
-                                )}
-                                {item.hasQuestions ? 'Regenerar Perguntas' : 'Gerar Perguntas'}
-                              </MenuItem>
-                            </Menu>
                           </TableCell>
                         )}
                       </TableRow>

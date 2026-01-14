@@ -460,5 +460,24 @@ export async function getQuestions(id: string) {
   const { data } = await axios.get<{ ok: boolean; data: QuestionsData }>(
     `/ai/cases/results/${id}/questions`
   );
+  // Debug: verificar a resposta completa
+  console.log('Resposta completa do getQuestions:', data);
+  console.log('Estrutura da resposta:', {
+    ok: data.ok,
+    data: data.data,
+    questions: data.data?.questions,
+    primeiraPergunta: data.data?.questions?.[0],
+    chavesPrimeiraPergunta: data.data?.questions?.[0] ? Object.keys(data.data.questions[0]) : []
+  });
   return data.data;
+}
+
+/**
+ * DELETE /ai/cases/results/:caseId/questions/:questionId - Remove uma pergunta
+ */
+export async function deleteQuestion(caseId: string, questionId: string) {
+  const { data } = await axios.delete<{ message: string; ok: boolean }>(
+    `/ai/cases/results/${caseId}/questions/${questionId}`
+  );
+  return data;
 }
