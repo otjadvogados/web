@@ -7,7 +7,8 @@ import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, Theme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 // third-party
 import { motion } from 'framer-motion';
@@ -20,6 +21,7 @@ import useAvatarUrl from 'hooks/useAvatarUrl';
 // assets
 import welcomeBg from 'assets/images/welcome/welcome.png';
 import logoImage from 'assets/images/logo/otj.webp';
+import logoIconImage from 'assets/images/logo/simple-otj.png';
 
 // ==============================|| WELCOME PAGE ||============================== //
 
@@ -39,6 +41,7 @@ export default function WelcomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const avatarUrl = useAvatarUrl(user?.id, user?.avatarFileId);
+  const isMobileOrTablet = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
   const greeting = useMemo(() => getGreeting(), []);
   const userName = user?.name || 'Usuário';
@@ -48,6 +51,31 @@ export default function WelcomePage() {
   const handleCardClick = () => {
     navigate('/account');
   };
+
+  const currentLogo = isMobileOrTablet ? logoIconImage : logoImage;
+
+  // Define logo sizes based on screen breakpoints and logo type
+  const logoMaxWidth = useMemo(() => {
+    if (isMobileOrTablet) {
+      // Logo simples (simple-otj.png) - menor em todos os tamanhos
+      return {
+        xs: 80,
+        sm: 100,
+        md: 120,
+        lg: 140,
+        xl: 160
+      };
+    } else {
+      // Logo completa (otj.webp) - maior em telas grandes
+      return {
+        xs: 140,
+        sm: 200,
+        md: 260,
+        lg: 320,
+        xl: 380
+      };
+    }
+  }, [isMobileOrTablet]);
 
   return (
     <Box
@@ -86,14 +114,15 @@ export default function WelcomePage() {
         <Box
           sx={{
             position: 'absolute',
-            top: { xs: 100, md: 120 },
-            right: { xs: 60, md: 80 },
+            top: { xs: 60, sm: 80, md: 100, lg: 120 },
+            right: { xs: 16, sm: 24, md: 40, lg: 60, xl: 80 },
             zIndex: 3,
-            maxWidth: { xs: 320, md: 380 }
+            maxWidth: logoMaxWidth,
+            width: logoMaxWidth
           }}
         >
           <img 
-            src={logoImage} 
+            src={currentLogo} 
             alt="OTJ Logo" 
             style={{ 
               width: '100%', 
