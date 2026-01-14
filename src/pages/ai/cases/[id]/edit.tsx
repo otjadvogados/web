@@ -544,6 +544,13 @@ export default function EditCasePage() {
               caseId={caseData.id}
               hasAudit={caseData.hasAudit}
               hasQuestions={caseData.hasQuestions}
+              onQuestionsGenerated={async (count) => {
+                // Atualiza o caseData para refletir que há perguntas
+                if (count > 0) {
+                  // Recarrega os dados do caso para sincronizar
+                  await loadCaseData();
+                }
+              }}
             />
           </Box>
         )}

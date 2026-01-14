@@ -41,9 +41,10 @@ type Props = {
   caseId: string;
   hasAudit?: boolean;
   hasQuestions?: boolean;
+  onQuestionsGenerated?: (count: number) => void;
 };
 
-export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
+export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGenerated }: Props) {
   const [generatingAudit, setGeneratingAudit] = useState(false);
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [loadingAudit, setLoadingAudit] = useState(false);
@@ -97,11 +98,18 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
   const handleGenerateQuestions = async () => {
     try {
       setGeneratingQuestions(true);
-      const data = await generateQuestions(caseId);
-      setQuestions(data.questions || []);
-      setQuestionsGeneratedAt(data.generatedAt || new Date().toISOString());
+      await generateQuestions(caseId);
       
-      const questionsCount = data.questions?.length || 0;
+      // Aguarda um pouco para garantir que o backend salvou as perguntas
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Recarrega as perguntas do backend para garantir que estamos mostrando os dados atualizados
+      const questionsCount = await loadQuestions();
+      
+      // Notifica a página pai para atualizar o caseData
+      if (onQuestionsGenerated && questionsCount > 0) {
+        onQuestionsGenerated(questionsCount);
+      }
       
       openSnackbar({
         open: true,
@@ -148,7 +156,7 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
     }
   };
 
-  const loadQuestions = async () => {
+  const loadQuestions = async (): Promise<number> => {
     try {
       setLoadingQuestions(true);
       const data = await getQuestions(caseId);
@@ -169,6 +177,7 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
       })));
       setQuestions(questionsData);
       setQuestionsGeneratedAt(data.generatedAt || null);
+      return questionsData.length;
     } catch (err: any) {
       // Se não houver perguntas, apenas limpa os dados
       if (err?.response?.status !== 404) {
@@ -180,6 +189,7 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
         } as any);
       }
       setQuestions([]);
+      return 0;
     } finally {
       setLoadingQuestions(false);
     }
@@ -192,12 +202,12 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId, hasAudit]);
 
+  // Carrega as perguntas sempre que o componente é montado ou quando o caseId muda
+  // Isso garante que as perguntas apareçam mesmo se hasQuestions não estiver atualizado
   useEffect(() => {
-    if (hasQuestions) {
-      loadQuestions();
-    }
+    loadQuestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseId, hasQuestions]);
+  }, [caseId]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
