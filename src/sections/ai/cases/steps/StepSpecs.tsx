@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import Stack from '@mui/material/Stack';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
@@ -9,10 +9,15 @@ import Paper from '@mui/material/Paper';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
 import WarningOutlined from '@ant-design/icons/WarningOutlined';
 import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
 import LinkOutlined from '@ant-design/icons/LinkOutlined';
+import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import { listTopicSpecifics, AiTopicSpecific, getTopicSpecific } from 'api/aiTopicSpecifics';
@@ -22,13 +27,15 @@ import Tooltip from 'components/@extended/Tooltip';
 import { useNavigate } from 'react-router-dom';
 
 export default function StepSpecs() {
-  const { topics, specs, setSpecs, specDetails, setSpecDetails, downloadSpecDocx, saveWizardState } = useCaseWizard();
+  const { topics, specs, setSpecs, specDetails, setSpecDetails, downloadSpecDocx, saveWizardState, step } = useCaseWizard();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   // lista completa de tópicos específicos dos tópicos selecionados
   const [allOpts, setAllOpts] = useState<AiTopicSpecific[]>([]);
   // --- drag & drop state (lista "selecionados") ---
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [showInfoDialog, setShowInfoDialog] = useState(false);
+  const hasShownDialogRef = useRef(false);
 
   useEffect(() => {
     if (!topics.length) {
@@ -168,6 +175,26 @@ export default function StepSpecs() {
   const availableSpecsWithoutDocx = useMemo(() => {
     return allOpts.filter(s => !s.docxFileId);
   }, [allOpts]);
+
+  // Mostra o dialog informativo quando entra na etapa de tópicos específicos (step 4)
+  useEffect(() => {
+    // step 4 = Tópicos específicos (baseado no array steps no create.tsx)
+    if (step === 4 && !hasShownDialogRef.current) {
+      // Pequeno delay para garantir que o componente está renderizado
+      const timer = setTimeout(() => {
+        setShowInfoDialog(true);
+        hasShownDialogRef.current = true;
+      }, 500);
+      return () => clearTimeout(timer);
+    } else if (step !== 4) {
+      // Quando sai da etapa, reseta para permitir mostrar novamente se voltar
+      hasShownDialogRef.current = false;
+    }
+  }, [step]);
+
+  const handleCloseInfoDialog = () => {
+    setShowInfoDialog(false);
+  };
 
   return (
     <Stack spacing={1.5}>
@@ -477,6 +504,36 @@ export default function StepSpecs() {
           })}
         </Stack>
       )}
+
+      {/* Dialog informativo sobre pesquisa de tópicos específicos */}
+      <Dialog
+        open={showInfoDialog}
+        onClose={handleCloseInfoDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <InfoCircleOutlined style={{ color: '#1976d2' }} />
+            <Typography variant="h6">Informação sobre Tópicos Específicos</Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Atenção:</strong> Se o tópico específico que você procura não estiver na lista, utilize o campo de pesquisa acima para encontrá-lo.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Digite parte do nome do tópico específico no campo de busca para filtrar os resultados disponíveis.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseInfoDialog} variant="contained" color="primary">
+            Entendi
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
