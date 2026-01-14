@@ -316,7 +316,15 @@ export default function EditCasePage() {
     return actions;
   };
 
-  const statusConfig = getStatusConfig(caseData?.status);
+  const statusConfig = useMemo(() => {
+    const config = getStatusConfig(caseData?.status);
+    // Garante que a cor seja válida (remove espaços em branco se houver)
+    if (typeof config.color === 'string') {
+      config.color = config.color.trim() as any;
+    }
+    return config;
+  }, [caseData?.status]);
+
   const availableStatusActions = getAvailableStatusActions();
   const isReleased = caseData?.status === 'released';
   const validationChecklist = useMemo(() => getValidationChecklist(), []);
@@ -532,14 +540,23 @@ export default function EditCasePage() {
         }}
       >
         {currentTab === 0 && (
-          <HtmlEditor
-            html={html}
-            onChange={setHtml}
-            editable={true}
-          />
+          <Box sx={{ display: currentTab === 0 ? 'flex' : 'none', flex: 1, overflow: 'hidden' }}>
+            <HtmlEditor
+              html={html}
+              onChange={setHtml}
+              editable={true}
+            />
+          </Box>
         )}
-        {currentTab === 1 && caseData && (
-          <Box sx={{ flex: 1, overflow: 'auto' }}>
+        {caseData && (
+          <Box 
+            sx={{ 
+              display: currentTab === 1 ? 'flex' : 'none', 
+              flex: 1, 
+              overflow: 'auto',
+              flexDirection: 'column'
+            }}
+          >
             <AuditTab
               caseId={caseData.id}
               hasAudit={caseData.hasAudit}

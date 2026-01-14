@@ -33,7 +33,11 @@ import {
   type Inconsistency,
   type UncomprehendedContext,
   type SuggestedQuestion,
-  type QuestionPriority
+  type QuestionPriority,
+  type SpellingError,
+  type PlaceholderIssue,
+  type JurisprudenceIssue,
+  type MissingTopicInfo
 } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
 
@@ -52,6 +56,10 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
   
   const [inconsistencies, setInconsistencies] = useState<Inconsistency[]>([]);
   const [uncomprehendedContexts, setUncomprehendedContexts] = useState<UncomprehendedContext[]>([]);
+  const [spellingErrors, setSpellingErrors] = useState<SpellingError[]>([]);
+  const [placeholderIssues, setPlaceholderIssues] = useState<PlaceholderIssue[]>([]);
+  const [jurisprudenceIssues, setJurisprudenceIssues] = useState<JurisprudenceIssue[]>([]);
+  const [missingTopicInfo, setMissingTopicInfo] = useState<MissingTopicInfo[]>([]);
   const [questions, setQuestions] = useState<SuggestedQuestion[]>([]);
   const [auditGeneratedAt, setAuditGeneratedAt] = useState<string | null>(null);
   const [questionsGeneratedAt, setQuestionsGeneratedAt] = useState<string | null>(null);
@@ -69,17 +77,24 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
   const handleGenerateAudit = async () => {
     try {
       setGeneratingAudit(true);
-      const data = await generateAudit(caseId);
-      setInconsistencies(data.inconsistencies || []);
-      setUncomprehendedContexts(data.uncomprehendedContexts || []);
-      setAuditGeneratedAt(data.generatedAt || new Date().toISOString());
+      await generateAudit(caseId);
       
-      const inconsistenciesCount = data.inconsistencies?.length || 0;
-      const contextsCount = data.uncomprehendedContexts?.length || 0;
+      // Aguarda um pouco para garantir que o backend salvou a auditoria
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Recarrega a auditoria do backend para garantir que estamos mostrando os dados atualizados
+      const auditData = await loadAudit();
+      
+      const inconsistenciesCount = auditData.inconsistencies?.length || 0;
+      const contextsCount = auditData.uncomprehendedContexts?.length || 0;
+      const spellingCount = auditData.spellingErrors?.length || 0;
+      const jurisprudenceCount = auditData.jurisprudenceIssues?.length || 0;
+      const missingTopicCount = auditData.missingTopicInfo?.length || 0;
+      const totalIssues = inconsistenciesCount + contextsCount + spellingCount + jurisprudenceCount + missingTopicCount;
       
       openSnackbar({
         open: true,
-        message: `Auditoria concluída: ${inconsistenciesCount} inconsistência(s), ${contextsCount} contexto(s) identificado(s)`,
+        message: `Auditoria concluída: ${totalIssues} problema(s) identificado(s)`,
         variant: 'alert',
         alert: { color: 'success' }
       } as any);
@@ -133,12 +148,19 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
     try {
       setLoadingAudit(true);
       const data = await getAudit(caseId);
+      
       setInconsistencies(data.inconsistencies || []);
       setUncomprehendedContexts(data.uncomprehendedContexts || []);
+      setSpellingErrors(data.spellingErrors || []);
+      setPlaceholderIssues(data.placeholderIssues || []);
+      setJurisprudenceIssues(data.jurisprudenceIssues || []);
+      setMissingTopicInfo(data.missingTopicInfo || []);
       if (data.questions) {
         setQuestions(data.questions);
       }
-      setAuditGeneratedAt(data.generatedAt || null);
+      setAuditGeneratedAt(data.generatedAt || data.analyzedAt || null);
+      
+      return data;
     } catch (err: any) {
       // Se não houver auditoria, apenas limpa os dados
       if (err?.response?.status !== 404) {
@@ -151,6 +173,18 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
       }
       setInconsistencies([]);
       setUncomprehendedContexts([]);
+      setSpellingErrors([]);
+      setPlaceholderIssues([]);
+      setJurisprudenceIssues([]);
+      setMissingTopicInfo([]);
+      return { 
+        inconsistencies: [], 
+        uncomprehendedContexts: [],
+        spellingErrors: [],
+        placeholderIssues: [],
+        jurisprudenceIssues: [],
+        missingTopicInfo: []
+      };
     } finally {
       setLoadingAudit(false);
     }
@@ -195,12 +229,12 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
     }
   };
 
+  // Carrega a auditoria sempre que o componente é montado ou quando o caseId muda
+  // Isso garante que a auditoria apareça mesmo quando o componente é remontado após trocar de aba
   useEffect(() => {
-    if (hasAudit) {
-      loadAudit();
-    }
+    loadAudit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseId, hasAudit]);
+  }, [caseId]);
 
   // Carrega as perguntas sempre que o componente é montado ou quando o caseId muda
   // Isso garante que as perguntas apareçam mesmo se hasQuestions não estiver atualizado
@@ -353,7 +387,7 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
           onClick={handleGenerateAudit}
           disabled={generatingAudit || generatingQuestions}
         >
-          {hasAudit ? 'Regenerar Auditoria' : 'Fazer Auditoria'}
+          {hasAudit ? 'Refazer Auditoria' : 'Fazer Auditoria'}
         </Button>
         <Button
           variant="contained"
@@ -361,7 +395,7 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
           onClick={handleGenerateQuestions}
           disabled={generatingAudit || generatingQuestions}
         >
-          {hasQuestions ? 'Regenerar Perguntas' : 'Gerar Perguntas'}
+          {hasQuestions ? 'Refazer Perguntas' : 'Gerar Perguntas'}
         </Button>
       </Stack>
 
@@ -500,6 +534,185 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
         </Paper>
       )}
 
+      {/* Erros Ortográficos */}
+      {spellingErrors.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={2}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="h6" fontWeight={700}>
+                Erros Ortográficos ({spellingErrors.length})
+              </Typography>
+              <Chip
+                label={`${spellingErrors.filter((e) => e.severity === 'high').length} alta`}
+                color="error"
+                size="small"
+              />
+              <Chip
+                label={`${spellingErrors.filter((e) => e.severity === 'medium').length} média`}
+                color="warning"
+                size="small"
+              />
+              <Chip
+                label={`${spellingErrors.filter((e) => e.severity === 'low').length} baixa`}
+                color="info"
+                size="small"
+              />
+            </Stack>
+            <Divider />
+            <Stack spacing={1}>
+              {spellingErrors.map((error, idx) => (
+                <Paper key={idx} variant="outlined" sx={{ p: 1.5 }}>
+                  <Stack spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip
+                        label={getSeverityLabel(error.severity)}
+                        color={getSeverityColor(error.severity)}
+                        size="small"
+                      />
+                      <Typography variant="body2" fontWeight={600}>
+                        {error.word}
+                      </Typography>
+                      {error.location && (
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                          {error.location}
+                        </Typography>
+                      )}
+                    </Stack>
+                    {error.suggestion && (
+                      <Alert severity="info">
+                        <AlertTitle>Sugestão</AlertTitle>
+                        Substituir por: <strong>{error.suggestion}</strong>
+                      </Alert>
+                    )}
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Problemas de Jurisprudência */}
+      {jurisprudenceIssues.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={2}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="h6" fontWeight={700}>
+                Problemas de Jurisprudência ({jurisprudenceIssues.length})
+              </Typography>
+              <Chip
+                label={`${jurisprudenceIssues.filter((i) => i.severity === 'high').length} alta`}
+                color="error"
+                size="small"
+              />
+              <Chip
+                label={`${jurisprudenceIssues.filter((i) => i.severity === 'medium').length} média`}
+                color="warning"
+                size="small"
+              />
+              <Chip
+                label={`${jurisprudenceIssues.filter((i) => i.severity === 'low').length} baixa`}
+                color="info"
+                size="small"
+              />
+            </Stack>
+            <Divider />
+            <Stack spacing={1}>
+              {jurisprudenceIssues.map((issue, idx) => (
+                <Accordion key={issue.id || idx}>
+                  <AccordionSummary expandIcon={<RightOutlined />}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%', mr: 2 }}>
+                      <Chip
+                        label={getSeverityLabel(issue.severity)}
+                        color={getSeverityColor(issue.severity)}
+                        size="small"
+                      />
+                      <Typography variant="body2" fontWeight={600}>
+                        {issue.type}
+                      </Typography>
+                      {issue.location && (
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                          {issue.location}
+                        </Typography>
+                      )}
+                    </Stack>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={1}>
+                      <Typography variant="body2">{issue.description}</Typography>
+                      {issue.suggestion && (
+                        <Alert severity="info">
+                          <AlertTitle>Sugestão</AlertTitle>
+                          {issue.suggestion}
+                        </Alert>
+                      )}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              ))}
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Tópicos Faltantes */}
+      {missingTopicInfo.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={2}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="h6" fontWeight={700}>
+                Tópicos Faltantes ({missingTopicInfo.length})
+              </Typography>
+              <Chip
+                label={`${missingTopicInfo.filter((i) => i.severity === 'high').length} alta`}
+                color="error"
+                size="small"
+              />
+              <Chip
+                label={`${missingTopicInfo.filter((i) => i.severity === 'medium').length} média`}
+                color="warning"
+                size="small"
+              />
+              <Chip
+                label={`${missingTopicInfo.filter((i) => i.severity === 'low').length} baixa`}
+                color="info"
+                size="small"
+              />
+            </Stack>
+            <Divider />
+            <Stack spacing={1}>
+              {missingTopicInfo.map((info, idx) => (
+                <Accordion key={info.id || idx}>
+                  <AccordionSummary expandIcon={<RightOutlined />}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%', mr: 2 }}>
+                      <Chip
+                        label={getSeverityLabel(info.severity)}
+                        color={getSeverityColor(info.severity)}
+                        size="small"
+                      />
+                      <Typography variant="body2" fontWeight={600}>
+                        {info.topic}
+                      </Typography>
+                    </Stack>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={1}>
+                      <Typography variant="body2">{info.description}</Typography>
+                      {info.suggestion && (
+                        <Alert severity="info">
+                          <AlertTitle>Sugestão</AlertTitle>
+                          {info.suggestion}
+                        </Alert>
+                      )}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              ))}
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
+
       {/* Perguntas sugeridas */}
       {questions.length > 0 && (
         <Paper variant="outlined" sx={{ p: 2 }}>
@@ -598,7 +811,13 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
       )}
 
       {/* Estado vazio */}
-      {!hasAudit && !hasQuestions && inconsistencies.length === 0 && uncomprehendedContexts.length === 0 && questions.length === 0 && (
+      {!hasAudit && !hasQuestions && 
+       inconsistencies.length === 0 && 
+       uncomprehendedContexts.length === 0 && 
+       spellingErrors.length === 0 &&
+       jurisprudenceIssues.length === 0 &&
+       missingTopicInfo.length === 0 &&
+       questions.length === 0 && (
         <Alert severity="info">
           <AlertTitle>Nenhuma auditoria ou pergunta gerada</AlertTitle>
           Use os botões acima para gerar auditoria e perguntas para este caso.

@@ -101,6 +101,36 @@ export type UncomprehendedContext = {
   suggestion?: string;
 };
 
+export type SpellingError = {
+  word: string;
+  location: string;
+  severity: InconsistencySeverity;
+  suggestion: string;
+};
+
+export type PlaceholderIssue = {
+  placeholder: string;
+  location?: string;
+  severity?: InconsistencySeverity;
+};
+
+export type JurisprudenceIssue = {
+  id?: string;
+  type: string;
+  description: string;
+  severity: InconsistencySeverity;
+  location?: string;
+  suggestion?: string;
+};
+
+export type MissingTopicInfo = {
+  id?: string;
+  topic: string;
+  description: string;
+  severity: InconsistencySeverity;
+  suggestion?: string;
+};
+
 export type QuestionCategory = 'facts' | 'evidence' | 'witnesses' | 'legal' | 'other';
 
 export type QuestionPriority = 'high' | 'medium' | 'low';
@@ -115,10 +145,17 @@ export type SuggestedQuestion = {
 
 export type AuditData = {
   inconsistencies: Inconsistency[];
-  uncomprehendedContexts: UncomprehendedContext[];
+  uncomprehendedContexts?: UncomprehendedContext[];
+  unclearContexts?: UncomprehendedContext[]; // Campo retornado pelo backend
+  spellingErrors?: SpellingError[];
+  placeholderIssues?: PlaceholderIssue[];
+  jurisprudenceIssues?: JurisprudenceIssue[];
+  missingTopicInfo?: MissingTopicInfo[];
   questions?: SuggestedQuestion[];
   generatedAt?: string;
+  analyzedAt?: string; // Campo retornado pelo backend
   modelUsed?: string;
+  model?: string; // Campo retornado pelo backend
 };
 
 export type QuestionsData = {
@@ -430,7 +467,12 @@ export async function generateAudit(id: string) {
   const { data } = await axios.post<{ message: string; data: AuditData }>(
     `/ai/cases/results/${id}/audit`
   );
-  return data.data;
+  // Mapeia unclearContexts para uncomprehendedContexts se necessário
+  const auditData = data.data;
+  if (auditData.unclearContexts && !auditData.uncomprehendedContexts) {
+    auditData.uncomprehendedContexts = auditData.unclearContexts;
+  }
+  return auditData;
 }
 
 /**
@@ -450,7 +492,12 @@ export async function getAudit(id: string) {
   const { data } = await axios.get<{ ok: boolean; data: AuditData }>(
     `/ai/cases/results/${id}/audit`
   );
-  return data.data;
+  // Mapeia unclearContexts para uncomprehendedContexts se necessário
+  const auditData = data.data;
+  if (auditData.unclearContexts && !auditData.uncomprehendedContexts) {
+    auditData.uncomprehendedContexts = auditData.unclearContexts;
+  }
+  return auditData;
 }
 
 /**
