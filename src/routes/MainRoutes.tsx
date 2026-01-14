@@ -39,6 +39,8 @@ const ListCasesPage = Loadable(lazy(() => import('pages/ai/list-cases')));
 const EditCasePage = Loadable(lazy(() => import('pages/ai/cases/[id]/edit')));
 // NOVO: Configurações da Conta
 const AccountSettings = Loadable(lazy(() => import('pages/account')));
+// NOVO: Página de Boas-Vindas
+const WelcomePage = Loadable(lazy(() => import('pages/welcome')));
 
 // NOVO: Colaboradores
 const UsersPage = Loadable(lazy(() => import('pages/users')));
@@ -69,6 +71,14 @@ const MainRoutes = {
       path: '/',
       element: <DashboardLayout />,
       children: [
+        {
+          index: true,
+          element: <WelcomePage />
+        },
+        {
+          path: 'welcome',
+          element: <WelcomePage />
+        },
         {
           path: 'devices',
           element: <DevicesCenter />

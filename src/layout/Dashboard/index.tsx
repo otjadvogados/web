@@ -45,6 +45,7 @@ export default function DashboardLayout() {
 
   // Verifica se estamos na página A4Playground
   const isA4Playground = pathname.includes('/ai-docs/a4-playground/');
+  const isWelcomePage = pathname === '/welcome' || pathname === '/';
 
   return (
     <AuthGuard>
@@ -52,8 +53,8 @@ export default function DashboardLayout() {
         <Header />
         {!isHorizontal ? <Drawer /> : <HorizontalBar />}
 
-        <Box component="main" sx={{ width: 'calc(100% - 260px)', flexGrow: 1, p: { xs: 2, sm: 3 } }}>
-          <Toolbar sx={{ mt: isHorizontal ? 8 : 'inherit' }} />
+        <Box component="main" sx={{ width: 'calc(100% - 260px)', flexGrow: 1, p: isWelcomePage ? 0 : { xs: 2, sm: 3 }, position: 'relative' }}>
+          {!isWelcomePage && <Toolbar sx={{ mt: isHorizontal ? 8 : 'inherit' }} />}
           <Container
             maxWidth={container ? 'xl' : false}
             sx={{
@@ -61,12 +62,13 @@ export default function DashboardLayout() {
               position: 'relative',
               minHeight: 'calc(100vh - 110px)',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              ...(isWelcomePage && { maxWidth: '100%', px: 0, py: 0, minHeight: '100%' })
             }}
           >
-            {pathname !== '#!' && !isA4Playground && <Breadcrumbs />}
+            {pathname !== '#!' && !isA4Playground && !isWelcomePage && <Breadcrumbs />}
             <Outlet />
-            <Footer />
+            {!isWelcomePage && <Footer />}
           </Container>
         </Box>
       </Box>
