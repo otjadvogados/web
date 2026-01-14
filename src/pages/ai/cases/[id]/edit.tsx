@@ -18,6 +18,8 @@ import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import Divider from '@mui/material/Divider';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import SaveOutlined from '@ant-design/icons/SaveOutlined';
 import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
 import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
@@ -25,6 +27,7 @@ import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import RightOutlined from '@ant-design/icons/RightOutlined';
 import HtmlEditor from 'sections/ai/edit-case/HtmlEditor';
+import AuditTab from 'sections/ai/cases/AuditTab';
 import { getCaseResult, updateCaseResultHtml, CaseResult, finalizeCase, approveCase, releaseCase } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
 import { convertHtmlToDocx } from 'api/aiDocs';
@@ -49,6 +52,7 @@ export default function EditCasePage() {
   const [checklistStatusMenuAnchor, setChecklistStatusMenuAnchor] = useState<null | HTMLElement>(null);
   const [processingStatus, setProcessingStatus] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const [currentTab, setCurrentTab] = useState(0);
 
   useEffect(() => {
     if (!id) {
@@ -498,7 +502,27 @@ export default function EditCasePage() {
         </Toolbar>
       </Paper>
 
-      {/* Área de edição */}
+      {/* Tabs */}
+      <Paper elevation={1} sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+        <Tabs value={currentTab} onChange={(_, v) => setCurrentTab(v)}>
+          <Tab label="Edição" />
+          <Tab 
+            label={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <span>Auditoria</span>
+                {caseData?.hasAudit && (
+                  <Chip label="Auditado" color="success" size="small" />
+                )}
+                {caseData?.hasQuestions && (
+                  <Chip label={`${caseData.suggestedQuestions?.length || 0} perguntas`} color="info" size="small" />
+                )}
+              </Stack>
+            } 
+          />
+        </Tabs>
+      </Paper>
+
+      {/* Área de conteúdo */}
       <Box
         sx={{
           flex: 1,
@@ -507,11 +531,22 @@ export default function EditCasePage() {
           position: 'relative'
         }}
       >
-        <HtmlEditor
-          html={html}
-          onChange={setHtml}
-          editable={true}
-        />
+        {currentTab === 0 && (
+          <HtmlEditor
+            html={html}
+            onChange={setHtml}
+            editable={true}
+          />
+        )}
+        {currentTab === 1 && caseData && (
+          <Box sx={{ flex: 1, overflow: 'auto' }}>
+            <AuditTab
+              caseId={caseData.id}
+              hasAudit={caseData.hasAudit}
+              hasQuestions={caseData.hasQuestions}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* Drawer do Checklist */}

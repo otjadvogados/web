@@ -82,6 +82,51 @@ export async function postCaseContext(form: FormData) {
 
 // ==============================|| CASE RESULTS APIs ||============================== //
 
+// Tipos de auditoria e perguntas (definidos antes de CaseResult para evitar referências circulares)
+export type InconsistencySeverity = 'high' | 'medium' | 'low';
+
+export type Inconsistency = {
+  id?: string;
+  type: string;
+  description: string;
+  severity: InconsistencySeverity;
+  location?: string;
+  suggestion?: string;
+};
+
+export type UncomprehendedContext = {
+  id?: string;
+  context: string;
+  reason?: string;
+  suggestion?: string;
+};
+
+export type QuestionCategory = 'facts' | 'evidence' | 'witnesses' | 'legal' | 'other';
+
+export type QuestionPriority = 'high' | 'medium' | 'low';
+
+export type SuggestedQuestion = {
+  id?: string;
+  question: string;
+  category: QuestionCategory;
+  priority: QuestionPriority;
+  reasoning?: string;
+};
+
+export type AuditData = {
+  inconsistencies: Inconsistency[];
+  uncomprehendedContexts: UncomprehendedContext[];
+  questions?: SuggestedQuestion[];
+  generatedAt?: string;
+  modelUsed?: string;
+};
+
+export type QuestionsData = {
+  questions: SuggestedQuestion[];
+  generatedAt?: string;
+  modelUsed?: string;
+};
+
 export type CaseResult = {
   id: string;
   requesterId: string;
@@ -170,6 +215,10 @@ export type CaseResult = {
   placeholders?: string[];
   replacedKeys?: string[];
   missingKeys?: string[];
+  // Campos de auditoria e perguntas
+  hasAudit?: boolean;
+  hasQuestions?: boolean;
+  suggestedQuestions?: SuggestedQuestion[];
 };
 
 export type CaseResultsListResponse = {
@@ -368,6 +417,48 @@ export async function detectPlaceholders(topicSpecificIds: string[]) {
   const { data } = await axios.post<PlaceholdersResponse>(
     '/ai/cases/topic-specifics/placeholders',
     { topicSpecificIds }
+  );
+  return data.data;
+}
+
+// ==============================|| AUDIT & QUESTIONS APIs ||============================== //
+
+/**
+ * POST /ai/cases/results/:id/audit - Gera apenas auditoria (inconsistências e contextos não compreendidos)
+ */
+export async function generateAudit(id: string) {
+  const { data } = await axios.post<{ message: string; data: AuditData }>(
+    `/ai/cases/results/${id}/audit`
+  );
+  return data.data;
+}
+
+/**
+ * POST /ai/cases/results/:id/questions/generate - Gera apenas perguntas
+ */
+export async function generateQuestions(id: string) {
+  const { data } = await axios.post<{ message: string; data: QuestionsData }>(
+    `/ai/cases/results/${id}/questions/generate`
+  );
+  return data.data;
+}
+
+/**
+ * GET /ai/cases/results/:id/audit - Retorna a auditoria completa (inconsistências, contextos e perguntas)
+ */
+export async function getAudit(id: string) {
+  const { data } = await axios.get<{ ok: boolean; data: AuditData }>(
+    `/ai/cases/results/${id}/audit`
+  );
+  return data.data;
+}
+
+/**
+ * GET /ai/cases/results/:id/questions - Retorna apenas as perguntas
+ */
+export async function getQuestions(id: string) {
+  const { data } = await axios.get<{ ok: boolean; data: QuestionsData }>(
+    `/ai/cases/results/${id}/questions`
   );
   return data.data;
 }
