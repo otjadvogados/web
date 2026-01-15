@@ -16,48 +16,71 @@ import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
 import CopyOutlined from '@ant-design/icons/CopyOutlined';
 import FileSearchOutlined from '@ant-design/icons/FileSearchOutlined';
+import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
-import { getTranscription, summarizeTranscription, TranscriptionRecord, SummarizeResponse, SummaryJson } from 'api/aiTranscribe';
+import Tooltip from '@mui/material/Tooltip';
+import { getTranscription, summarizeTranscription, deleteTranscription, TranscriptionRecord, SummarizeResponse, SummaryJson } from 'api/aiTranscribe';
 import { openSnackbar } from 'api/snackbar';
+import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
+import Permission from 'components/Permission';
 
 type Props = {
   open: boolean;
   onClose: () => void;
   transcriptionId: string;
+  initialTranscription?: TranscriptionRecord; // Dados já carregados da pasta
+  onDeleted?: () => void; // Callback chamado após deletar com sucesso
 };
 
-export default function TranscriptionViewDialog({ open, onClose, transcriptionId }: Props) {
+export default function TranscriptionViewDialog({ open, onClose, transcriptionId, initialTranscription, onDeleted }: Props) {
   const [transcription, setTranscription] = useState<TranscriptionRecord | null>(null);
   const [summary, setSummary] = useState<SummarizeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
   const [promptTemplate, setPromptTemplate] = useState<string>('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  
+  // Resumo salvo no banco (vem do campo summary da transcrição)
+  const savedSummary = transcription?.summary;
 
   useEffect(() => {
     if (open && transcriptionId) {
-      loadTranscription();
+      // O backend agora retorna o text completo no /folders, então usamos diretamente
+      if (initialTranscription) {
+        setTranscription(initialTranscription);
+        setLoading(false);
+      } else {
+        // Se não temos dados iniciais, tenta buscar individualmente
+        // Mas como o backend agora retorna tudo no /folders, isso não deveria acontecer
+        loadTranscription();
+      }
     } else {
       // Reset when dialog closes
       setTranscription(null);
       setSummary(null);
       setPromptTemplate('');
     }
-  }, [open, transcriptionId]);
+  }, [open, transcriptionId, initialTranscription]);
 
   const loadTranscription = async () => {
+    // Este método só é chamado se não tivermos initialTranscription
+    // Como o backend agora retorna tudo no /folders, isso não deveria acontecer
+    // Mas mantemos como fallback
     try {
       setLoading(true);
       const data = await getTranscription(transcriptionId);
       setTranscription(data);
     } catch (err: any) {
+      // Se falhar, mostra aviso mas não erro fatal (os dados podem estar disponíveis na pasta)
       openSnackbar({
         open: true,
-        message: err?.response?.data?.message || err?.message || 'Falha ao carregar transcrição',
+        message: 'Transcrição não encontrada. Tente recarregar a página.',
         variant: 'alert',
-        alert: { color: 'error' }
+        alert: { color: 'warning' }
       } as any);
     } finally {
       setLoading(false);
@@ -80,9 +103,10 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
       const params: any = {};
       if (promptTemplate.trim()) params.promptTemplate = promptTemplate.trim();
 
+      // Usa o endpoint com ID que salva automaticamente no banco
       const result = await summarizeTranscription(transcriptionId, params);
-      console.log('Resumo recebido:', result); // Debug
       
+      // O backend agora salva o resumo automaticamente e retorna como string no campo summary
       // Normaliza a resposta: se vier os campos do SummaryJson na raiz, move para summary
       let normalizedResult: SummarizeResponse;
       if (result && typeof result === 'object' && ('objetivo' in result || 'pontosChave' in result || 'resumo' in result)) {
@@ -102,13 +126,40 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
       }
       
       setSummary(normalizedResult);
-    } catch (err: any) {
+      
+      // O backend salva o resumo automaticamente no banco
+      // Se a resposta vier como string simples no campo summary, atualiza o estado local
+      if (result && typeof result === 'object' && 'summary' in result) {
+        const summaryValue = result.summary;
+        if (typeof summaryValue === 'string') {
+          // Atualiza a transcrição local com o resumo salvo
+          setTranscription((prev) => prev ? { ...prev, summary: summaryValue } : null);
+        }
+      }
+      
       openSnackbar({
         open: true,
-        message: err?.response?.data?.message || err?.message || 'Falha ao gerar resumo',
+        message: 'Resumo gerado e salvo com sucesso!',
         variant: 'alert',
-        alert: { color: 'error' }
+        alert: { color: 'success' }
       } as any);
+    } catch (err: any) {
+      // Se for 404, o endpoint não existe ou o ID está incorreto
+      if (err?.response?.status === 404) {
+        openSnackbar({
+          open: true,
+          message: `Não foi possível gerar o resumo. O endpoint POST /ai/transcribe/${transcriptionId}/summarize não foi encontrado. Verifique se a transcrição existe e se o backend está configurado corretamente.`,
+          variant: 'alert',
+          alert: { color: 'error' }
+        } as any);
+      } else {
+        openSnackbar({
+          open: true,
+          message: err?.response?.data?.message || err?.message || 'Falha ao gerar resumo',
+          variant: 'alert',
+          alert: { color: 'error' }
+        } as any);
+      }
     } finally {
       setSummarizing(false);
     }
@@ -122,6 +173,41 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
       variant: 'alert',
       alert: { color: 'success' }
     } as any);
+  };
+
+  const handleRequestDelete = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!transcription) return;
+    
+    try {
+      setDeleting(true);
+      await deleteTranscription(transcription.id);
+      
+      openSnackbar({
+        open: true,
+        message: 'Transcrição removida com sucesso!',
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+      
+      setDeleteDialogOpen(false);
+      
+      // Fecha o dialog e chama o callback se fornecido
+      onClose();
+      onDeleted?.();
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || 'Falha ao remover transcrição',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -266,35 +352,66 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
 
             {/* Resumo */}
             <Box>
-              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                Gerar Resumo
-              </Typography>
-
-              <Stack spacing={2}>
-                <TextField
-                  label="Template de Prompt (opcional)"
-                  value={promptTemplate}
-                  onChange={(e) => setPromptTemplate(e.target.value)}
-                  fullWidth
-                  multiline
-                  rows={3}
-                  size="small"
-                  placeholder="Ex: Faça um resumo executivo:\n\n{{TRANSCRIPTION}}"
-                />
-
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  Resumo
+                </Typography>
                 <Button
-                  variant="outlined"
+                  variant="contained"
                   startIcon={summarizing ? <CircularProgress size={16} /> : <FileSearchOutlined />}
                   onClick={handleSummarize}
                   disabled={!transcription.text || summarizing}
+                  size="small"
                 >
-                  {summarizing ? 'Gerando Resumo...' : 'Gerar Resumo'}
+                  {summarizing ? 'Gerando...' : savedSummary || summary ? 'Regenerar Resumo' : 'Gerar Resumo'}
                 </Button>
+              </Stack>
+
+              <Stack spacing={2}>
+                {/* Campo de Prompt - sempre visível, acima do resumo */}
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                    Prompt
+                  </Typography>
+                  <TextField
+                    label="Template de Prompt (opcional)"
+                    value={promptTemplate}
+                    onChange={(e) => setPromptTemplate(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={3}
+                    size="small"
+                    placeholder="Ex: Faça um resumo executivo:\n\n{{TRANSCRIPTION}}"
+                  />
+                </Box>
+
+                {/* Mostra resumo salvo se disponível */}
+                {savedSummary && !summary && (
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                      Resumo Salvo
+                    </Typography>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        bgcolor: 'primary.lighter',
+                        minHeight: 150,
+                        maxHeight: 500,
+                        overflow: 'auto'
+                      }}
+                    >
+                      <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                        {savedSummary}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                )}
 
                 {summary && (
                   <Box>
                     <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                      Resumo
+                      Resumo Gerado
                     </Typography>
                     <Paper
                       variant="outlined"
@@ -456,7 +573,40 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
 
       <DialogActions sx={{ p: 2, pt: 1 }}>
         <Button onClick={onClose}>Fechar</Button>
+        {transcription && (
+          <Permission resources={['transcriptions.delete']}>
+            <Tooltip title="Excluir">
+              <IconButton
+                color="error"
+                onClick={handleRequestDelete}
+              >
+                <DeleteOutlined />
+              </IconButton>
+            </Tooltip>
+          </Permission>
+        )}
       </DialogActions>
+
+      {/* Dialog de Confirmação de Exclusão */}
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onCancel={() => {
+          if (deleting) return;
+          setDeleteDialogOpen(false);
+        }}
+        onConfirm={handleConfirmDelete}
+        loading={deleting}
+        title="Excluir Transcrição"
+        description={
+          transcription ? (
+            <>
+              Tem certeza que deseja excluir a transcrição <strong>{transcription.filename}</strong>?
+              <br />
+              Esta ação não pode ser desfeita.
+            </>
+          ) : undefined
+        }
+      />
     </Dialog>
   );
 }

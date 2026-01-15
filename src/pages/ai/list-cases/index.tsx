@@ -660,7 +660,7 @@ export default function ListCasesPage() {
                                 Aprovado por:
                               </Typography>
                               <AuthorCell
-                                requesterId={approvedBy}
+                                requesterId={approvedBy ?? undefined}
                                 userName={approvedByUser.name}
                                 userAvatarFileId={approvedByUser.avatarFileId}
                               />
@@ -784,7 +784,7 @@ export default function ListCasesPage() {
                             if (approvedByUser?.name) {
                               return (
                                 <AuthorCell
-                                  requesterId={approvedBy}
+                                  requesterId={approvedBy ?? undefined}
                                   userName={approvedByUser.name}
                                   userAvatarFileId={approvedByUser.avatarFileId}
                                 />

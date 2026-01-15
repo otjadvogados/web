@@ -31,6 +31,9 @@ const AITopicSpecificsPage = Loadable(lazy(() => import('pages/ai/topic-specific
 const AIUsagePage = Loadable(lazy(() => import('pages/ai/usage')));
 // NOVO: AI > Transcrições
 const AITranscribePage = Loadable(lazy(() => import('pages/ai/transcribe')));
+const TranscriptionFolderPage = Loadable(lazy(() => import('pages/ai/transcribe/[folderId]')));
+// NOVO: Relatórios
+const ReportsPage = Loadable(lazy(() => import('pages/reports')));
 // NOVO: AI > Criar Caso
 const CreateCasePage = Loadable(lazy(() => import('pages/ai/cases/create')));
 // NOVO: AI > Listar Casos
@@ -62,6 +65,9 @@ const EditClientPage = Loadable(lazy(() => import('pages/clients/[id]/edit')));
 // NOVO: Bloqueios de Conta
 const AccountBlocksPage = Loadable(lazy(() => import('pages/security/account-blocks')));
 
+// NOVO: Dashboard
+const DashboardPage = Loadable(lazy(() => import('pages/dashboard')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -91,6 +97,10 @@ const MainRoutes = {
         {
           path: 'account',
           element: <AccountSettings />
+        },
+        {
+          path: 'dashboard',
+          element: <DashboardPage />
         },
         {
           path: 'users',
@@ -164,6 +174,14 @@ const MainRoutes = {
         {
           path: 'ai/transcribe',
           element: <AITranscribePage />
+        },
+        {
+          path: 'ai/transcribe/:folderId',
+          element: <TranscriptionFolderPage />
+        },
+        {
+          path: 'reports',
+          element: <ReportsPage />
         },
       ]
     },

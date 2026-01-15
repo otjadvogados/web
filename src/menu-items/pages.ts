@@ -33,7 +33,7 @@ const pages: NavItemType = {
       isDropdown: true,
       permissions: ['company.read', 'company.update', 'departments.read', 'departments.create', 'departments.update', 'departments.delete', 'roles.read', 'roles.create', 
         'roles.update', 'roles.delete', 'ai.rules.read', 'ai.rules.create', 'ai.rules.update', 
-        'ai.rules.delete','ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete'],
+        'ai.rules.delete','ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete', 'dashboard.usage-ranking.read'],
       children: [
         {
           id: 'company',
@@ -69,6 +69,13 @@ const pages: NavItemType = {
           type: 'item',
           url: '/ai/usage',
           permissions: ['ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete'],
+        },
+        {
+          id: 'dashboard',
+          title: 'Dashboard',
+          type: 'item',
+          url: '/dashboard',
+          permissions: ['dashboard.usage-ranking.read'],
         },
       ]
     },
@@ -127,8 +134,6 @@ const pages: NavItemType = {
       isDropdown: true,
       permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
       children: [
-        
-        
         {
           id: 'ai-transcribe',
           title: 'Transcrições',
@@ -136,7 +141,13 @@ const pages: NavItemType = {
           url: '/ai/transcribe',
           permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
         },
-
+        {
+          id: 'reports',
+          title: 'Relatórios',
+          type: 'item',
+          url: '/reports',
+          permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
+        },
       ]
     },
     // 👇 submenu "Colaboradores"
