@@ -132,22 +132,16 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.ToolOutlined,
       isDropdown: true,
-      permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
+      permissions: ['transcribe.read', 'transcribe.create', 'transcribe.update', 'transcribe.delete'],
       children: [
         {
           id: 'ai-transcribe',
           title: 'Transcrições',
           type: 'item',
           url: '/ai/transcribe',
-          permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
+          permissions: ['transcribe.read', 'transcribe.create', 'transcribe.update', 'transcribe.delete'],
         },
-        {
-          id: 'reports',
-          title: 'Relatórios',
-          type: 'item',
-          url: '/reports',
-          permissions: ['ai.transcribe.read', 'ai.transcribe.create', 'ai.transcribe.update', 'ai.transcribe.delete'],
-        },
+        
       ]
     },
     // 👇 submenu "Colaboradores"
