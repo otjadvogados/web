@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -26,6 +27,7 @@ import { getTranscription, summarizeTranscription, deleteTranscription, Transcri
 import { openSnackbar } from 'api/snackbar';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import Permission from 'components/Permission';
+import GenerateReportsDialog from './GenerateReportsDialog';
 
 type Props = {
   open: boolean;
@@ -36,6 +38,7 @@ type Props = {
 };
 
 export default function TranscriptionViewDialog({ open, onClose, transcriptionId, initialTranscription, onDeleted }: Props) {
+  const navigate = useNavigate();
   const [transcription, setTranscription] = useState<TranscriptionRecord | null>(null);
   const [summary, setSummary] = useState<SummarizeResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,6 +46,7 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
   const [promptTemplate, setPromptTemplate] = useState<string>('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [generateReportsDialogOpen, setGenerateReportsDialogOpen] = useState(false);
   
   // Resumo salvo no banco (vem do campo summary da transcrição)
   const savedSummary = transcription?.summary;
@@ -572,6 +576,19 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
       </DialogContent>
 
       <DialogActions sx={{ p: 2, pt: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1 }}>
+          {transcription?.customerId && (
+            <Permission resources={['customers.create']}>
+              <Button
+                variant="outlined"
+                startIcon={<FileTextOutlined />}
+                onClick={() => setGenerateReportsDialogOpen(true)}
+              >
+                Gerar Relatórios
+              </Button>
+            </Permission>
+          )}
+        </Stack>
         <Button onClick={onClose}>Fechar</Button>
         {transcription && (
           <Permission resources={['transcriptions.delete']}>
@@ -607,6 +624,33 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
           ) : undefined
         }
       />
+
+      {/* Dialog de Gerar Relatórios */}
+      {transcription?.customerId && (
+        <GenerateReportsDialog
+          open={generateReportsDialogOpen}
+          onClose={() => setGenerateReportsDialogOpen(false)}
+          customerId={transcription.customerId}
+          transcriptionId={transcriptionId}
+          onSuccess={(reports) => {
+            // Navega para o primeiro relatório gerado para edição
+            if (reports && reports.length > 0 && reports[0]?.id && transcription?.customerId) {
+              openSnackbar({
+                open: true,
+                message: 'Relatórios gerados! Redirecionando para edição...',
+                variant: 'alert',
+                alert: { color: 'success' }
+              } as any);
+              
+              // Navega para a edição do primeiro relatório
+              setTimeout(() => {
+                onClose();
+                navigate(`/ai/reports/${transcription.customerId}/${reports[0].id}/edit`);
+              }, 500);
+            }
+          }}
+        />
+      )}
     </Dialog>
   );
 }

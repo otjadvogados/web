@@ -141,7 +141,13 @@ const pages: NavItemType = {
           url: '/ai/transcribe',
           permissions: ['transcribe.read', 'transcribe.create', 'transcribe.update', 'transcribe.delete'],
         },
-        
+        {
+          id: 'ai-reports',
+          title: 'Relatórios',
+          type: 'item',
+          url: '/ai/reports',
+          permissions: ['customers.read', 'customers.create', 'customers.update', 'customers.delete'],
+        },
       ]
     },
     // 👇 submenu "Colaboradores"

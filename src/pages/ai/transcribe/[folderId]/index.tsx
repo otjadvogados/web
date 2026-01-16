@@ -1,26 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
-import Table from '@mui/material/Table';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TableCell from '@mui/material/TableCell';
-import TableBody from '@mui/material/TableBody';
-import TableContainer from '@mui/material/TableContainer';
+import TextField from '@mui/material/TextField';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import Chip from '@mui/material/Chip';
 import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
+import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
+import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
+import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
 import TranscriptionViewDialog from 'sections/ai/transcribe/TranscriptionViewDialog';
+import GenerateReportsDialog from 'sections/ai/transcribe/GenerateReportsDialog';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import Permission from 'components/Permission';
 import { TranscriptionRecord, TranscriptionFolder, listTranscriptionFolders, deleteTranscription } from 'api/aiTranscribe';
@@ -36,6 +36,9 @@ export default function TranscriptionFolderPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TranscriptionRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [generateReportsDialogOpen, setGenerateReportsDialogOpen] = useState(false);
+  const [selectedTranscriptionForReport, setSelectedTranscriptionForReport] = useState<TranscriptionRecord | null>(null);
+  const [search, setSearch] = useState('');
 
   const loadFolder = async () => {
     if (!folderId) return;
@@ -113,6 +116,20 @@ export default function TranscriptionFolderPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const applySearchFilter = (items: TranscriptionRecord[], q: string) => {
+    const term = q.trim().toLowerCase();
+    if (!term) return items;
+    return items.filter((item) => 
+      (item.filename || '').toLowerCase().includes(term) ||
+      (item.textPreview || '').toLowerCase().includes(term)
+    );
+  };
+
+  const filteredItems = useMemo(() => {
+    if (!folder || !folder.items) return [];
+    return applySearchFilter(folder.items, search);
+  }, [folder, search]);
+
   const handleRequestDelete = (item: TranscriptionRecord) => {
     setDeleteTarget(item);
     setDeleteDialogOpen(true);
@@ -188,73 +205,192 @@ export default function TranscriptionFolderPage() {
                 </Typography>
               </Stack>
             ) : (
-              <Permission resources={['transcriptions.read']}>
-                <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Arquivo</TableCell>
-                      <TableCell>Preview</TableCell>
-                      <TableCell>Criado em</TableCell>
-                      <TableCell align="right">Ações</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {folder.items.map((item) => (
-                      <TableRow key={item.id} hover>
-                        <TableCell>
-                          <Typography fontWeight={600}>{item.filename}</Typography>
-                        </TableCell>
-                        <TableCell sx={{ maxWidth: 400 }}>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
+              <>
+                {/* Busca */}
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.25}
+                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  justifyContent="space-between"
+                >
+                  <TextField
+                    label="Buscar transcrições"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar por nome..."
+                    sx={{ flex: 1 }}
+                    size="small"
+                  />
+                  <Button variant="outlined" startIcon={<ReloadOutlined />} onClick={loadFolder} disabled={loading}>
+                    Atualizar
+                  </Button>
+                </Stack>
+
+                <Divider />
+
+                {/* Lista de Transcrições */}
+                <Permission resources={['transcriptions.read']}>
+                  {filteredItems.length === 0 ? (
+                    <Stack alignItems="center" sx={{ py: 6 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {search ? 'Nenhum resultado encontrado.' : 'Nenhuma transcrição nesta pasta.'}
+                      </Typography>
+                    </Stack>
+                  ) : (
+                    <>
+                      {/* Header estilo Explorer */}
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5, mt: 0.5 }}>
+                        <Typography variant="subtitle1" fontWeight={800}>
+                          {folder.name || 'Transcrições'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {filteredItems.length} {filteredItems.length === 1 ? 'transcrição' : 'transcrições'}
+                        </Typography>
+                      </Stack>
+
+                      <Box
+                        sx={{
+                          minHeight: '60vh',
+                          p: 2,
+                          display: 'grid',
+                          gridTemplateColumns: {
+                            xs: '1fr',
+                            sm: 'repeat(auto-fill, minmax(300px, 1fr))',
+                            md: 'repeat(auto-fill, minmax(320px, 1fr))',
+                            lg: 'repeat(auto-fill, minmax(340px, 1fr))'
+                          },
+                          gap: 1.5,
+                          alignContent: 'start',
+                          justifyItems: 'stretch'
+                        }}
+                      >
+                        {filteredItems.map((item) => (
+                          <Box
+                            key={item.id}
                             sx={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              maxWidth: '100%'
+                              p: 2,
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: 1.5,
+                              bgcolor: 'background.paper',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                boxShadow: 2,
+                                borderColor: 'primary.main'
+                              }
                             }}
                           >
-                            {item.textPreview || 'Transcrição em processamento...'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>{formatDate(item.createdAt)}</TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            {item.files?.audio?.url && (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                href={item.files.audio.url}
-                                target="_blank"
-                                download
-                              >
-                                Download Áudio
-                              </Button>
-                            )}
-                            <Button size="small" startIcon={<EyeOutlined />} onClick={() => handleViewTranscription(item.id)}>
-                              Ver
-                            </Button>
-                            <Permission resources={['transcriptions.delete']}>
-                              <Tooltip title="Excluir">
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => handleRequestDelete(item)}
-                                >
-                                  <DeleteOutlined />
-                                </IconButton>
-                              </Tooltip>
-                            </Permission>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              </Permission>
+                            <Stack spacing={1.5}>
+                              {/* Cabeçalho da Transcrição */}
+                              <Stack spacing={0.5}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <FileTextOutlined style={{ fontSize: 20, color: folder.customerId ? '#4CAF50' : '#2196F3' }} />
+                                  <Typography fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
+                                    {item.filename}
+                                  </Typography>
+                                </Stack>
+                                {item.textPreview && (
+                                  <Typography variant="caption" color="text.secondary" sx={{
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical'
+                                  }}>
+                                    {item.textPreview}
+                                  </Typography>
+                                )}
+                                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={0.5}>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {formatDate(item.createdAt)}
+                                  </Typography>
+                                  {item.durationSeconds && (
+                                    <>
+                                      <Typography variant="caption" color="text.secondary">•</Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                        {formatDuration(item.durationSeconds)}
+                                      </Typography>
+                                    </>
+                                  )}
+                                </Stack>
+                              </Stack>
+
+                              <Divider />
+
+                              {/* Relatórios se houver */}
+                              {item.reports && item.reports.length > 0 && (
+                                <Stack spacing={1}>
+                                  <Typography variant="subtitle2" fontWeight={600}>
+                                    Relatórios ({item.reports.length})
+                                  </Typography>
+                                  {item.reports.map((report) => (
+                                    <Chip
+                                      key={report.id}
+                                      label={report.reportType}
+                                      size="small"
+                                      variant="outlined"
+                                      color={report.isFinalized ? 'success' : 'default'}
+                                    />
+                                  ))}
+                                </Stack>
+                              )}
+
+                              {/* Ações */}
+                              <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap">
+                                {item.files?.audio?.url && (
+                                  <Tooltip title="Download Áudio">
+                                    <IconButton
+                                      size="small"
+                                      component="a"
+                                      href={item.files.audio.url}
+                                      target="_blank"
+                                      download
+                                    >
+                                      <DownloadOutlined />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                                <Tooltip title="Ver">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleViewTranscription(item.id)}
+                                  >
+                                    <EyeOutlined />
+                                  </IconButton>
+                                </Tooltip>
+                                <Permission resources={['customers.create']}>
+                                  <Tooltip title="Gerar Relatórios">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => {
+                                        setSelectedTranscriptionForReport(item);
+                                        setGenerateReportsDialogOpen(true);
+                                      }}
+                                    >
+                                      <FileTextOutlined />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Permission>
+                                <Permission resources={['transcriptions.delete']}>
+                                  <Tooltip title="Excluir">
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={() => handleRequestDelete(item)}
+                                    >
+                                      <DeleteOutlined />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Permission>
+                              </Stack>
+                            </Stack>
+                          </Box>
+                        ))}
+                      </Box>
+                    </>
+                  )}
+                </Permission>
+              </>
             )}
           </Stack>
         </MainCard>
@@ -299,6 +435,43 @@ export default function TranscriptionFolderPage() {
           ) : undefined
         }
       />
+
+      {/* Dialog de Gerar Relatórios */}
+      {selectedTranscriptionForReport && (
+        <GenerateReportsDialog
+          open={generateReportsDialogOpen}
+          onClose={() => {
+            setGenerateReportsDialogOpen(false);
+            setSelectedTranscriptionForReport(null);
+          }}
+          customerId={selectedTranscriptionForReport.customerId || (folder?.type === 'customer' ? folder.customerId : null)}
+          transcriptionId={selectedTranscriptionForReport.id}
+          onSuccess={(reports) => {
+            // Navega para o primeiro relatório gerado para edição
+            if (reports && reports.length > 0 && reports[0]?.id) {
+              openSnackbar({
+                open: true,
+                message: 'Relatórios gerados! Redirecionando para edição...',
+                variant: 'alert',
+                alert: { color: 'success' }
+              } as any);
+              
+              // Determina o customerId para navegação (pode ser null para relatórios gerais)
+              const customerIdForReport = selectedTranscriptionForReport?.customerId || (folder?.type === 'customer' ? folder.customerId : null);
+              
+              // Se for relatório geral (sem customerId), usa 'general' na rota
+              const routeCustomerId = customerIdForReport || 'general';
+              
+              // Navega para a edição do primeiro relatório
+              setTimeout(() => {
+                navigate(`/ai/reports/${routeCustomerId}/${reports[0].id}/edit`, {
+                  state: { folderId: folder?.id || 'general' }
+                });
+              }, 500);
+            }
+          }}
+        />
+      )}
     </Grid>
   );
 }

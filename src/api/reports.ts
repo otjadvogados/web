@@ -97,7 +97,7 @@ export type FinalizedReport = {
 
 export type ReportEmail = {
   id: string;
-  customerId: string;
+  customerId: string | null; // null para e-mails gerais
   email: string;
   label: string | null;
   createdAt: string;
@@ -109,18 +109,57 @@ export type CreateReportEmailRequest = {
 };
 
 export type UpdateReportEmailRequest = {
+  email?: string;
   label?: string | null;
 };
 
 // ==============================|| ESTRUTURA DE PASTAS ||============================== //
 
+export type ReportFolderResponse = {
+  id: string;
+  type: 'customer' | 'general';
+  name: string;
+  customerId: string | null;
+  reports: Array<{
+    id: string;
+    title: string;
+    reportType: ReportType;
+    createdAt: string;
+    updatedAt: string;
+    isFinalized: boolean;
+    finalizedAt: string | null;
+    sentAt: string | null;
+    pdf: FileReference | null;
+    customerId?: string | null; // Opcional, presente em alguns relatórios
+  }>;
+};
+
 /**
- * Retorna estrutura hierárquica de pastas do cliente
+ * Lista todas as pastas (clientes + pasta geral) com apenas os relatórios
+ * Endpoint: GET /reports - Retorna todos os relatórios organizados por pastas
  */
-export async function getFolderStructure(customerId: string): Promise<FolderStructure> {
-  const { data } = await axios.get<FolderStructure>(`/customers/${customerId}/reports/folder-structure`);
-  return data;
+export async function listReportFolders(): Promise<ReportFolderResponse[]> {
+  const { data } = await axios.get('/reports');
+  
+  // O backend pode retornar { folders: [...] } ou diretamente um array
+  if (Array.isArray(data)) {
+    return data;
+  } else if (data && typeof data === 'object' && 'folders' in data && Array.isArray((data as any).folders)) {
+    return (data as any).folders;
+  }
+  
+  return [];
 }
+
+/**
+ * @deprecated Esta função foi removida. Use listReportFolders() e filtre pela pasta desejada.
+ * A rota GET /customers/:customerId/reports/folder-structure foi removida do backend.
+ * Use GET /reports para obter todas as pastas com seus relatórios.
+ */
+// export async function getFolderStructure(customerId: string): Promise<FolderStructure> {
+//   const { data } = await axios.get<FolderStructure>(`/customers/${customerId}/reports/folder-structure`);
+//   return data;
+// }
 
 // ==============================|| TRANSCRIÇÕES ||============================== //
 
@@ -164,14 +203,37 @@ export async function getReport(customerId: string, reportId: string): Promise<C
 }
 
 /**
- * Gera relatórios para uma transcrição
+ * Gera relatórios para uma transcrição vinculada a um cliente
+ * Endpoint: POST /customers/:customerId/reports/generate
  */
-export async function generateReports(
+export async function generateCustomerReports(
   customerId: string,
   request: GenerateReportsRequest
 ): Promise<CustomerReport[]> {
   const { data } = await axios.post<CustomerReport[]>(`/customers/${customerId}/reports/generate`, request);
   return data;
+}
+
+/**
+ * Gera relatórios gerais (sem cliente vinculado)
+ * Endpoint: POST /reports/generate
+ */
+export async function generateGeneralReports(
+  request: GenerateReportsRequest
+): Promise<CustomerReport[]> {
+  const { data } = await axios.post<CustomerReport[]>(`/reports/generate`, request);
+  return data;
+}
+
+/**
+ * Gera relatórios (wrapper que escolhe o endpoint correto)
+ * @deprecated Use generateCustomerReports ou generateGeneralReports diretamente
+ */
+export async function generateReports(
+  customerId: string,
+  request: GenerateReportsRequest
+): Promise<CustomerReport[]> {
+  return generateCustomerReports(customerId, request);
 }
 
 /**
@@ -187,27 +249,90 @@ export async function updateReport(
 }
 
 /**
- * Finaliza e envia relatório (gera PDF e envia por e-mail)
+ * Finaliza e envia relatório de cliente (gera PDF e envia por e-mail)
+ * Endpoint: POST /customers/:customerId/reports/:reportId/finalize
  */
-export async function finalizeReport(customerId: string, reportId: string): Promise<FinalizedReport> {
+export async function finalizeCustomerReport(customerId: string, reportId: string): Promise<FinalizedReport> {
   const { data } = await axios.post<FinalizedReport>(`/customers/${customerId}/reports/${reportId}/finalize`);
   return data;
+}
+
+/**
+ * Finaliza e envia relatório geral (gera PDF e envia por e-mail)
+ * Endpoint: POST /reports/:reportId/finalize
+ */
+export async function finalizeGeneralReport(reportId: string): Promise<FinalizedReport> {
+  const { data } = await axios.post<FinalizedReport>(`/reports/${reportId}/finalize`);
+  return data;
+}
+
+/**
+ * Finaliza e envia relatório (wrapper que escolhe o endpoint correto)
+ * @deprecated Use finalizeCustomerReport ou finalizeGeneralReport diretamente
+ */
+export async function finalizeReport(customerId: string, reportId: string): Promise<FinalizedReport> {
+  return finalizeCustomerReport(customerId, reportId);
+}
+
+/**
+ * Deleta um relatório
+ * Endpoint: DELETE /reports/:reportId
+ */
+export async function deleteReport(reportId: string): Promise<void> {
+  await axios.delete(`/reports/${reportId}`);
 }
 
 // ==============================|| E-MAILS ||============================== //
 
 /**
- * Lista e-mails cadastrados para receber relatórios
+ * Lista e-mails gerais cadastrados para receber relatórios gerais
+ * Endpoint: GET /report-emails
  */
-export async function getReportEmails(customerId: string): Promise<ReportEmail[]> {
+export async function getGeneralReportEmails(): Promise<ReportEmail[]> {
+  const { data } = await axios.get<ReportEmail[]>('/report-emails');
+  return data;
+}
+
+/**
+ * Cadastra e-mail geral para receber relatórios gerais
+ * Endpoint: POST /report-emails
+ */
+export async function createGeneralReportEmail(request: CreateReportEmailRequest): Promise<ReportEmail> {
+  const { data } = await axios.post<ReportEmail>('/report-emails', request);
+  return data;
+}
+
+/**
+ * Atualiza label de e-mail geral
+ * Endpoint: PATCH /report-emails/:emailId
+ */
+export async function updateGeneralReportEmail(emailId: string, request: UpdateReportEmailRequest): Promise<ReportEmail> {
+  const { data } = await axios.patch<ReportEmail>(`/report-emails/${emailId}`, request);
+  return data;
+}
+
+/**
+ * Remove e-mail geral
+ * Endpoint: DELETE /report-emails/:emailId
+ */
+export async function deleteGeneralReportEmail(emailId: string): Promise<void> {
+  await axios.delete(`/report-emails/${emailId}`);
+}
+
+/**
+ * Lista e-mails cadastrados para receber relatórios de um cliente específico
+ * Endpoint: GET /customers/:customerId/report-emails
+ */
+export async function getCustomerReportEmails(customerId: string): Promise<ReportEmail[]> {
   const { data } = await axios.get<ReportEmail[]>(`/customers/${customerId}/report-emails`);
   return data;
 }
 
 /**
- * Adiciona um e-mail para receber relatórios
+ * Cadastra e-mail para receber relatórios de um cliente específico
+ * Endpoint: POST /customers/:customerId/report-emails
  */
-export async function createReportEmail(
+export async function createCustomerReportEmail(
   customerId: string,
   request: CreateReportEmailRequest
 ): Promise<ReportEmail> {
@@ -216,9 +341,10 @@ export async function createReportEmail(
 }
 
 /**
- * Atualiza um e-mail (principalmente o label)
+ * Atualiza label de e-mail de cliente
+ * Endpoint: PATCH /customers/:customerId/report-emails/:emailId
  */
-export async function updateReportEmail(
+export async function updateCustomerReportEmail(
   customerId: string,
   emailId: string,
   request: UpdateReportEmailRequest
@@ -228,9 +354,10 @@ export async function updateReportEmail(
 }
 
 /**
- * Remove um e-mail da lista
+ * Remove e-mail de cliente
+ * Endpoint: DELETE /customers/:customerId/report-emails/:emailId
  */
-export async function deleteReportEmail(customerId: string, emailId: string): Promise<void> {
+export async function deleteCustomerReportEmail(customerId: string, emailId: string): Promise<void> {
   await axios.delete(`/customers/${customerId}/report-emails/${emailId}`);
 }
 

@@ -24,7 +24,7 @@ import { openSnackbar } from 'api/snackbar';
 import { listCustomersAdvanced, type Customer, sortCustomersMatrizFilialPF } from 'api/customers';
 import {
   getReports,
-  getFolderStructure,
+  listReportFolders,
   type CustomerReport,
   type FolderStructure,
   ReportType
@@ -96,12 +96,23 @@ export default function ReportsPage() {
     async function load() {
       setLoading(true);
       try {
-        const [folderData, reportsData] = await Promise.all([
-          getFolderStructure(selectedCustomer.id),
-          getReports(selectedCustomer.id)
-        ]);
+        // Busca todas as pastas e filtra pela pasta do cliente selecionado
+        const allFolders = await listReportFolders();
+        const customerFolder = allFolders.find(f => f.customerId === selectedCustomer.id);
+        
+        const reportsData = await getReports(selectedCustomer.id);
         if (!alive) return;
-        setFolderStructure(folderData);
+        
+        // Converte a estrutura da pasta para o formato FolderStructure esperado
+        if (customerFolder) {
+          setFolderStructure({
+            customerId: customerFolder.customerId!,
+            folderName: customerFolder.name,
+            items: customerFolder.items
+          });
+        } else {
+          setFolderStructure(null);
+        }
         setReports(reportsData);
       } catch (err: any) {
         if (!alive) return;
