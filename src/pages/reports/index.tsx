@@ -94,6 +94,8 @@ export default function ReportsPage() {
 
     let alive = true;
     async function load() {
+      if (!selectedCustomer) return;
+      
       setLoading(true);
       try {
         // Busca todas as pastas e filtra pela pasta do cliente selecionado
@@ -104,11 +106,12 @@ export default function ReportsPage() {
         if (!alive) return;
         
         // Converte a estrutura da pasta para o formato FolderStructure esperado
+        // Nota: ReportFolderResponse agora usa 'reports' ao invés de 'items'
         if (customerFolder) {
           setFolderStructure({
             customerId: customerFolder.customerId!,
             folderName: customerFolder.name,
-            items: customerFolder.items
+            items: [] // Não usado mais, mantido para compatibilidade do tipo FolderStructure
           });
         } else {
           setFolderStructure(null);
