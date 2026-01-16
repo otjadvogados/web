@@ -63,19 +63,13 @@ const pages: NavItemType = {
           url: '/ai/rules',
           permissions: ['ai.rules.read', 'ai.rules.create', 'ai.rules.update', 'ai.rules.delete'],
         },
-        {
-          id: 'ai-usage',
-          title: 'Uso da IA',
-          type: 'item',
-          url: '/ai/usage',
-          permissions: ['ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete'],
-        },
+        
         {
           id: 'dashboard',
           title: 'Dashboard',
           type: 'item',
           url: '/dashboard',
-          permissions: ['dashboard.usage-ranking.read'],
+          permissions: ['dashboard.usage-ranking.read', 'ai.usage.read', 'ai.usage.create', 'ai.usage.update', 'ai.usage.delete'],
         },
       ]
     },

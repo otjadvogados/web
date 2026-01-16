@@ -7,8 +7,6 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
@@ -34,7 +32,6 @@ const labelCustomer = (c?: CustomerOption | null) => (c?.displayName ?? c?.name 
 
 export default function TranscriptionUploadDialog({ open, onClose, onSuccess }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [diarize, setDiarize] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -50,7 +47,6 @@ export default function TranscriptionUploadDialog({ open, onClose, onSuccess }: 
     if (!open) {
       // Reset form when dialog closes
       setSelectedFile(null);
-      setDiarize(false);
       setIsSubmitting(false);
       setSelectedCustomer(null);
       setCustomerSearchTerm('');
@@ -167,7 +163,6 @@ export default function TranscriptionUploadDialog({ open, onClose, onSuccess }: 
       setIsSubmitting(true);
 
       const params: TranscribeRequestParams = {};
-      if (diarize) params.diarize = diarize;
       if (selectedCustomer?.id) params.customerId = selectedCustomer.id;
 
       const record = await transcribeFile(selectedFile, params);
@@ -339,13 +334,6 @@ export default function TranscriptionUploadDialog({ open, onClose, onSuccess }: 
             fullWidth
           />
 
-          {/* Opções */}
-          <Stack spacing={2}>
-            <FormControlLabel
-              control={<Checkbox checked={diarize} onChange={(e) => setDiarize(e.target.checked)} />}
-              label="Diarização (identificar diferentes falantes)"
-            />
-          </Stack>
         </Stack>
       </DialogContent>
 

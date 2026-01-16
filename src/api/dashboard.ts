@@ -11,6 +11,7 @@ export type UsageRankingItem = {
   userId: string;
   userName: string;
   imageUrl?: string;
+  avatarFileId?: string | null; // ID do arquivo de avatar para cache HTTP
   totalSeconds: number;
   totalHours: number;
   formattedTotal: string;

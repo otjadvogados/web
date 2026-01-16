@@ -5,16 +5,32 @@ import Divider from '@mui/material/Divider';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Avatar from '@mui/material/Avatar';
+import Avatar from 'components/@extended/Avatar';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Theme, useTheme } from '@mui/material/styles';
 import TrophyOutlined from '@ant-design/icons/TrophyOutlined';
 import { UsageRankingItem } from 'api/dashboard';
+import useAvatarUrl from 'hooks/useAvatarUrl';
 
 interface UsageRankingSectionProps {
   ranking: UsageRankingItem[];
   loading: boolean;
+}
+
+// Avatar protegido por token
+function UserAvatar({ userId, name, avatarFileId }: { userId: string; name: string; avatarFileId?: string | null }) {
+  const url = useAvatarUrl(userId, avatarFileId);
+  return (
+    <Avatar
+      src={url ?? undefined}
+      alt={name}
+      size="md"
+      color="primary"
+    >
+      {name?.charAt(0)?.toUpperCase() || 'U'}
+    </Avatar>
+  );
 }
 
 export default function UsageRankingSection({ ranking, loading }: UsageRankingSectionProps) {
@@ -215,9 +231,7 @@ export default function UsageRankingSection({ ranking, loading }: UsageRankingSe
               <Card key={item.userId} variant="outlined" sx={{ '&:hover': { boxShadow: 2 } }}>
                 <CardContent>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Avatar src={item.imageUrl} sx={{ width: 48, height: 48 }}>
-                      {item.userName.charAt(0).toUpperCase()}
-                    </Avatar>
+                    <UserAvatar userId={item.userId} name={item.userName} avatarFileId={item.avatarFileId} />
                     <Box sx={{ flex: 1 }}>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
                         <Typography variant="h6" fontWeight={600}>
