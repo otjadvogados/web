@@ -92,17 +92,18 @@ export default function ReportsPage() {
       return;
     }
 
+    // Captura o valor do selectedCustomer para usar dentro da função assíncrona
+    const currentCustomer = selectedCustomer;
+    
     let alive = true;
     async function load() {
-      if (!selectedCustomer) return;
-      
       setLoading(true);
       try {
         // Busca todas as pastas e filtra pela pasta do cliente selecionado
         const allFolders = await listReportFolders();
-        const customerFolder = allFolders.find(f => f.customerId === selectedCustomer.id);
+        const customerFolder = allFolders.find(f => f.customerId === currentCustomer.id);
         
-        const reportsData = await getReports(selectedCustomer.id);
+        const reportsData = await getReports(currentCustomer.id);
         if (!alive) return;
         
         // Converte a estrutura da pasta para o formato FolderStructure esperado

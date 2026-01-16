@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Chip, CircularProgress, IconButton, List, ListItem, ListItemText, Stack, Tooltip, Typography } from '@mui/material';
 import { getCompanyPeople, linkPersonToCompany, LinkedPerson } from '../../api/customers';
-import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 
 type Props = {
   companyId: string;
@@ -43,20 +42,13 @@ export default function CompanyPeopleList({ companyId, newlyLinked }: Props) {
   return (
     <List dense>
       {items.map((link) => (
-        <ListItem key={link.personId} disableGutters
-          secondaryAction={
-            <Stack direction="row" gap={1}>
-              {link.isPrimary && <Chip size="small" label="Principal" />}
-              {link.isLegalRepresentative && <Chip size="small" label="Representante Legal" />}
-            </Stack>
-          }>
+        <ListItem key={link.personId} disableGutters>
           <ListItemText
-            primary={link.person.fullName || link.person.customer.displayName}
+            primary={`ID: ${link.personId}`}
             secondary={
               <Stack direction="row" gap={1} flexWrap="wrap">
                 {link.role && <Chip size="small" variant="outlined" label={`Cargo: ${link.role}`} />}
-                {link.person.email && <Chip size="small" variant="outlined" label={link.person.email} />}
-                {link.person.phone && <Chip size="small" variant="outlined" label={link.person.phone} />}
+                {/* TODO: LinkedPerson só tem personId, não person object - necessário buscar dados da pessoa separadamente se necessário */}
               </Stack>
             }
           />

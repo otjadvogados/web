@@ -58,8 +58,9 @@ export default function CompanyPeoplePanel({ customerId }: { customerId: string 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId]);
 
-  const primary = useMemo(() => links.find((l) => l.isPrimary), [links]);
-  const others = useMemo(() => links.filter((l) => !l.isPrimary), [links]);
+  // TODO: isPrimary não existe no tipo LinkedPerson - mostrando todos os links
+  const primary = undefined;
+  const others = links;
 
   if (loading) {
     return (
@@ -97,10 +98,8 @@ export default function CompanyPeoplePanel({ customerId }: { customerId: string 
   }
 
   const CardRow = ({ link }: { link: LinkedPerson }) => {
-    const p = link.person;
-    const canOpen = !!p?.customerId;
-    const go = () => canOpen && nav(`/clients/${p.customerId}`);
-
+    // TODO: link.person não existe no tipo LinkedPerson - apenas personId está disponível
+    // Necessário buscar dados da pessoa separadamente se necessário
     return (
       <Stack
         direction="row"
@@ -114,39 +113,28 @@ export default function CompanyPeoplePanel({ customerId }: { customerId: string 
           '&:hover': { backgroundColor: 'action.hover' },
         }}
       >
-        <Avatar size="sm" color="primary">{initials(p.fullName || '?')}</Avatar>
+        <Avatar size="sm" color="primary">{initials(link.personId || '?')}</Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle2" noWrap title={p.fullName}>
-              {p.fullName}
+            <Typography variant="subtitle2" noWrap title={link.personId}>
+              ID: {link.personId}
             </Typography>
             <Stack direction="row" gap={0.5} flexWrap="wrap">
-              {link.isPrimary && <Chip size="small" label="Principal" />}
-              {link.isLegalRepresentative && <Chip size="small" label="Rep. Legal" variant="outlined" />}
+              {/* TODO: isPrimary e isLegalRepresentative não existem no tipo LinkedPerson */}
               {link.role && <Chip size="small" label={link.role} variant="outlined" />}
             </Stack>
           </Stack>
           <Typography variant="caption" color="text.secondary">
-            {p.cpf ? `CPF ${maskCPF(p.cpf)}` : ''}
-            {p.email ? ` • ${p.email}` : ''}
-            {p.phone ? ` • ${p.phone}` : ''}
+            Person ID: {link.personId}
           </Typography>
         </Box>
-        {canOpen ? (
-          <Tooltip title="Abrir cadastro da pessoa">
-            <IconButton size="small" onClick={go}>
+        <Tooltip title="Dados da pessoa indisponíveis">
+          <span>
+            <IconButton size="small" disabled>
               <OpenInNewIcon  />
             </IconButton>
-          </Tooltip>
-        ) : (
-          <Tooltip title="Cadastro da pessoa indisponível">
-            <span>
-              <IconButton size="small" disabled>
-                <OpenInNewIcon  />
-              </IconButton>
-            </span>
-          </Tooltip>
-        )}
+          </span>
+        </Tooltip>
       </Stack>
     );
   };

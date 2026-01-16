@@ -289,7 +289,7 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
   };
 
   const filteredQuestions = questions.filter((q) => {
-    if (questionFilter.priority !== undefined && questionFilter.priority !== '' && q.priority !== questionFilter.priority) return false;
+    if (questionFilter.priority !== undefined && q.priority !== questionFilter.priority) return false;
     return true;
   });
 

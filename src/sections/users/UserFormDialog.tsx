@@ -217,8 +217,8 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                        onBlur={handleBlur} 
                        error={Boolean(touched.email && errors.email)}
                        autoComplete="email"
-                       form="user-form"
                        inputProps={{
+                         'form': 'user-form',
                          'data-form-type': 'user-registration',
                          'autocomplete': 'email',
                          'data-lpignore': 'false'

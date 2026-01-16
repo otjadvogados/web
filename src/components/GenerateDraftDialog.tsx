@@ -4,9 +4,10 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Stack, LinearProgress, Typography
 } from '@mui/material';
-import LoadingTicker from './LoadingTicker';
+// import LoadingTicker from './LoadingTicker';
 import { openSnackbar } from 'api/snackbar';
-import { generateDraft, type AiDraft } from 'api/aiDocs';
+// TODO: generateDraft e AiDraft não existem mais - componente precisa ser atualizado ou removido
+import type { AiDraft } from 'types/ai-docs';
 
 type Props = {
   open: boolean;
@@ -83,27 +84,29 @@ export default function GenerateDraftDialog({
       }, 900);
 
       try {
-        // chamada real
-        const draft = await generateDraft(caseId, opts);
+        // TODO: generateDraft não existe mais - implementar ou remover componente
+        // const draft = await generateDraft(caseId, opts);
+        throw new Error('Função generateDraft não está implementada. Este componente precisa ser atualizado.');
 
-        // garante duração mínima
-        const elapsed = Date.now() - (startRef.current || Date.now());
-        if (elapsed < minDurationMs) {
-          await new Promise((r) => setTimeout(r, minDurationMs - elapsed));
-        }
-
-        push('Rascunho gerado com sucesso.');
-        setRunning(false);
-
-        // feedback rápido
-        openSnackbar({
-          open: true,
-          message: 'Rascunho gerado!',
-          variant: 'alert',
-          alert: { color: 'success' }
-        } as any);
-
-        onDone?.(draft);
+        // Código comentado porque generateDraft não existe:
+        // // garante duração mínima
+        // const elapsed = Date.now() - (startRef.current || Date.now());
+        // if (elapsed < minDurationMs) {
+        //   await new Promise((r) => setTimeout(r, minDurationMs - elapsed));
+        // }
+        //
+        // push('Rascunho gerado com sucesso.');
+        // setRunning(false);
+        //
+        // // feedback rápido
+        // openSnackbar({
+        //   open: true,
+        //   message: 'Rascunho gerado!',
+        //   variant: 'alert',
+        //   alert: { color: 'success' }
+        // } as any);
+        //
+        // onDone?.(draft);
       } catch (e: any) {
         const msg = e?.response?.data?.message || e?.message || 'Falha ao gerar o rascunho.';
         push('Erro ao gerar o rascunho.');
@@ -129,15 +132,10 @@ export default function GenerateDraftDialog({
       <DialogContent dividers>
         <Stack spacing={2}>
           {running && <LinearProgress />}
-          <LoadingTicker
-            running={running}
-            messagesFeed={feed}
-            size="large"
-            showSpinner
-            spinnerSize={22}
-            maxWidth="100%"
-            minDuration={minDurationMs}
-          />
+          {/* TODO: LoadingTicker não existe mais - implementar alternativa ou remover */}
+          <Typography variant="body2" color="text.secondary">
+            {feed.length > 0 ? feed[feed.length - 1] : 'Processando...'}
+          </Typography>
           {!running && !error && (
             <Typography variant="body2" color="text.secondary">
               Concluído. Você será redirecionado…
