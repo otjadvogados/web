@@ -12,12 +12,13 @@ import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import TableContainer from '@mui/material/TableContainer';
-import Avatar from '@mui/material/Avatar';
+import Avatar from 'components/@extended/Avatar';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import { listCaseResults, CaseResult } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
+import useAvatarUrl from 'hooks/useAvatarUrl';
 
 interface PieceProductivitySectionProps {
   startDate?: string;
@@ -59,6 +60,21 @@ const formatDuration = (seconds: number) => {
     return `${secs}s`;
   }
 };
+
+// Avatar protegido por token
+function UserAvatar({ userId, name }: { userId: string; name: string }) {
+  const url = useAvatarUrl(userId, null);
+  return (
+    <Avatar
+      src={url ?? undefined}
+      alt={name}
+      size="sm"
+      color="primary"
+    >
+      {name?.charAt(0)?.toUpperCase() || 'U'}
+    </Avatar>
+  );
+}
 
 export default function PieceProductivitySection({ startDate, endDate, getDefaultStartDate }: PieceProductivitySectionProps) {
   const [loading, setLoading] = useState(false);
@@ -346,9 +362,7 @@ export default function PieceProductivitySection({ startDate, endDate, getDefaul
                     <TableCell>
                       {item.finalizedBy ? (
                         <Stack direction="row" spacing={1} alignItems="center">
-                          <Avatar sx={{ width: 24, height: 24 }}>
-                            {item.finalizedBy.name.charAt(0).toUpperCase()}
-                          </Avatar>
+                          <UserAvatar userId={item.finalizedBy.id} name={item.finalizedBy.name} />
                           <Typography variant="body2">{item.finalizedBy.name}</Typography>
                         </Stack>
                       ) : (
@@ -372,9 +386,7 @@ export default function PieceProductivitySection({ startDate, endDate, getDefaul
                     <TableCell>
                       {item.approvedBy ? (
                         <Stack direction="row" spacing={1} alignItems="center">
-                          <Avatar sx={{ width: 24, height: 24 }}>
-                            {item.approvedBy.name.charAt(0).toUpperCase()}
-                          </Avatar>
+                          <UserAvatar userId={item.approvedBy.id} name={item.approvedBy.name} />
                           <Typography variant="body2">{item.approvedBy.name}</Typography>
                         </Stack>
                       ) : (
@@ -398,9 +410,7 @@ export default function PieceProductivitySection({ startDate, endDate, getDefaul
                     <TableCell>
                       {item.releasedBy ? (
                         <Stack direction="row" spacing={1} alignItems="center">
-                          <Avatar sx={{ width: 24, height: 24 }}>
-                            {item.releasedBy.name.charAt(0).toUpperCase()}
-                          </Avatar>
+                          <UserAvatar userId={item.releasedBy.id} name={item.releasedBy.name} />
                           <Typography variant="body2">{item.releasedBy.name}</Typography>
                         </Stack>
                       ) : (
