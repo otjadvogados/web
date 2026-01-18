@@ -1,50 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo, Fragment } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import Divider from '@mui/material/Divider';
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Avatar from 'components/@extended/Avatar';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
-import { Theme, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import TrophyOutlined from '@ant-design/icons/TrophyOutlined';
 import { UsageRankingItem } from 'api/dashboard';
-import useAvatarUrl from 'hooks/useAvatarUrl';
 
 interface UsageRankingSectionProps {
   ranking: UsageRankingItem[];
   loading: boolean;
 }
 
-// Avatar protegido por token
-function UserAvatar({ userId, name, avatarFileId }: { userId: string; name: string; avatarFileId?: string | null }) {
-  const url = useAvatarUrl(userId, avatarFileId);
-  return (
-    <Avatar
-      src={url ?? undefined}
-      alt={name}
-      size="md"
-      color="primary"
-    >
-      {name?.charAt(0)?.toUpperCase() || 'U'}
-    </Avatar>
-  );
-}
-
 export default function UsageRankingSection({ ranking, loading }: UsageRankingSectionProps) {
   const theme = useTheme();
 
-  // Calcular máximo de horas para o gráfico
-  const maxHours = useMemo(() => {
-    if (ranking.length === 0) return 4;
-    const max = Math.max(...ranking.map(item => item.totalHours));
-    // Arredondar para cima para o próximo múltiplo de 1h
-    return Math.ceil(max);
-  }, [ranking]);
-
-  // Formatar horas para exibição no eixo Y
   const formatHours = (hours: number) => {
     if (hours === 0) return '0min';
     if (hours < 1) {
@@ -57,19 +27,30 @@ export default function UsageRankingSection({ ranking, loading }: UsageRankingSe
     return `${h}h${m}min`;
   };
 
-  return (
-    <Box sx={{ mt: 3 }}>
-      <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-        Ranking de Uso
-      </Typography>
+  const maxHours = useMemo(() => {
+    if (ranking.length === 0) return 0;
+    return Math.max(...ranking.map((item) => item.totalHours));
+  }, [ranking]);
 
-      {/* Gráfico de Barras Horizontal */}
-      {loading && ranking.length === 0 ? (
-        <Stack alignItems="center" sx={{ py: 6 }}>
-          <CircularProgress />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Carregando ranking...
-          </Typography>
+  // Ticks do eixo X (horas) — 0%, 25%, 50%, 75%, 100%
+  const xTicks = useMemo(() => {
+    if (maxHours <= 0) return [0];
+    const tickCount = 5;
+    return Array.from({ length: tickCount }, (_, i) => (maxHours * i) / (tickCount - 1));
+  }, [maxHours]);
+
+  return (
+    <Box>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+        <TrophyOutlined />
+        <Typography variant="h6" fontWeight={700}>
+          Ranking de Uso
+        </Typography>
+      </Stack>
+
+      {loading ? (
+        <Stack alignItems="center" sx={{ py: 3 }}>
+          <CircularProgress size={24} />
         </Stack>
       ) : ranking.length > 0 ? (
         <>
@@ -77,219 +58,159 @@ export default function UsageRankingSection({ ranking, loading }: UsageRankingSe
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               Horas
             </Typography>
+
             <Box
               sx={{
-                position: 'relative',
-                height: Math.max(200, ranking.length * 60),
-                borderLeft: `2px solid ${theme.palette.divider}`,
-                borderBottom: `2px solid ${theme.palette.divider}`,
-                pl: 2,
-                pb: 2
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '150px 1fr' },
+                columnGap: 1.5,
+                rowGap: 1.5,
+                alignItems: 'center'
               }}
             >
-              {/* Eixo Y - Horas */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  left: -40,
-                  top: 0,
-                  bottom: 20,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  width: 40
-                }}
-              >
-                {Array.from({ length: maxHours + 1 }, (_, i) => i).map((h) => (
-                  <Typography
-                    key={h}
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{
-                      textAlign: 'right',
-                      pr: 1,
-                      transform: 'translateY(-50%)'
-                    }}
-                  >
-                    {formatHours(h)}
-                  </Typography>
-                ))}
-              </Box>
-
-              {/* Barras */}
-              <Stack spacing={2} sx={{ height: '100%', justifyContent: 'space-between' }}>
-                {ranking.map((item, index) => {
-                  const barWidth = (item.totalHours / maxHours) * 100;
-                  const colors = [
-                    theme.palette.primary.main,
-                    theme.palette.secondary.main,
-                    theme.palette.warning.main,
-                    theme.palette.info.main,
-                    theme.palette.success.main
-                  ];
-                  const color = colors[index % colors.length];
-
+              {/* Eixo X (ticks de horas) — só no desktop */}
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
+              <Box sx={{ position: 'relative', height: 26, display: { xs: 'none', sm: 'block' }, pr: 1 }}>
+                {xTicks.map((t, i) => {
+                  const pct = maxHours === 0 ? 0 : (t / maxHours) * 100;
+                  const isLast = i === xTicks.length - 1;
                   return (
-                    <Box key={item.userId} sx={{ position: 'relative' }}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography
-                          variant="body2"
-                          sx={{ minWidth: 100, textAlign: 'right' }}
-                          fontWeight={600}
-                        >
-                          {item.userName}
-                        </Typography>
-                        <Box
-                          sx={{
-                            flex: 1,
-                            position: 'relative',
-                            height: 40,
-                            bgcolor: theme.palette.grey[200],
-                            borderRadius: 1,
-                            overflow: 'hidden'
-                          }}
-                        >
+                    <Box
+                      key={`${t}-${i}`}
+                      sx={{
+                        position: 'absolute',
+                        left: `${pct}%`,
+                        top: 0,
+                        transform: isLast ? 'translateX(-100%)' : 'translateX(-50%)'
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {formatHours(t)}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Box>
+              {/* Linhas (usuário + barra) */}
+              {ranking.map((item, index) => {
+                const barWidth = maxHours === 0 ? 0 : (item.totalHours / maxHours) * 100;
+                const colors = [
+                  theme.palette.primary.main,
+                  theme.palette.secondary.main,
+                  theme.palette.warning.main,
+                  theme.palette.info.main,
+                  theme.palette.success.main
+                ];
+                const color = colors[index % colors.length];
+                return (
+                  <Fragment key={item.userId}>
+                    <Typography
+                      variant="body2"
+                      fontWeight={600}
+                      noWrap
+                      title={item.userName}
+                      sx={{
+                        textAlign: 'left'
+                      }}
+                    >
+                      {item.userName}
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        position: 'relative',
+                        height: 40,
+                        borderRadius: 1,
+                        bgcolor: theme.palette.action.hover,
+                        overflow: 'visible'
+                      }}
+                    >
+                      {/* Gridlines (marcas do eixo X) */}
+                      {xTicks.slice(1).map((t, i) => {
+                        const pct = maxHours === 0 ? 0 : (t / maxHours) * 100;
+                        return (
                           <Box
+                            key={`grid-${item.userId}-${i}`}
                             sx={{
                               position: 'absolute',
-                              left: 0,
+                              left: `${pct}%`,
                               top: 0,
                               bottom: 0,
-                              width: `${barWidth}%`,
-                              bgcolor: color,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'flex-end',
-                              pr: 2,
-                              transition: 'width 0.3s ease'
+                              width: 1,
+                              bgcolor: theme.palette.divider,
+                              opacity: 0.35
                             }}
-                          >
-                            {barWidth > 15 && (
-                              <Typography variant="caption" sx={{ color: 'white', fontWeight: 600 }}>
-                                {item.formattedTotal}
-                              </Typography>
-                            )}
-                          </Box>
-                          {barWidth <= 15 && (
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                position: 'absolute',
-                                left: `${barWidth}%`,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                ml: 1,
-                                fontWeight: 600
-                              }}
-                            >
-                              {item.formattedTotal}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Stack>
-                    </Box>
-                  );
-                })}
-              </Stack>
+                          />
+                        );
+                      })}
 
-              {/* Legenda */}
-              <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                {ranking.map((item, index) => {
-                  const colors = [
-                    theme.palette.primary.main,
-                    theme.palette.secondary.main,
-                    theme.palette.warning.main,
-                    theme.palette.info.main,
-                    theme.palette.success.main
-                  ];
-                  const color = colors[index % colors.length];
-                  return (
-                    <Stack key={item.userId} direction="row" spacing={0.5} alignItems="center">
+                      {/* Barra preenchida */}
                       <Box
                         sx={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: '50%',
-                          bgcolor: color
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: `${barWidth}%`,
+                          bgcolor: color,
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-end',
+                          pr: 2,
+                          transition: 'width 0.3s ease',
+                          overflow: 'hidden'
                         }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {item.userName}
-                      </Typography>
-                    </Stack>
-                  );
-                })}
-              </Box>
+                      >
+                        {barWidth > 22 && (
+                          <Typography
+                            variant="caption"
+                            sx={{ color: 'common.white', fontWeight: 700, whiteSpace: 'nowrap' }}
+                          >
+                            {item.formattedTotal}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </Fragment>
+                );
+              })}
+            </Box>
+            {/* Legenda */}
+            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              {ranking.map((item, index) => {
+                const colors = [
+                  theme.palette.primary.main,
+                  theme.palette.secondary.main,
+                  theme.palette.warning.main,
+                  theme.palette.info.main,
+                  theme.palette.success.main
+                ];
+                const color = colors[index % colors.length];
+                return (
+                  <Stack key={item.userId} direction="row" spacing={0.5} alignItems="center">
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        bgcolor: color
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      {item.userName}
+                    </Typography>
+                  </Stack>
+                );
+              })}
             </Box>
           </Box>
-
-          <Divider />
-
-          {/* Lista de Rankings */}
-          <Stack spacing={2}>
-            {ranking.map((item) => (
-              <Card key={item.userId} variant="outlined" sx={{ '&:hover': { boxShadow: 2 } }}>
-                <CardContent>
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <UserAvatar userId={item.userId} name={item.userName} avatarFileId={item.avatarFileId} />
-                    <Box sx={{ flex: 1 }}>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                        <Typography variant="h6" fontWeight={600}>
-                          {item.userName}
-                        </Typography>
-                        {item.rank === 1 && (
-                          <Chip
-                            icon={<TrophyOutlined />}
-                            label="Líder"
-                            color="warning"
-                            size="small"
-                            sx={{ height: 24 }}
-                          />
-                        )}
-                      </Stack>
-                      <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" gap={1}>
-                        <Typography variant="body2" color="text.secondary">
-                          <strong>{item.formattedTotal}</strong> total
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          <strong>{item.sessionsCount}</strong> {item.sessionsCount === 1 ? 'sessão' : 'sessões'}
-                        </Typography>
-                      </Stack>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
         </>
       ) : (
-        <Card variant="outlined" sx={{ bgcolor: 'background.default' }}>
-          <CardContent>
-            <Stack alignItems="center" spacing={2} sx={{ py: 4 }}>
-              <Box
-                sx={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: '50%',
-                  bgcolor: 'action.hover',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <TrophyOutlined style={{ fontSize: 32, color: theme.palette.text.secondary }} />
-              </Box>
-              <Typography variant="h6" color="text.secondary" fontWeight={600}>
-                Nenhum ranking disponível
-              </Typography>
-              <Typography variant="body2" color="text.secondary" align="center" sx={{ maxWidth: 400 }}>
-                Não há dados de uso para o período selecionado. Tente ajustar as datas ou verifique se há usuários com atividade no sistema.
-              </Typography>
-            </Stack>
-          </CardContent>
-        </Card>
+        <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+          Nenhum dado de ranking encontrado para o período selecionado.
+        </Typography>
       )}
     </Box>
   );
 }
-
