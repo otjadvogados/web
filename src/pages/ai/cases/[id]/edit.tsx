@@ -566,12 +566,7 @@ export default function EditCasePage() {
                 open={Boolean(downloadMenuAnchor)}
                 onClose={handleDownloadMenuClose}
               >
-                <MenuItem
-                  onClick={handleDownloadPdf}
-                  disabled={downloadingPdf || downloading}
-                >
-                  Baixar PDF
-                </MenuItem>
+               
                 <MenuItem
                   onClick={handleDownloadDocx}
                   disabled={downloading || downloadingPdf}
