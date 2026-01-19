@@ -162,15 +162,8 @@ export default function AuditTab({ caseId, hasAudit, hasQuestions, onQuestionsGe
       
       return data;
     } catch (err: any) {
-      // Se não houver auditoria, apenas limpa os dados
-      if (err?.response?.status !== 404) {
-        openSnackbar({
-          open: true,
-          message: err?.response?.data?.message || 'Falha ao carregar auditoria',
-          variant: 'alert',
-          alert: { color: 'error' }
-        } as any);
-      }
+      // Se não houver auditoria (404 ou qualquer erro), apenas limpa os dados sem mostrar erro
+      // A ausência de auditoria é um estado válido e não deve ser tratada como erro
       setInconsistencies([]);
       setUncomprehendedContexts([]);
       setSpellingErrors([]);

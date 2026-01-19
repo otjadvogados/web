@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import ClockCircleOutlined from '@ant-design/icons/ClockCircleOutlined';
 import { clearToken } from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
+import { getRealtimeSocket } from 'api/realtime';
 
 interface SessionTimerProps {
   expiresIn: {
@@ -40,23 +41,24 @@ export default function SessionTimer({ expiresIn }: SessionTimerProps) {
   }, [expiresIn]);
 
   useEffect(() => {
-    // Calcula o tempo total em segundos
-    const totalSeconds = expiresIn.hours * 3600 + expiresIn.minutes * 60 + expiresIn.seconds;
-    let remainingSeconds = totalSeconds;
-
-    const timer = setInterval(() => {
-      remainingSeconds -= 1;
-
-      if (remainingSeconds <= 0) {
-        clearInterval(timer);
-        // Sessão expirou - limpa token e redireciona
+    // Conecta ao WebSocket para receber atualizações de tempo do servidor
+    const socket = getRealtimeSocket();
+    
+    // Função para atualizar o tempo e verificar notificações
+    const updateTimeAndCheckNotifications = (time: { hours: number; minutes: number; seconds: number }) => {
+      setTimeLeft(time);
+      
+      const totalSeconds = time.hours * 3600 + time.minutes * 60 + time.seconds;
+      
+      // Se o tempo expirou
+      if (totalSeconds <= 0) {
         clearToken();
         window.location.href = '/login';
         return;
       }
-
+      
       // Verifica se restam 10 minutos (600 segundos) e mostra alerta
-      if (remainingSeconds <= 600 && !warningShown.current) {
+      if (totalSeconds <= 600 && !warningShown.current) {
         warningShown.current = true;
         openSnackbar({
           open: true,
@@ -69,9 +71,9 @@ export default function SessionTimer({ expiresIn }: SessionTimerProps) {
           anchorOrigin: { vertical: 'top', horizontal: 'center' }
         } as any);
       }
-
+      
       // Verifica se restam 2 minutos (120 segundos) e mostra alerta crítico
-      if (remainingSeconds <= 120 && !criticalShown.current) {
+      if (totalSeconds <= 120 && !criticalShown.current) {
         criticalShown.current = true;
         openSnackbar({
           open: true,
@@ -84,21 +86,42 @@ export default function SessionTimer({ expiresIn }: SessionTimerProps) {
           anchorOrigin: { vertical: 'top', horizontal: 'center' }
         } as any);
       }
+    };
+    
+    // Escuta eventos de tempo da sessão do servidor
+    const handleSessionTime = (data: { hours: number; minutes: number; seconds: number } | { expiresAt: number }) => {
+      let time: { hours: number; minutes: number; seconds: number };
+      
+      // Se o servidor envia timestamp de expiração
+      if ('expiresAt' in data && typeof data.expiresAt === 'number') {
+        const now = Date.now();
+        const remainingMs = Math.max(0, data.expiresAt - now);
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        time = {
+          hours: Math.floor(totalSeconds / 3600),
+          minutes: Math.floor((totalSeconds % 3600) / 60),
+          seconds: totalSeconds % 60
+        };
+      } else {
+        // Se o servidor envia diretamente { hours, minutes, seconds }
+        time = data as { hours: number; minutes: number; seconds: number };
+      }
+      
+      updateTimeAndCheckNotifications(time);
+    };
+    
+    // Registra o handler para eventos de tempo da sessão
+    socket.on('session:time', handleSessionTime);
+    
+    return () => {
+      socket.off('session:time', handleSessionTime);
+    };
+  }, []);
 
-      const hours = Math.floor(remainingSeconds / 3600);
-      const minutes = Math.floor((remainingSeconds % 3600) / 60);
-      const seconds = remainingSeconds % 60;
-
-      setTimeLeft({ hours, minutes, seconds });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [expiresIn]);
-
-  // Calcula a porcentagem de tempo restante
-  const totalSeconds = expiresIn.hours * 3600 + expiresIn.minutes * 60 + expiresIn.seconds;
+  // Calcula a porcentagem de tempo restante (baseado em 2 horas = 7200 segundos)
+  const SESSION_DURATION_SECONDS = 2 * 3600; // 2 horas em segundos
   const currentSeconds = timeLeft.hours * 3600 + timeLeft.minutes * 60 + timeLeft.seconds;
-  const progressPercentage = Math.max(0, Math.min(100, (currentSeconds / totalSeconds) * 100));
+  const progressPercentage = Math.max(0, Math.min(100, (currentSeconds / SESSION_DURATION_SECONDS) * 100));
 
   // Determina a cor baseada no tempo restante
   const getColor = () => {

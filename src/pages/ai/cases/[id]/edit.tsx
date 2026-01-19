@@ -30,7 +30,7 @@ import HtmlEditor from 'sections/ai/edit-case/HtmlEditor';
 import AuditTab from 'sections/ai/cases/AuditTab';
 import { getCaseResult, updateCaseResultHtml, CaseResult, finalizeCase, approveCase, releaseCase } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
-import { convertHtmlToDocx } from 'api/aiDocs';
+import { convertHtmlToDocx, convertHtmlToPdf } from 'api/aiDocs';
 import Permission from 'components/Permission';
 import { getValidationChecklist } from 'sections/ai/cases/checklists';
 import useAuth from 'hooks/useAuth';
@@ -45,6 +45,8 @@ export default function EditCasePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadMenuAnchor, setDownloadMenuAnchor] = useState<null | HTMLElement>(null);
   const [caseData, setCaseData] = useState<CaseResult | null>(null);
   const [html, setHtml] = useState('');
   const [checklistOpen, setChecklistOpen] = useState(false);
@@ -119,6 +121,7 @@ export default function EditCasePage() {
 
     try {
       setDownloading(true);
+      setDownloadMenuAnchor(null);
       const { blob, filename } = await convertHtmlToDocx({
         html,
         filename: caseData?.piece?.name 
@@ -151,6 +154,54 @@ export default function EditCasePage() {
     } finally {
       setDownloading(false);
     }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!html || downloadingPdf) return;
+
+    try {
+      setDownloadingPdf(true);
+      setDownloadMenuAnchor(null);
+      const { blob, filename } = await convertHtmlToPdf({
+        html,
+        filename: caseData?.piece?.name 
+          ? `${caseData.piece.name.replace(/[\\/:*?"<>|]/g, '_')}.pdf`
+          : 'documento.pdf'
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'documento.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      openSnackbar({
+        open: true,
+        message: 'Documento PDF baixado com sucesso!',
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || err?.message || 'Falha ao converter para PDF',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const handleDownloadMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setDownloadMenuAnchor(event.currentTarget);
+  };
+
+  const handleDownloadMenuClose = () => {
+    setDownloadMenuAnchor(null);
   };
 
   const loadCaseData = async () => {
@@ -489,14 +540,34 @@ export default function EditCasePage() {
             )}
 
             {isReleased && (
-              <Button
-                variant="outlined"
-                startIcon={<DownloadOutlined />}
-                onClick={handleDownloadDocx}
-                disabled={downloading || !html}
-              >
-                {downloading ? 'Convertendo...' : 'Baixar DOCX'}
-              </Button>
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<DownloadOutlined />}
+                  onClick={handleDownloadMenuOpen}
+                  disabled={downloading || downloadingPdf || !html}
+                >
+                  {downloading || downloadingPdf ? 'Convertendo...' : 'Baixar'}
+                </Button>
+                <Menu
+                  anchorEl={downloadMenuAnchor}
+                  open={Boolean(downloadMenuAnchor)}
+                  onClose={handleDownloadMenuClose}
+                >
+                  <MenuItem
+                    onClick={handleDownloadPdf}
+                    disabled={downloadingPdf || downloading}
+                  >
+                    Baixar PDF
+                  </MenuItem>
+                  <MenuItem
+                    onClick={handleDownloadDocx}
+                    disabled={downloading || downloadingPdf}
+                  >
+                    Baixar DOCX
+                  </MenuItem>
+                </Menu>
+              </>
             )}
             <Button
               variant="contained"
