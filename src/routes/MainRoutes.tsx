@@ -36,6 +36,9 @@ const TranscriptionFolderPage = Loadable(lazy(() => import('pages/ai/transcribe/
 const ReportsPage = Loadable(lazy(() => import('pages/ai/reports')));
 const ReportsFolderPage = Loadable(lazy(() => import('pages/ai/reports/[folderId]')));
 const EditReportPage = Loadable(lazy(() => import('pages/ai/reports/[customerId]/[reportId]/edit')));
+// NOVO: Prompts
+const PromptsPage = Loadable(lazy(() => import('pages/ai/prompts')));
+const PromptsFolderPage = Loadable(lazy(() => import('pages/ai/prompts/[folderId]')));
 // NOVO: AI > Criar Caso
 const CreateCasePage = Loadable(lazy(() => import('pages/ai/cases/create')));
 // NOVO: AI > Listar Casos
@@ -192,6 +195,14 @@ const MainRoutes = {
         {
           path: 'ai/reports/:customerId/:reportId/edit',
           element: <EditReportPage />
+        },
+        {
+          path: 'ai/prompts',
+          element: <PromptsPage />
+        },
+        {
+          path: 'ai/prompts/:folderId',
+          element: <PromptsFolderPage />
         },
       ]
     },

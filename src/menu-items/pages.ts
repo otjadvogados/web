@@ -126,7 +126,7 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.ToolOutlined,
       isDropdown: true,
-      permissions: ['transcribe.read', 'transcribe.create', 'transcribe.update', 'transcribe.delete'],
+      permissions: ['transcribe.read', 'transcribe.create', 'transcribe.update', 'transcribe.delete', 'ai.prompts.read', 'ai.prompts.create', 'ai.prompts.update', 'ai.prompts.delete'],
       children: [
         {
           id: 'ai-transcribe',
@@ -141,6 +141,13 @@ const pages: NavItemType = {
           type: 'item',
           url: '/ai/reports',
           permissions: ['customers.read', 'customers.create', 'customers.update', 'customers.delete'],
+        },
+        {
+          id: 'ai-prompts',
+          title: 'Prompts',
+          type: 'item',
+          url: '/ai/prompts',
+          permissions: ['ai.prompts.read', 'ai.prompts.create', 'ai.prompts.update', 'ai.prompts.delete'],
         },
       ]
     },

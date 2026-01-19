@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -13,6 +13,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import Autocomplete from '@mui/material/Autocomplete';
 import UploadOutlined from '@ant-design/icons/UploadOutlined';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
@@ -24,12 +25,69 @@ import { openSnackbar } from 'api/snackbar';
 import { BRAND_GOLD } from 'config';
 import { useCaseWizard } from '../CaseWizardContext';
 import { testOcr, type OcrTestResponse } from 'api/aiDocs';
+import { listPromptFolders, type Prompt } from 'api/prompts';
+import useDebounced from 'utils/useDebounced';
 
 export default function StepAttachments() {
-  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment, updateAttachmentOcr, updateCommonAttachmentOcr, hasOcrErrors } = useCaseWizard();
+  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment, updateAttachmentOcr, updateCommonAttachmentOcr, hasOcrErrors, dept, customers } = useCaseWizard();
   const [verifyingOcr, setVerifyingOcr] = useState<Set<string>>(new Set());
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [ocrMessageDialog, setOcrMessageDialog] = useState<{ open: boolean; message: string; fileName: string }>({ open: false, message: '', fileName: '' });
+  
+  // Estados para seletor de prompts
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [loadingPrompts, setLoadingPrompts] = useState(false);
+  const [promptSearch, setPromptSearch] = useState('');
+  const dPromptSearch = useDebounced(promptSearch);
+
+  // Carrega prompts disponíveis
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoadingPrompts(true);
+        // Usa o cliente selecionado no wizard para buscar prompts
+        // Segundo a documentação, quando passamos customerId como filtro,
+        // o backend retorna prompts gerais (customerId = null) + prompts desse cliente
+        const customerId = customers.length > 0 ? customers[0].id : undefined;
+        
+        // listPromptFolders retorna todos os prompts organizados por pastas
+        // O backend já filtra baseado nas permissões do usuário
+        const folders = await listPromptFolders();
+        
+        // Coleta todos os prompts de todas as pastas
+        const allPrompts: Prompt[] = [];
+        folders.forEach(folder => {
+          if (folder.items && folder.items.length > 0) {
+            allPrompts.push(...folder.items);
+          }
+        });
+        
+        // Remove duplicatas
+        const uniquePrompts = Array.from(
+          new Map(allPrompts.map(p => [p.id, p])).values()
+        );
+        
+        // Filtra prompts baseado no cliente selecionado
+        // Mostra: prompts gerais (sem customerId) + prompts do cliente selecionado
+        const filteredPrompts = customerId
+          ? uniquePrompts.filter(p => !p.customerId || p.customerId === customerId)
+          : uniquePrompts.filter(p => !p.customerId); // Sem cliente selecionado: apenas gerais
+        
+        setPrompts(filteredPrompts);
+      } catch (err: any) {
+        console.error('Erro ao carregar prompts:', err);
+        openSnackbar({
+          open: true,
+          message: 'Erro ao carregar prompts disponíveis',
+          variant: 'alert',
+          alert: { color: 'error' }
+        } as any);
+        setPrompts([]);
+      } finally {
+        setLoadingPrompts(false);
+      }
+    })();
+  }, [customers.map(c => c.id).join('|')]);
 
   const isValidType = (file: File) =>
     /(^application\/pdf$)|(^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$)|(^image\/(png|jpeg|jpg|webp|gif)$)/i.test(file.type);
@@ -234,12 +292,64 @@ export default function StepAttachments() {
           </Typography>
         </Alert>
       )}
+      
+      {/* Seletor de Prompts */}
+      <Autocomplete
+        options={prompts}
+        loading={loadingPrompts}
+        getOptionLabel={(option) => option.name}
+        filterOptions={(x) => {
+          if (!dPromptSearch.trim()) return x;
+          const term = dPromptSearch.trim().toLowerCase();
+          return x.filter(p => 
+            p.name.toLowerCase().includes(term) || 
+            p.description.toLowerCase().includes(term)
+          );
+        }}
+        inputValue={promptSearch}
+        onInputChange={(_, value) => setPromptSearch(value)}
+        onChange={(_, value) => {
+          if (value) {
+            setInstruction(value.description);
+          }
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Selecionar Prompt (opcional)"
+            placeholder="Busque e selecione um prompt do sistema..."
+            helperText="Selecione um prompt para preencher automaticamente o campo de instruções abaixo"
+          />
+        )}
+        renderOption={(props, option) => (
+          <Box component="li" {...props}>
+            <Stack spacing={0.5} sx={{ width: '100%' }}>
+              <Typography variant="body2" fontWeight={600}>
+                {option.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical'
+              }}>
+                {option.description}
+              </Typography>
+            </Stack>
+          </Box>
+        )}
+        isOptionEqualToValue={(option, value) => option.id === value.id}
+      />
+      
       <TextField
+        label="Instruções"
         placeholder="Ex.: pontos específicos do cliente, observações, fatos relevantes…"
         value={instruction}
         onChange={(e) => setInstruction(e.target.value)}
         multiline
         minRows={3}
+        helperText="Instruções adicionais para o processamento do caso"
       />
 
       {/* Campo de Arquivos em comum */}
