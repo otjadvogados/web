@@ -201,6 +201,7 @@ export default function CustomersList() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [deleteDialog, setDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Carregar clientes
   const loadCustomers = async () => {
@@ -274,29 +275,38 @@ export default function CustomersList() {
   };
 
   const handleDeleteClick = () => {
+    setAnchorEl(null); // fecha o menu, mas mantém o selectedCustomer
     setDeleteDialog(true);
-    handleMenuClose();
   };
 
   const handleDeleteConfirm = async () => {
-    if (selectedCustomer) {
-      try {
-        await deleteCustomer(selectedCustomer.id);
-        await loadCustomers();
-        setDeleteDialog(false);
-        setSelectedCustomer(null);
-      } catch (err: any) {
-        openSnackbar({ 
-          open: true, 
-          message: err.response?.data?.message || 'Erro ao deletar cliente', 
-          variant: 'alert', 
-          alert: { color: 'error' } 
-        } as any);
-      }
+    if (!selectedCustomer) return;
+    try {
+      setDeleting(true);
+      const response = await deleteCustomer(selectedCustomer.id);
+      openSnackbar({ 
+        open: true, 
+        message: response.message || 'Cliente excluído com sucesso!', 
+        variant: 'alert', 
+        alert: { color: 'success' } 
+      } as any);
+      await loadCustomers();
+      setDeleteDialog(false);
+      setSelectedCustomer(null);
+    } catch (err: any) {
+      openSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || 'Erro ao deletar cliente', 
+        variant: 'alert', 
+        alert: { color: 'error' } 
+      } as any);
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleDeleteCancel = () => {
+    if (deleting) return;
     setDeleteDialog(false);
     setSelectedCustomer(null);
   };
@@ -485,17 +495,25 @@ export default function CustomersList() {
       </Menu>
 
       {/* Dialog de confirmação de exclusão */}
-      <Dialog open={deleteDialog} onClose={handleDeleteCancel}>
+      <Dialog open={deleteDialog} onClose={deleting ? undefined : handleDeleteCancel}>
         <DialogTitle>Confirmar Exclusão</DialogTitle>
         <DialogContent>
           <Typography>
-            Tem certeza que deseja excluir o cliente "{selectedCustomer?.displayName}"?
+            Tem certeza que deseja excluir o cliente "{selectedCustomer?.displayName || selectedCustomer?.name || 'este cliente'}"?
             Esta ação não pode ser desfeita.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDeleteCancel}>Cancelar</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+          <Button onClick={handleDeleteCancel} disabled={deleting}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error" 
+            variant="contained"
+            disabled={deleting}
+            startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : undefined}
+          >
             Excluir
           </Button>
         </DialogActions>

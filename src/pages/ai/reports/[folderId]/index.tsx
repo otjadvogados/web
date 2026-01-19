@@ -404,10 +404,13 @@ export default function ReportsFolderPage() {
                 onClick={() => {
                   // Volta para a página de origem (já inclui query params se necessário)
                   const fromPath = (location.state as any)?.from;
+                  console.log('lista - voltar - fromPath:', fromPath, 'location.state:', location.state, 'location.pathname:', location.pathname);
                   if (fromPath) {
+                    console.log('lista - navegando para fromPath:', fromPath);
                     navigate(fromPath);
                   } else {
                     // Fallback: tenta usar navigate(-1) ou volta para reports
+                    console.log('lista - navegando -1 (fallback)');
                     navigate(-1);
                   }
                 }}
@@ -563,8 +566,10 @@ export default function ReportsFolderPage() {
                                         const customerIdToUse = report.customerId || folder.customerId || 
                                           (folder.type === 'general' || folder.id === 'general' ? 'general' : null);
                                         if (customerIdToUse) {
+                                          const backTo = location.pathname + location.search;
+                                          console.log('navigate to edit - backTo:', backTo, 'customerIdToUse:', customerIdToUse, 'reportId:', report.id);
                                           navigate(`/ai/reports/${customerIdToUse}/${report.id}/edit`, {
-                                            state: { folderId: folder.id }
+                                            state: { backTo }
                                           });
                                         }
                                       }}

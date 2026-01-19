@@ -45,6 +45,8 @@ export default function EditReportPage() {
   const [loadingEmails, setLoadingEmails] = useState(false);
 
   useEffect(() => {
+    console.log('EditReportPage - useEffect - location.state:', location.state, 'customerId:', customerId, 'reportId:', reportId);
+    
     if (!customerId || !reportId) {
       navigate('/ai/reports');
       return;
@@ -121,10 +123,34 @@ export default function EditReportPage() {
   };
 
   const handleBack = () => {
-    // Se veio de uma pasta específica (via location.state), volta para ela
-    // Caso contrário, o customerId da pasta de cliente é o mesmo que o customerId
-    const folderId = (location.state as any)?.folderId || customerId;
-    navigate(`/ai/reports/${folderId}`);
+    console.log('handleBack - state:', location.state, 'customerId:', customerId, 'reportId:', reportId);
+    
+    // Prioridade 1: backTo do location.state (sempre disponível quando vem da lista)
+    const backTo = (location.state as any)?.backTo as string | undefined;
+    
+    console.log('handleBack - backTo:', backTo);
+    
+    if (backTo) {
+      // Volta para o caminho exato de onde veio (inclui pathname + search params)
+      // Usa replace: true para limpar o histórico e evitar que o state persista
+      console.log('handleBack - navegando para:', backTo);
+      navigate(backTo, { replace: true });
+      return;
+    }
+    
+    // Fallback quando abrir em nova aba / refresh (state some)
+    const folder = reportData?.customerId || customerId;
+    console.log('handleBack - folder (fallback):', folder);
+    
+    if (folder && folder !== 'general') {
+      console.log('handleBack - navegando para pasta (fallback):', `/ai/reports/${folder}`);
+      navigate(`/ai/reports/${folder}`, { replace: true });
+      return;
+    }
+    
+    // Último fallback: volta para a lista geral de pastas
+    console.log('handleBack - navegando para lista geral (fallback)');
+    navigate('/ai/reports', { replace: true });
   };
 
   const handleFinalize = async () => {

@@ -381,7 +381,6 @@ export default function EditCasePage() {
   }, [caseData?.status]);
 
   const availableStatusActions = getAvailableStatusActions();
-  const isReleased = caseData?.status === 'released';
   const validationChecklist = useMemo(() => getValidationChecklist(), []);
 
   // Restaura os dados do checklist quando o caseData é carregado pela primeira vez
@@ -553,36 +552,34 @@ export default function EditCasePage() {
               />
             )}
 
-            {isReleased && (
-              <>
-                <Button
-                  variant="outlined"
-                  startIcon={<DownloadOutlined />}
-                  onClick={handleDownloadMenuOpen}
-                  disabled={downloading || downloadingPdf || !html}
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadOutlined />}
+                onClick={handleDownloadMenuOpen}
+                disabled={downloading || downloadingPdf || !html}
+              >
+                {downloading || downloadingPdf ? 'Convertendo...' : 'Baixar'}
+              </Button>
+              <Menu
+                anchorEl={downloadMenuAnchor}
+                open={Boolean(downloadMenuAnchor)}
+                onClose={handleDownloadMenuClose}
+              >
+                <MenuItem
+                  onClick={handleDownloadPdf}
+                  disabled={downloadingPdf || downloading}
                 >
-                  {downloading || downloadingPdf ? 'Convertendo...' : 'Baixar'}
-                </Button>
-                <Menu
-                  anchorEl={downloadMenuAnchor}
-                  open={Boolean(downloadMenuAnchor)}
-                  onClose={handleDownloadMenuClose}
+                  Baixar PDF
+                </MenuItem>
+                <MenuItem
+                  onClick={handleDownloadDocx}
+                  disabled={downloading || downloadingPdf}
                 >
-                  <MenuItem
-                    onClick={handleDownloadPdf}
-                    disabled={downloadingPdf || downloading}
-                  >
-                    Baixar PDF
-                  </MenuItem>
-                  <MenuItem
-                    onClick={handleDownloadDocx}
-                    disabled={downloading || downloadingPdf}
-                  >
-                    Baixar DOCX
-                  </MenuItem>
-                </Menu>
-              </>
-            )}
+                  Baixar DOCX
+                </MenuItem>
+              </Menu>
+            </>
             <Button
               variant="contained"
               startIcon={<SaveOutlined />}
