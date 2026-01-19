@@ -57,6 +57,34 @@ export default function EditCasePage() {
   const [currentTab, setCurrentTab] = useState(0);
   const caseDataRef = useRef<CaseResult | null>(null);
 
+  const loadCaseData = useCallback(async () => {
+    if (!id) return;
+
+    try {
+      const data = await getCaseResult(id);
+      setCaseData(data);
+      caseDataRef.current = data;
+      
+      const htmlContent = 
+        data?.htmlMain || 
+        data?.html || 
+        (data?._infos as any)?.phase06?.html || 
+        data?.infos?.phase06?.html || 
+        '';
+      
+      setHtml(htmlContent);
+      
+      // A restauração do checklist será feita automaticamente pelo useEffect que monitora caseData?.tags?.validationChecklist
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || 'Falha ao carregar caso',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    }
+  }, [id]);
+
   useEffect(() => {
     if (!id) {
       navigate('/ai/cases');
@@ -206,34 +234,6 @@ export default function EditCasePage() {
   const handleDownloadMenuClose = () => {
     setDownloadMenuAnchor(null);
   };
-
-  const loadCaseData = useCallback(async () => {
-    if (!id) return;
-
-    try {
-      const data = await getCaseResult(id);
-      setCaseData(data);
-      caseDataRef.current = data;
-      
-      const htmlContent = 
-        data?.htmlMain || 
-        data?.html || 
-        (data?._infos as any)?.phase06?.html || 
-        data?.infos?.phase06?.html || 
-        '';
-      
-      setHtml(htmlContent);
-      
-      // A restauração do checklist será feita automaticamente pelo useEffect que monitora caseData?.tags?.validationChecklist
-    } catch (err: any) {
-      openSnackbar({
-        open: true,
-        message: err?.response?.data?.message || 'Falha ao carregar caso',
-        variant: 'alert',
-        alert: { color: 'error' }
-      } as any);
-    }
-  }, [id]);
 
   const handleStatusChange = async (action: 'finalize' | 'approve' | 'release') => {
     if (!id) return;

@@ -134,9 +134,10 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
     setAnchorEl(null);
     setSelectedLevel(level);
     if (drawerOpen) {
-      setOpen(!open);
-      setSelected(!selected ? menu.id : null);
-      setSelectedItems(!selected ? menu.id : '');
+      const newSelected = !selected ? menu.id : null;
+      setSelected(newSelected);
+      setSelectedItems(newSelected || '');
+      setOpen((prevOpen) => !prevOpen);
       if (menu.url && isRedirect) navigation(`${menu.url}`);
     } else {
       setAnchorEl(event?.currentTarget);
@@ -169,24 +170,11 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
     }
     setAnchorEl(null);
   };
-
   useMemo(() => {
-    if (selected === selectedItems) {
-      if (level === 1) {
-        setOpen(true);
-      }
-    } else {
-      if (level === selectedLevel) {
-        setOpen(false);
-        if (!miniMenuOpened && !drawerOpen && !selected) {
-          setSelected(null);
-        }
-        if (drawerOpen) {
-          setSelected(null);
-        }
-      }
+    if (selected === selectedItems && selected === menu.id) {
+      setOpen(true);
     }
-  }, [selectedItems, level, selected, miniMenuOpened, drawerOpen, selectedLevel]);
+  }, [selectedItems, selected, menu.id]);
 
   const { pathname } = useLocation();
 
@@ -200,6 +188,14 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
       setOpen(true);
     }
   }, [pathname, menu]);
+
+  // Fecha o dropdown quando a rota muda
+  useEffect(() => {
+    if (openCollapse) {
+      handleCloseCollapse();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const navCollapse = menu.children?.map((item) => {
     switch (item.type) {
@@ -382,7 +378,6 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
               anchorEl={anchorElCollapse}
               open={openCollapse}
               onClose={handleCloseCollapse}
-              onClick={handleCloseCollapse}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
               sx={(theme) => ({ '& .MuiPaper-root': { boxShadow: theme.shadows[2] }, '& .MuiListItemButton-root': { pl: 2 } })}

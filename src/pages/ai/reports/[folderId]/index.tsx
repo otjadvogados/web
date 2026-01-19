@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -48,6 +48,7 @@ import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 
 export default function ReportsFolderPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { folderId } = useParams<{ folderId: string }>();
   const [folder, setFolder] = useState<ReportFolderResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -400,7 +401,16 @@ export default function ReportsFolderPage() {
               <Button
                 size="small"
                 startIcon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/ai/reports')}
+                onClick={() => {
+                  // Volta para a página de origem (já inclui query params se necessário)
+                  const fromPath = (location.state as any)?.from;
+                  if (fromPath) {
+                    navigate(fromPath);
+                  } else {
+                    // Fallback: tenta usar navigate(-1) ou volta para reports
+                    navigate(-1);
+                  }
+                }}
                 sx={{ mr: 1 }}
               >
                 Voltar

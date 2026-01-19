@@ -9,13 +9,15 @@ import FunctionOutlined from '@ant-design/icons/FunctionOutlined';
 import RocketOutlined from '@ant-design/icons/RocketOutlined';
 import ThunderboltOutlined from '@ant-design/icons/ThunderboltOutlined';
 import ToolOutlined from '@ant-design/icons/ToolOutlined';
+import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
+import WarningOutlined from '@ant-design/icons/WarningOutlined';
 import AIIcon from 'components/icons/AIIcon';
 
 // type
 import { NavItemType } from 'types/menu';
 
 // icons
-const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined, UserOutlined, AudioOutlined, FunctionOutlined, RocketOutlined, ThunderboltOutlined, ToolOutlined, AIIcon };
+const icons = { TeamOutlined, SafetyOutlined, AppstoreOutlined, SettingOutlined, UserOutlined, AudioOutlined, FunctionOutlined, RocketOutlined, ThunderboltOutlined, ToolOutlined, FileTextOutlined, WarningOutlined, AIIcon };
 
 // ==============================|| MENU ITEMS - PAGES ||============================== //
 
@@ -126,21 +128,50 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.ToolOutlined,
       isDropdown: true,
-      permissions: ['transcribe.read', 'transcribe.create', 'transcribe.update', 'transcribe.delete', 'ai.prompts.read', 'ai.prompts.create', 'ai.prompts.update', 'ai.prompts.delete'],
+      permissions: ['ai.prompts.read', 'ai.prompts.create', 'ai.prompts.update', 'ai.prompts.delete', 'reports.read', 'reports.create', 'reports.update', 'reports.delete'],
       children: [
-        {
-          id: 'ai-transcribe',
-          title: 'Transcrições',
-          type: 'item',
-          url: '/ai/transcribe',
-          permissions: ['transcribe.read', 'transcribe.create', 'transcribe.update', 'transcribe.delete'],
-        },
         {
           id: 'ai-reports',
           title: 'Relatórios',
-          type: 'item',
-          url: '/ai/reports',
-          permissions: ['customers.read', 'customers.create', 'customers.update', 'customers.delete'],
+          type: 'collapse',
+          permissions: ['reports.read', 'reports.create', 'reports.update', 'reports.delete'],
+          children: [
+            {
+              id: 'reports-provisionamento',
+              title: 'Provisionamento e Risco',
+              type: 'item',
+              url: '/ai/reports/provisionamento',
+              permissions: ['reports.read', 'reports.create', 'reports.update', 'reports.delete'],
+            },
+            {
+              id: 'reports-pre-audiencia',
+              title: 'Pré-Audiência',
+              type: 'item',
+              url: '/ai/reports/pre-audiencia',
+              permissions: ['reports.read', 'reports.create', 'reports.update', 'reports.delete'],
+            },
+            {
+              id: 'reports-pos-audiencia',
+              title: 'Pós-Audiência',
+              type: 'item',
+              url: '/ai/reports/pos-audiencia',
+              permissions: ['reports.read', 'reports.create', 'reports.update', 'reports.delete'],
+            },
+            {
+              id: 'reports-decisoes',
+              title: 'Decisões',
+              type: 'item',
+              url: '/ai/reports/decisoes',
+              permissions: ['reports.read', 'reports.create', 'reports.update', 'reports.delete'],
+            },
+            {
+              id: 'reports-processual',
+              title: 'Processual',
+              type: 'item',
+              url: '/ai/reports/processual',
+              permissions: ['reports.read', 'reports.create', 'reports.update', 'reports.delete'],
+            },
+          ]
         },
         {
           id: 'ai-prompts',

@@ -36,6 +36,11 @@ const TranscriptionFolderPage = Loadable(lazy(() => import('pages/ai/transcribe/
 const ReportsPage = Loadable(lazy(() => import('pages/ai/reports')));
 const ReportsFolderPage = Loadable(lazy(() => import('pages/ai/reports/[folderId]')));
 const EditReportPage = Loadable(lazy(() => import('pages/ai/reports/[customerId]/[reportId]/edit')));
+const ProvisionamentoReportPage = Loadable(lazy(() => import('pages/ai/reports/provisionamento')));
+const PreAudienciaReportPage = Loadable(lazy(() => import('pages/ai/reports/pre-audiencia')));
+const PosAudienciaReportPage = Loadable(lazy(() => import('pages/ai/reports/pos-audiencia')));
+const DecisoesReportPage = Loadable(lazy(() => import('pages/ai/reports/decisoes')));
+const ProcessualReportPage = Loadable(lazy(() => import('pages/ai/reports/processual')));
 // NOVO: Prompts
 const PromptsPage = Loadable(lazy(() => import('pages/ai/prompts')));
 const PromptsFolderPage = Loadable(lazy(() => import('pages/ai/prompts/[folderId]')));
@@ -195,6 +200,26 @@ const MainRoutes = {
         {
           path: 'ai/reports/:customerId/:reportId/edit',
           element: <EditReportPage />
+        },
+        {
+          path: 'ai/reports/provisionamento',
+          element: <ProvisionamentoReportPage />
+        },
+        {
+          path: 'ai/reports/pre-audiencia',
+          element: <PreAudienciaReportPage />
+        },
+        {
+          path: 'ai/reports/pos-audiencia',
+          element: <PosAudienciaReportPage />
+        },
+        {
+          path: 'ai/reports/decisoes',
+          element: <DecisoesReportPage />
+        },
+        {
+          path: 'ai/reports/processual',
+          element: <ProcessualReportPage />
         },
         {
           path: 'ai/prompts',
