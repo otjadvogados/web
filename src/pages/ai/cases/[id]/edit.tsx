@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -42,7 +42,7 @@ export default function EditCasePage() {
   const { user } = useAuth();
   const { hasAnyPermission } = usePermissions();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -55,6 +55,7 @@ export default function EditCasePage() {
   const [processingStatus, setProcessingStatus] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [currentTab, setCurrentTab] = useState(0);
+  const caseDataRef = useRef<CaseResult | null>(null);
 
   useEffect(() => {
     if (!id) {
@@ -72,7 +73,7 @@ export default function EditCasePage() {
         setLoading(false);
       }
     })();
-  }, [id, navigate]);
+  }, [id, navigate, loadCaseData]);
 
   const handleSave = async () => {
     if (!id) return;
@@ -92,7 +93,9 @@ export default function EditCasePage() {
       });
 
       // Atualiza o caseData local para refletir as mudanças
-      setCaseData(prev => prev ? { ...prev, tags } : null);
+      const updatedCaseData = caseData ? { ...caseData, tags } : null;
+      setCaseData(updatedCaseData);
+      caseDataRef.current = updatedCaseData;
 
       openSnackbar({
         open: true,
@@ -204,12 +207,13 @@ export default function EditCasePage() {
     setDownloadMenuAnchor(null);
   };
 
-  const loadCaseData = async () => {
+  const loadCaseData = useCallback(async () => {
     if (!id) return;
 
     try {
       const data = await getCaseResult(id);
       setCaseData(data);
+      caseDataRef.current = data;
       
       const htmlContent = 
         data?.htmlMain || 
@@ -229,7 +233,7 @@ export default function EditCasePage() {
         alert: { color: 'error' }
       } as any);
     }
-  };
+  }, [id]);
 
   const handleStatusChange = async (action: 'finalize' | 'approve' | 'release') => {
     if (!id) return;
@@ -434,40 +438,50 @@ export default function EditCasePage() {
       return; // Não houve mudança, não precisa salvar
     }
     
+    // Captura os valores no momento da criação do timeout
+    const itemsToSave = checkedItems;
+    const htmlToSave = html;
+    
     // Debounce para evitar muitas chamadas ao Redis
     const timeoutId = setTimeout(async () => {
+      // Usa o ref para obter o valor mais atualizado
+      const currentCaseData = caseDataRef.current;
+      if (!currentCaseData) return;
+      
       // Verifica novamente se ainda há diferença (pode ter mudado durante o debounce)
-      const currentSavedChecklist = caseData?.tags?.validationChecklist as Record<string, boolean> | undefined;
+      const currentSavedChecklist = currentCaseData?.tags?.validationChecklist as Record<string, boolean> | undefined;
       const currentSavedStr = currentSavedChecklist ? JSON.stringify(currentSavedChecklist) : '';
-      if (currentSavedStr === currentChecklistStr) {
+      const currentCheckedStr = JSON.stringify(itemsToSave);
+      if (currentSavedStr === currentCheckedStr) {
         return; // Já foi salvo por outra mudança
       }
       
       // Salva o checklist nas tags do caso (o backend salvará no Redis)
       const tags = {
-        ...(caseData?.tags || {}),
-        validationChecklist: checkedItems
+        ...(currentCaseData?.tags || {}),
+        validationChecklist: itemsToSave
       };
       
       try {
         // Salva em background (não bloqueia a UI)
         await updateCaseResultHtml(id, {
-          html,
+          html: htmlToSave,
           tags,
           replaceTags: false
         });
         
         // Atualiza o caseData local para refletir que foi salvo
-        setCaseData(prev => prev ? { ...prev, tags } : null);
+        const updatedCaseData = currentCaseData ? { ...currentCaseData, tags } : null;
+        setCaseData(updatedCaseData);
+        caseDataRef.current = updatedCaseData;
       } catch (err) {
         console.error('Erro ao salvar checklist no Redis:', err);
         // Não mostra erro ao usuário para não interromper o fluxo
       }
-    }, 500); // Aguarda 500ms após a última alteração antes de salvar (reduzido de 800ms para resposta mais rápida)
+    }, 500); // Aguarda 500ms após a última alteração antes de salvar
     
     return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkedItems, id, html]); // Removido checklistOpen para salvar mesmo quando fechado
+  }, [checkedItems, id, html, caseData]);
 
   if (loading) {
     return (
