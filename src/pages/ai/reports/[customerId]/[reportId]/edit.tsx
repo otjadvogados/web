@@ -123,33 +123,42 @@ export default function EditReportPage() {
   };
 
   const handleBack = () => {
-    console.log('handleBack - state:', location.state, 'customerId:', customerId, 'reportId:', reportId);
-    
     // Prioridade 1: backTo do location.state (sempre disponível quando vem da lista)
+    // O backTo já inclui os query params (location.pathname + location.search)
     const backTo = (location.state as any)?.backTo as string | undefined;
     
-    console.log('handleBack - backTo:', backTo);
-    
     if (backTo) {
-      // Volta para o caminho exato de onde veio (inclui pathname + search params)
-      // Usa replace: true para limpar o histórico e evitar que o state persista
-      console.log('handleBack - navegando para:', backTo);
-      navigate(backTo, { replace: true });
+      // Separa pathname e search para garantir que os query params sejam preservados
+      const url = new URL(backTo, window.location.origin);
+      navigate({
+        pathname: url.pathname,
+        search: url.search
+      }, { replace: true });
       return;
     }
     
     // Fallback quando abrir em nova aba / refresh (state some)
+    // Tenta construir o backTo baseado no tipo de relatório
     const folder = reportData?.customerId || customerId;
-    console.log('handleBack - folder (fallback):', folder);
+    const reportType = reportData?.reportType;
+    
+    if (folder && folder !== 'general' && reportType) {
+      // Constrói query param baseado no tipo de relatório
+      const params = new URLSearchParams();
+      params.set('reportTypeFilter', reportType);
+      navigate({
+        pathname: `/ai/reports/${folder}`,
+        search: `?${params.toString()}`
+      }, { replace: true });
+      return;
+    }
     
     if (folder && folder !== 'general') {
-      console.log('handleBack - navegando para pasta (fallback):', `/ai/reports/${folder}`);
       navigate(`/ai/reports/${folder}`, { replace: true });
       return;
     }
     
     // Último fallback: volta para a lista geral de pastas
-    console.log('handleBack - navegando para lista geral (fallback)');
     navigate('/ai/reports', { replace: true });
   };
 
@@ -229,10 +238,16 @@ export default function EditReportPage() {
   };
 
   const getReportTypeLabel = (type: ReportType) => {
-    const labels: Record<ReportType, string> = {
+    const labels: Partial<Record<ReportType, string>> = {
       [ReportType.RELATORIO_SENTENCA]: 'Relatório de Sentença',
       [ReportType.ANALISE_PRELIMINAR_RISCO]: 'Análise Preliminar de Risco',
-      [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA]: 'Relatório de Audiência Trabalhista'
+      [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA]: 'Relatório de Audiência Trabalhista',
+      [ReportType.RELATORIO_PROVISIONAMENTO_RISCO]: 'Provisionamento e Risco',
+      [ReportType.RELATORIO_PRE_AUDIENCIA]: 'Pré-Audiência',
+      [ReportType.RELATORIO_POS_AUDIENCIA]: 'Pós-Audiência',
+      [ReportType.RELATORIO_DECISOES_SENTENCA]: 'Decisões - Sentença',
+      [ReportType.RELATORIO_DECISOES_ACORDAO]: 'Decisões - Acórdão',
+      [ReportType.RELATORIO_PROCESSUAL]: 'Processual'
     };
     return labels[type] || type;
   };

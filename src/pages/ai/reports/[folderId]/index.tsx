@@ -155,6 +155,44 @@ export default function ReportsFolderPage() {
     }
   };
 
+  // Mapeia a rota anterior (se houver no state) para o tipo de relatório correspondente
+  const getReportTypeFromRoute = useMemo(() => {
+    // Prioridade 1: usa reportTypeFilter dos query params (mais persistente)
+    const searchParams = new URLSearchParams(location.search);
+    const reportTypeFromQuery = searchParams.get('reportTypeFilter');
+    if (reportTypeFromQuery) {
+      // Valida se é um ReportType válido
+      const validTypes = Object.values(ReportType);
+      if (validTypes.includes(reportTypeFromQuery as ReportType)) {
+        return [reportTypeFromQuery as ReportType];
+      }
+    }
+    
+    // Prioridade 2: usa reportTypeFilter do state (fallback para compatibilidade)
+    const reportTypeFilter = (location.state as any)?.reportTypeFilter;
+    if (reportTypeFilter && Array.isArray(reportTypeFilter)) {
+      return reportTypeFilter;
+    }
+    
+    // Prioridade 3: tenta pegar do state de navegação ou pathname
+    const fromPath = (location.state as any)?.from;
+    const pathToCheck = fromPath || location.pathname;
+    
+    if (pathToCheck?.includes('/provisionamento')) {
+      return [ReportType.RELATORIO_PROVISIONAMENTO_RISCO];
+    } else if (pathToCheck?.includes('/pre-audiencia')) {
+      return [ReportType.RELATORIO_PRE_AUDIENCIA];
+    } else if (pathToCheck?.includes('/pos-audiencia')) {
+      return [ReportType.RELATORIO_POS_AUDIENCIA];
+    } else if (pathToCheck?.includes('/decisoes')) {
+      // Se vier de /decisoes mas não tiver reportTypeFilter específico, retorna ambos
+      return [ReportType.RELATORIO_DECISOES_SENTENCA, ReportType.RELATORIO_DECISOES_ACORDAO];
+    } else if (pathToCheck?.includes('/processual')) {
+      return [ReportType.RELATORIO_PROCESSUAL];
+    }
+    return null; // Se não for uma rota específica, não filtra
+  }, [location.pathname, location.search, location.state]);
+
   const applySearchFilter = (reports: ReportFolderResponse['reports'], q: string) => {
     const term = q.trim().toLowerCase();
     if (!term) return reports;
@@ -183,8 +221,15 @@ export default function ReportsFolderPage() {
       reportsToShow = folder.reports;
     }
     
+    // Filtra por tipo de relatório se houver um tipo correspondente à rota
+    if (getReportTypeFromRoute) {
+      reportsToShow = reportsToShow.filter(report =>
+        getReportTypeFromRoute.includes(report.reportType)
+      );
+    }
+    
     return applySearchFilter(reportsToShow, search);
-  }, [folder, search]);
+  }, [folder, search, getReportTypeFromRoute]);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '—';
@@ -567,9 +612,14 @@ export default function ReportsFolderPage() {
                                           (folder.type === 'general' || folder.id === 'general' ? 'general' : null);
                                         if (customerIdToUse) {
                                           const backTo = location.pathname + location.search;
-                                          console.log('navigate to edit - backTo:', backTo, 'customerIdToUse:', customerIdToUse, 'reportId:', report.id);
+                                          // Preserva o reportTypeFilter e from do state atual para manter o filtro ao voltar
+                                          const currentState = location.state as any;
                                           navigate(`/ai/reports/${customerIdToUse}/${report.id}/edit`, {
-                                            state: { backTo }
+                                            state: { 
+                                              backTo,
+                                              reportTypeFilter: currentState?.reportTypeFilter,
+                                              from: currentState?.from || location.pathname
+                                            }
                                           });
                                         }
                                       }}

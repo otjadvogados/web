@@ -7,7 +7,7 @@ import TextField from '@mui/material/TextField';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import CircularProgress from '@mui/material/CircularProgress';
-import { listReportFolders, type ReportFolderResponse } from 'api/reports';
+import { listReportFolders, type ReportFolderResponse, ReportType } from 'api/reports';
 import { openSnackbar } from 'api/snackbar';
 import FolderTile from 'sections/ai/transcribe/FolderTile';
 
@@ -37,6 +37,23 @@ export default function ReportTabsLayout({ children }: ReportTabsLayoutProps) {
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [search, setSearch] = useState('');
 
+  // Mapeia a rota atual para o tipo de relatório correspondente
+  const getReportTypeFromRoute = useMemo(() => {
+    const pathname = location.pathname;
+    if (pathname.includes('/provisionamento')) {
+      return [ReportType.RELATORIO_PROVISIONAMENTO_RISCO];
+    } else if (pathname.includes('/pre-audiencia')) {
+      return [ReportType.RELATORIO_PRE_AUDIENCIA];
+    } else if (pathname.includes('/pos-audiencia')) {
+      return [ReportType.RELATORIO_POS_AUDIENCIA];
+    } else if (pathname.includes('/decisoes')) {
+      return [ReportType.RELATORIO_DECISOES_SENTENCA, ReportType.RELATORIO_DECISOES_ACORDAO];
+    } else if (pathname.includes('/processual')) {
+      return [ReportType.RELATORIO_PROCESSUAL];
+    }
+    return null; // Se não for uma rota específica, não filtra
+  }, [location.pathname]);
+
   // Carrega pastas quando a tab "Pastas" está ativa
   useEffect(() => {
     if (tab === 1) {
@@ -44,13 +61,29 @@ export default function ReportTabsLayout({ children }: ReportTabsLayoutProps) {
         try {
           setLoadingFolders(true);
           const foldersData = await listReportFolders();
-          setAllFolders(foldersData);
-          // Aplica filtro inicial
+          
+          // Filtra relatórios por tipo se houver um tipo correspondente à rota
+          let filteredFolders = getReportTypeFromRoute
+            ? foldersData.map((folder) => ({
+                ...folder,
+                reports: folder.reports?.filter((report) =>
+                  getReportTypeFromRoute.includes(report.reportType)
+                ) || []
+              }))
+            : foldersData;
+          
+          // Remove pastas que não têm nenhum relatório após o filtro
+          filteredFolders = filteredFolders.filter((folder) => 
+            folder.reports && folder.reports.length > 0
+          );
+          
+          setAllFolders(filteredFolders);
+          // Aplica filtro inicial de busca
           const term = search.trim().toLowerCase();
           if (!term) {
-            setFolders(foldersData);
+            setFolders(filteredFolders);
           } else {
-            const filtered = foldersData.filter((folder) => (folder.name || '').toLowerCase().includes(term));
+            const filtered = filteredFolders.filter((folder) => (folder.name || '').toLowerCase().includes(term));
             setFolders(filtered);
           }
         } catch (err: any) {
@@ -65,7 +98,7 @@ export default function ReportTabsLayout({ children }: ReportTabsLayoutProps) {
         }
       })();
     }
-  }, [tab, search]);
+  }, [tab, search, getReportTypeFromRoute]);
 
   // Aplica filtro quando search muda e temos pastas carregadas
   useEffect(() => {
@@ -173,10 +206,22 @@ export default function ReportTabsLayout({ children }: ReportTabsLayoutProps) {
                         key={folder.id} 
                         folder={folderForTile as any} 
                         onClick={(folderId) => {
-                          // Mantém a rota atual com query params para voltar na tab correta
-                          const currentPath = location.pathname;
-                          const currentSearch = location.search;
-                          navigate(`/ai/reports/${folderId}`, { state: { from: `${currentPath}${currentSearch}`, tab: 'pastas' } });
+                          // Adiciona query params com o tipo de relatório correspondente
+                          const reportTypes = getReportTypeFromRoute;
+                          if (reportTypes && reportTypes.length > 0) {
+                            const params = new URLSearchParams();
+                            params.set('reportTypeFilter', reportTypes[0]);
+                            navigate(`/ai/reports/${folderId}?${params.toString()}`, {
+                              state: {
+                                from: location.pathname,
+                                reportTypeFilter: reportTypes
+                              }
+                            });
+                          } else {
+                            navigate(`/ai/reports/${folderId}`, {
+                              state: { from: location.pathname }
+                            });
+                          }
                         }} 
                         selected={false} 
                       />

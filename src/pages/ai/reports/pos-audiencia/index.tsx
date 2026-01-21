@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
@@ -21,7 +21,7 @@ import { listPromptFolders, type Prompt } from 'api/prompts';
 import { openSnackbar } from 'api/snackbar';
 import useDebounced from 'utils/useDebounced';
 import { listCustomersAdvanced, type Customer, sortCustomersMatrizFilialPF } from 'api/customers';
-import { listReportFolders, type ReportFolderResponse } from 'api/reports';
+import { listReportFolders, type ReportFolderResponse, ReportType } from 'api/reports';
 import FolderTile from 'sections/ai/transcribe/FolderTile';
 
 type OptionCust = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
@@ -38,6 +38,7 @@ function TabPanel({ children, value, index }: { children: React.ReactNode; value
 
 export default function PosAudienciaReportPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const [tab, setTab] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -171,7 +172,21 @@ export default function PosAudienciaReportPage() {
         try {
           setLoadingFolders(true);
           const foldersData = await listReportFolders();
-          setFolders(foldersData);
+          
+          // Filtra relatórios por tipo (apenas RELATORIO_POS_AUDIENCIA)
+          let filteredFolders = foldersData.map((folder) => ({
+            ...folder,
+            reports: folder.reports?.filter((report) =>
+              report.reportType === ReportType.RELATORIO_POS_AUDIENCIA
+            ) || []
+          }));
+          
+          // Remove pastas que não têm nenhum relatório após o filtro
+          filteredFolders = filteredFolders.filter((folder) => 
+            folder.reports && folder.reports.length > 0
+          );
+          
+          setFolders(filteredFolders);
         } catch (err: any) {
           openSnackbar({
             open: true,
@@ -374,16 +389,14 @@ export default function PosAudienciaReportPage() {
                   inputValue={promptSearch}
                   onInputChange={(_, value) => setPromptSearch(value)}
                   onChange={(_, value) => {
-                    if (value) {
-                      setInstructions(value.description);
-                    }
+                    // Não preenche o campo de instruções - o prompt será usado via promptId (quando implementado)
                   }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Selecionar Prompt (opcional)"
                       placeholder="Busque e selecione um prompt do sistema..."
-                      helperText="Selecione um prompt para preencher automaticamente o campo de instruções abaixo"
+                      helperText="Selecione um prompt do sistema ou escreva instruções customizadas abaixo"
                     />
                   )}
                   renderOption={(props, option) => (
@@ -487,7 +500,14 @@ export default function PosAudienciaReportPage() {
                               key={folder.id} 
                               folder={folderForTile as any} 
                               onClick={(folderId) => {
-                                navigate(`/ai/reports/${folderId}`);
+                                const params = new URLSearchParams();
+                                params.set('reportTypeFilter', ReportType.RELATORIO_POS_AUDIENCIA);
+                                navigate(`/ai/reports/${folderId}?${params.toString()}`, {
+                                  state: {
+                                    from: location.pathname,
+                                    reportTypeFilter: [ReportType.RELATORIO_POS_AUDIENCIA]
+                                  }
+                                });
                               }} 
                               selected={false} 
                             />

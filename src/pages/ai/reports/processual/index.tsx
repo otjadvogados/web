@@ -325,16 +325,14 @@ export default function ProcessualReportPage() {
                   inputValue={promptSearch}
                   onInputChange={(_, value) => setPromptSearch(value)}
                   onChange={(_, value) => {
-                    if (value) {
-                      setInstructions(value.description);
-                    }
+                    // Não preenche o campo de instruções - o prompt será usado via promptId (quando implementado)
                   }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Selecionar Prompt (opcional)"
                       placeholder="Busque e selecione um prompt do sistema..."
-                      helperText="Selecione um prompt para preencher automaticamente o campo de instruções abaixo"
+                      helperText="Selecione um prompt do sistema ou escreva instruções customizadas abaixo"
                     />
                   )}
                   renderOption={(props, option) => (

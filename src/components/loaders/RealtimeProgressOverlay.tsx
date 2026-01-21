@@ -93,10 +93,13 @@ export default function RealtimeProgressOverlay({ open, knownRunId, onDetectRunI
   const progress = React.useMemo(() => {
     // pega a última phase válida
     const phases = items.filter((i) => i.kind === 'phase' && i.code).map((i) => i.code!) as string[];
-    if (!phases.length) return 3;
+    if (!phases.length) return null; // null indica que não há progresso conhecido ainda
     const last = phases[phases.length - 1];
-    return PROGRESS_BY_PHASE[last] ?? 3;
+    return PROGRESS_BY_PHASE[last] ?? null;
   }, [items]);
+  
+  // determina se deve usar modo indeterminado (quando não há progresso conhecido)
+  const hasKnownProgress = progress !== null;
 
   // agrupa visualmente: novas "phase" viram divisores
   const visual = React.useMemo(() => {
@@ -143,8 +146,8 @@ export default function RealtimeProgressOverlay({ open, knownRunId, onDetectRunI
         {/* Barra de progresso fina no topo (sem moldura) */}
         <Box sx={{ position: 'sticky', top: 0, left: 0, right: 0, mb: 1 }}>
           <LinearProgress
-            variant="determinate"
-            value={Math.max(3, Math.min(100, progress))}
+            variant={hasKnownProgress ? "determinate" : "indeterminate"}
+            value={hasKnownProgress ? Math.max(3, Math.min(100, progress!)) : undefined}
             sx={{
               height: 3,
               borderRadius: 1,

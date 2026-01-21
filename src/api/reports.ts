@@ -3,9 +3,17 @@ import axios from 'utils/axios';
 // ==============================|| TIPOS E ENUMS ||============================== //
 
 export enum ReportType {
+  // Tipos legados (mantidos para compatibilidade)
   RELATORIO_SENTENCA = 'RELATORIO_SENTENCA',
   ANALISE_PRELIMINAR_RISCO = 'ANALISE_PRELIMINAR_RISCO',
-  RELATORIO_AUDIENCIA_TRABALHISTA = 'RELATORIO_AUDIENCIA_TRABALHISTA'
+  RELATORIO_AUDIENCIA_TRABALHISTA = 'RELATORIO_AUDIENCIA_TRABALHISTA',
+  // Novos tipos de relatório
+  RELATORIO_PROVISIONAMENTO_RISCO = 'RELATORIO_PROVISIONAMENTO_RISCO',
+  RELATORIO_PRE_AUDIENCIA = 'RELATORIO_PRE_AUDIENCIA',
+  RELATORIO_POS_AUDIENCIA = 'RELATORIO_POS_AUDIENCIA',
+  RELATORIO_DECISOES_SENTENCA = 'RELATORIO_DECISOES_SENTENCA',
+  RELATORIO_DECISOES_ACORDAO = 'RELATORIO_DECISOES_ACORDAO',
+  RELATORIO_PROCESSUAL = 'RELATORIO_PROCESSUAL'
 }
 
 export type FileReference = {
@@ -81,6 +89,14 @@ export type TranscriptionWithReports = {
 export type GenerateReportsRequest = {
   transcriptionId: string;
   reportTypes: ReportType[];
+};
+
+export type GenerateReportFromFileParams = {
+  file: File;
+  customerId?: string; // UUID ou "general" ou undefined (pasta geral)
+  reportTypes: ReportType[]; // Array com tipos de relatório
+  promptId?: string; // UUID do prompt salvo (opcional)
+  additionalInstructions?: string; // Prompt customizado (opcional)
 };
 
 export type UpdateReportRequest = {
@@ -223,6 +239,86 @@ export async function generateGeneralReports(
 ): Promise<CustomerReport[]> {
   const { data } = await axios.post<CustomerReport[]>(`/reports/generate`, request);
   return data;
+}
+
+/**
+ * Gera relatórios a partir de um arquivo (upload direto)
+ * Endpoint: POST /customers/:customerId/reports/generate ou POST /reports/generate
+ * 
+ * @param params - Parâmetros da geração:
+ *   - file: Arquivo a ser processado (obrigatório)
+ *   - customerId: UUID do cliente, "general" ou undefined para pasta geral (opcional)
+ *   - reportTypes: Array de tipos de relatório (obrigatório)
+ *   - promptId: ID do prompt salvo (opcional)
+ *   - additionalInstructions: Instruções adicionais customizadas (opcional)
+ * 
+ * @returns Array de CustomerReport[] gerados
+ * 
+ * @example
+ * ```typescript
+ * const reports = await generateReportFromFile({
+ *   file: myFile,
+ *   customerId: 'uuid-do-cliente',
+ *   reportTypes: [ReportType.RELATORIO_PROVISIONAMENTO_RISCO],
+ *   additionalInstructions: 'Analisar risco de crédito'
+ * });
+ * ```
+ */
+export async function generateReportFromFile(
+  params: GenerateReportFromFileParams
+): Promise<CustomerReport[]> {
+  const formData = new FormData();
+  
+  // 1. Arquivo (obrigatório)
+  formData.append('file', params.file);
+  
+  // 2. Tipos de relatório (obrigatório - array como JSON string)
+  formData.append('reportTypes', JSON.stringify(params.reportTypes));
+  
+  // 3. PromptId (opcional - se usuário escolheu um prompt salvo)
+  if (params.promptId) {
+    formData.append('promptId', params.promptId);
+  }
+  
+  // 4. Instruções adicionais (opcional - prompt customizado escrito pelo usuário)
+  if (params.additionalInstructions) {
+    formData.append('additionalInstructions', params.additionalInstructions);
+  }
+  
+  // 5. URL baseada no cliente
+  const url = params.customerId
+    ? `/customers/${params.customerId}/reports/generate`
+    : `/reports/generate`;
+  
+  const response = await axios.post<{ message?: string; data?: CustomerReport[] } | CustomerReport[]>(url, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  
+  const data = response.data;
+  
+  // Log para debug
+  console.log('Resposta bruta da API generateReportFromFile:', data);
+  console.log('Tipo da resposta:', typeof data);
+  console.log('É array?', Array.isArray(data));
+  
+  // Backend pode retornar { message, data } ou diretamente um array
+  if (Array.isArray(data)) {
+    console.log('Retornando array direto, tamanho:', data.length);
+    return data;
+  } else if (data && typeof data === 'object') {
+    if ('data' in data && Array.isArray((data as any).data)) {
+      console.log('Retornando data.data, tamanho:', (data as any).data.length);
+      return (data as any).data;
+    }
+    // Pode ter outras propriedades que contêm o array
+    console.log('Propriedades do objeto:', Object.keys(data));
+  }
+  
+  // Fallback: retorna array vazio se formato inesperado
+  console.warn('Formato de resposta inesperado, retornando array vazio. Resposta:', data);
+  return [];
 }
 
 /**

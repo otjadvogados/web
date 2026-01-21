@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
@@ -21,7 +21,7 @@ import { listPromptFolders, type Prompt } from 'api/prompts';
 import { openSnackbar } from 'api/snackbar';
 import useDebounced from 'utils/useDebounced';
 import { listCustomersAdvanced, type Customer, sortCustomersMatrizFilialPF } from 'api/customers';
-import { listReportFolders, type ReportFolderResponse } from 'api/reports';
+import { listReportFolders, type ReportFolderResponse, ReportType, generateReportFromFile } from 'api/reports';
 import FolderTile from 'sections/ai/transcribe/FolderTile';
 
 type OptionCust = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
@@ -38,6 +38,7 @@ function TabPanel({ children, value, index }: { children: React.ReactNode; value
 
 export default function PreAudienciaReportPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const [tab, setTab] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,6 +46,8 @@ export default function PreAudienciaReportPage() {
   const [instructions, setInstructions] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<OptionCust | null>(null);
+  const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  const [generating, setGenerating] = useState(false);
   
   // Estados para pastas
   const [folders, setFolders] = useState<ReportFolderResponse[]>([]);
@@ -159,9 +162,98 @@ export default function PreAudienciaReportPage() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleGenerate = () => {
-    // TODO: Implementar geração de relatório
-    console.log('Gerar relatório com:', { files, instructions });
+  const handleGenerate = async () => {
+    if (files.length === 0) {
+      openSnackbar({
+        open: true,
+        message: 'Selecione pelo menos um arquivo para gerar o relatório',
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+      return;
+    }
+
+    const file = files[0];
+    
+    if (files.length > 1) {
+      openSnackbar({
+        open: true,
+        message: `Processando apenas o primeiro arquivo: ${file.name}. Os outros arquivos serão ignorados.`,
+        variant: 'alert',
+        alert: { color: 'info' }
+      } as any);
+    }
+
+    try {
+      setGenerating(true);
+      
+      const params = {
+        file,
+        customerId: selectedCustomer?.id,
+        reportTypes: [ReportType.RELATORIO_PRE_AUDIENCIA],
+        promptId: selectedPrompt?.id,
+        additionalInstructions: instructions.trim() || undefined
+      };
+      
+      console.log('Gerando relatório pré-audiência com parâmetros:', {
+        fileName: file.name,
+        fileSize: file.size,
+        customerId: params.customerId,
+        reportTypes: params.reportTypes,
+        hasPromptId: !!params.promptId,
+        hasAdditionalInstructions: !!params.additionalInstructions
+      });
+      
+      const reports = await generateReportFromFile(params);
+      
+      console.log('Relatórios gerados:', reports);
+
+      if (!reports || reports.length === 0) {
+        openSnackbar({
+          open: true,
+          message: 'Nenhum relatório foi criado. Verifique os logs do servidor.',
+          variant: 'alert',
+          alert: { color: 'warning' }
+        } as any);
+        return;
+      }
+
+      openSnackbar({
+        open: true,
+        message: `Relatório gerado com sucesso! ${reports.length} relatório(s) criado(s).`,
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+
+      // Redireciona para a página de edição do primeiro relatório gerado
+      if (reports.length > 0) {
+        const firstReport = reports[0];
+        const customerIdToUse = firstReport.customerId || 'general';
+        // Constrói o backTo com query params para preservar o filtro ao voltar
+        const backToParams = new URLSearchParams();
+        backToParams.set('reportTypeFilter', ReportType.RELATORIO_PRE_AUDIENCIA);
+        const backTo = `/ai/reports/${customerIdToUse}?${backToParams.toString()}`;
+        navigate(`/ai/reports/${customerIdToUse}/${firstReport.id}/edit`, {
+          state: { backTo }
+        });
+      } else {
+        // Fallback: se não houver relatórios, volta para a lista
+        setTimeout(() => {
+          navigate('/ai/reports');
+        }, 1500);
+      }
+    } catch (err: any) {
+      console.error('Erro ao gerar relatório:', err);
+      
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || err?.message || 'Falha ao gerar relatório',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   // Carrega pastas
@@ -171,7 +263,21 @@ export default function PreAudienciaReportPage() {
         try {
           setLoadingFolders(true);
           const foldersData = await listReportFolders();
-          setFolders(foldersData);
+          
+          // Filtra relatórios por tipo (apenas RELATORIO_PRE_AUDIENCIA)
+          let filteredFolders = foldersData.map((folder) => ({
+            ...folder,
+            reports: folder.reports?.filter((report) =>
+              report.reportType === ReportType.RELATORIO_PRE_AUDIENCIA
+            ) || []
+          }));
+          
+          // Remove pastas que não têm nenhum relatório após o filtro
+          filteredFolders = filteredFolders.filter((folder) => 
+            folder.reports && folder.reports.length > 0
+          );
+          
+          setFolders(filteredFolders);
         } catch (err: any) {
           openSnackbar({
             open: true,
@@ -362,6 +468,11 @@ export default function PreAudienciaReportPage() {
                 <Autocomplete
                   options={prompts}
                   loading={loadingPrompts}
+                  value={selectedPrompt}
+                  onChange={(_, value) => {
+                    setSelectedPrompt(value);
+                    // Não preenche o campo de instruções - o prompt será usado via promptId
+                  }}
                   getOptionLabel={(option) => option.name}
                   filterOptions={(x) => {
                     if (!dPromptSearch.trim()) return x;
@@ -373,38 +484,36 @@ export default function PreAudienciaReportPage() {
                   }}
                   inputValue={promptSearch}
                   onInputChange={(_, value) => setPromptSearch(value)}
-                  onChange={(_, value) => {
-                    if (value) {
-                      setInstructions(value.description);
-                    }
-                  }}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Selecionar Prompt (opcional)"
                       placeholder="Busque e selecione um prompt do sistema..."
-                      helperText="Selecione um prompt para preencher automaticamente o campo de instruções abaixo"
+                      helperText="Selecione um prompt do sistema ou escreva instruções customizadas abaixo"
                     />
                   )}
-                  renderOption={(props, option) => (
-                    <Box component="li" {...props}>
-                      <Stack spacing={0.5} sx={{ width: '100%' }}>
-                        <Typography variant="body2" fontWeight={600}>
-                          {option.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical'
-                        }}>
-                          {option.description}
-                        </Typography>
-                      </Stack>
-                    </Box>
-                  )}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  renderOption={(props, option) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <Box key={key} component="li" {...restProps}>
+                        <Stack spacing={0.5} sx={{ width: '100%' }}>
+                          <Typography variant="body2" fontWeight={600}>
+                            {option.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical'
+                          }}>
+                            {option.description}
+                          </Typography>
+                        </Stack>
+                      </Box>
+                    );
+                  }}
                   sx={{ mb: 2 }}
                 />
                 
@@ -428,9 +537,10 @@ export default function PreAudienciaReportPage() {
                   variant="contained"
                   size="large"
                   onClick={handleGenerate}
-                  disabled={files.length === 0}
+                  disabled={files.length === 0 || generating}
+                  startIcon={generating ? <CircularProgress size={20} /> : null}
                 >
-                  Gerar Relatório
+                  {generating ? 'Gerando...' : 'Gerar Relatório'}
                 </Button>
               </Box>
                 </Stack>
@@ -487,7 +597,14 @@ export default function PreAudienciaReportPage() {
                               key={folder.id} 
                               folder={folderForTile as any} 
                               onClick={(folderId) => {
-                                navigate(`/ai/reports/${folderId}`);
+                                const params = new URLSearchParams();
+                                params.set('reportTypeFilter', ReportType.RELATORIO_PRE_AUDIENCIA);
+                                navigate(`/ai/reports/${folderId}?${params.toString()}`, {
+                                  state: {
+                                    from: location.pathname,
+                                    reportTypeFilter: [ReportType.RELATORIO_PRE_AUDIENCIA]
+                                  }
+                                });
                               }} 
                               selected={false} 
                             />
