@@ -80,7 +80,8 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
   const loadRoles = async (q: string) => {
     setRoleLoading(true);
     try {
-      const res = await listRoles({ page: 1, limit: 20, search: q || undefined });
+      // Aumenta o limite para garantir que todas as funções sejam carregadas
+      const res = await listRoles({ page: 1, limit: 100, search: q || undefined });
       setRoles(res.data.map((r) => ({ id: r.id, name: r.name, description: r.description ?? null })));
     } finally {
       setRoleLoading(false);
@@ -93,7 +94,16 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
   }, [open]);
 
   // helper para achar a option pelo id (quando abrimos edição com role atual)
-  const findRoleById = (id?: string | null) => roles.find((r) => r.id === id) || (id && initial?.roleName ? { id, name: initial.roleName, description: null } : null);
+  const findRoleById = (id?: string | null): RoleOption | null => {
+    if (!id) return null;
+    const found = roles.find((r) => r.id === id);
+    if (found) return found;
+    // Se não encontrou na lista mas temos o nome inicial, cria um objeto temporário
+    if (initial?.roleName) {
+      return { id, name: initial.roleName, description: null };
+    }
+    return null;
+  };
 
   const schema = Yup.object({
     name: Yup.string().required('Nome é obrigatório'),
@@ -307,11 +317,30 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                        options={roles}
                        loading={roleLoading}
                        value={findRoleById(values.roleId) || null}
-                       onChange={(_, opt) => setFieldValue('roleId', opt ? opt.id : null)}
-                       onInputChange={(_, v) => {
-                         setRoleQuery(v);
+                       onChange={(_, opt) => {
+                         setFieldValue('roleId', opt ? opt.id : null, false);
                        }}
-                       onClose={() => roleQuery && loadRoles(roleQuery)}
+                       onInputChange={(_, v, reason) => {
+                         // Se o campo foi limpo (reason === 'clear'), limpa a busca e recarrega todas
+                         if (reason === 'clear') {
+                           setRoleQuery('');
+                           loadRoles('');
+                         } else {
+                           setRoleQuery(v);
+                           if (v) {
+                             loadRoles(v);
+                           } else {
+                             // Se o campo ficou vazio (mas não foi clear), recarrega todas
+                             loadRoles('');
+                           }
+                         }
+                       }}
+                       onClose={() => {
+                         // Quando fecha, se não há busca, garante que todas as funções estão carregadas
+                         if (!roleQuery) {
+                           loadRoles('');
+                         }
+                       }}
                        getOptionLabel={(opt) => opt?.name ?? ''}
                        renderInput={(params) => (
                          <TextField
@@ -329,7 +358,11 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                          />
                        )}
                        noOptionsText="Nenhuma função encontrada"
-                       isOptionEqualToValue={(a, b) => a.id === b.id}
+                       isOptionEqualToValue={(a, b) => {
+                         if (!a || !b) return a === b;
+                         return a.id === b.id;
+                       }}
+                       filterOptions={(options) => options}
                      />
                    </Stack>
                  </Grid>

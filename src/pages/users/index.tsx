@@ -162,9 +162,16 @@ export default function UsersPage() {
     }
   };
 
-  const openRole = (u: UserRow) => {
+  const openRole = async (u: UserRow) => {
     setRoleUserId(u.id);
-    setRoleCurrentId(u.role?.id || null);
+    // Busca o usuário atualizado para garantir que temos o roleId correto
+    try {
+      const updatedUser = await getUser(u.id);
+      setRoleCurrentId(updatedUser.role?.id || null);
+    } catch {
+      // Se falhar, usa o valor atual
+      setRoleCurrentId(u.role?.id || null);
+    }
     setRolePickerOpen(true);
   };
 
@@ -554,10 +561,26 @@ export default function UsersPage() {
       />
       <RolePickerDialog
         open={rolePickerOpen}
-        onClose={() => setRolePickerOpen(false)}
+        onClose={() => {
+          setRolePickerOpen(false);
+          // Limpa os estados quando fecha
+          setRoleUserId(null);
+          setRoleCurrentId(null);
+        }}
         userId={roleUserId}
         currentRoleId={roleCurrentId || undefined}
-        onChanged={load}
+        onChanged={async () => {
+          // Recarrega a lista e atualiza o currentRoleId se necessário
+          await load();
+          if (roleUserId) {
+            try {
+              const updatedUser = await getUser(roleUserId);
+              setRoleCurrentId(updatedUser.role?.id || null);
+            } catch {
+              // Ignora erro
+            }
+          }
+        }}
       />
 
       {/* Confirmação de deleção */}
