@@ -31,6 +31,7 @@ import { listDepartments, deleteDepartment, getDepartment } from '../../api/depa
 import { DepartmentRow } from '../../types/departments';
 import type { Department } from '../../api/departments';
 import { openSnackbar } from '../../api/snackbar';
+import { getUser } from '../../api/users';
 import DepartmentFormDialog from '../../sections/departments/DepartmentFormDialog';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import DeptRolesDrawer from '../../sections/departments/DeptRolesDrawer';
@@ -72,7 +73,31 @@ export default function DepartmentsPage() {
         limit,
         search: search.trim() || undefined
       });
-      setItems(res.data);
+      
+      // Se algum departamento tem signatureUserId mas não tem signatureUser, busca o usuário
+      const itemsWithUsers = await Promise.all(
+        res.data.map(async (dept) => {
+          if (dept.signatureUserId && !dept.signatureUser) {
+            try {
+              const user = await getUser(dept.signatureUserId);
+              return {
+                ...dept,
+                signatureUser: {
+                  id: user.id,
+                  name: user.name,
+                  email: user.email
+                }
+              };
+            } catch {
+              // Se falhar ao buscar, mantém como está
+              return dept;
+            }
+          }
+          return dept;
+        })
+      );
+      
+      setItems(itemsWithUsers);
       setTotal(res.pagination.total);
     } catch (err: any) {
       openSnackbar({ open: true, message: err?.response?.data?.message || 'Falha ao carregar departamentos', variant: 'alert', alert: { color: 'error' } } as any);
@@ -119,9 +144,22 @@ export default function DepartmentsPage() {
             <AppstoreOutlined />
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{dept.name}</Typography>
           </Stack>
-          {dept.signatureUser?.name && (
-            <Chip size="small" label={`Resp.: ${dept.signatureUser.name}`} />
-          )}
+          {dept.signatureUser ? (
+            <Chip 
+              size="small" 
+              label={
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Typography variant="caption">Resp.:</Typography>
+                  <Typography variant="caption" fontWeight={600}>{dept.signatureUser.name}</Typography>
+                  {dept.signatureUser.email && (
+                    <Typography variant="caption" color="text.secondary">({dept.signatureUser.email})</Typography>
+                  )}
+                </Stack>
+              }
+            />
+          ) : dept.signatureUserId ? (
+            <Chip size="small" label="Resp.: ID não encontrado" color="warning" variant="outlined" />
+          ) : null}
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="Cargos">
               <IconButton color="primary" onClick={() => openRoles(dept)}><TeamOutlined /></IconButton>
@@ -205,7 +243,16 @@ export default function DepartmentsPage() {
                          <Typography variant="body2" color="text.secondary">{d.description || '—'}</Typography>
                        </TableCell>
                        <TableCell>
-                         {d.signatureUser?.name ?? '—'}
+                         {d.signatureUser ? (
+                           <Stack>
+                             <Typography variant="body2">{d.signatureUser.name}</Typography>
+                             {d.signatureUser.email && (
+                               <Typography variant="caption" color="text.secondary">{d.signatureUser.email}</Typography>
+                             )}
+                           </Stack>
+                         ) : (
+                           <Typography variant="body2" color="text.secondary">—</Typography>
+                         )}
                        </TableCell>
                        {hasAnyPermission(['departments.update', 'departments.delete']) && (
                         <TableCell align="right">

@@ -93,11 +93,16 @@ export default function StepAttachments() {
     /(^application\/pdf$)|(^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$)|(^image\/(png|jpeg|jpg|webp|gif)$)/i.test(file.type);
 
   const verifyFileOcr = async (file: File, attachmentId: string, isCommon: boolean = false): Promise<void> => {
-    const fileKey = `${file.name}-${file.size}`;
+    // Usa attachmentId na chave para garantir unicidade por anexo
+    // Isso evita conflitos quando o mesmo arquivo é usado em múltiplos tópicos
+    const fileKey = `${attachmentId}-${file.name}-${file.size}`;
     setVerifyingOcr((prev) => new Set(prev).add(fileKey));
 
     try {
-      const result = await testOcr(file);
+      // Clona o arquivo para evitar problemas quando o mesmo File object é usado
+      // em múltiplas requisições (o stream pode ser consumido na primeira)
+      const fileClone = new File([file], file.name, { type: file.type, lastModified: file.lastModified });
+      const result = await testOcr(fileClone);
       
       // Salva o resultado no anexo
       if (isCommon) {
@@ -175,8 +180,11 @@ export default function StepAttachments() {
         } as any);
       }
       
-      // Marca os arquivos como sendo processados
-      const fileKeys = valid.map(file => `${file.name}-${file.size}`);
+      // Adiciona os anexos e obtém os IDs
+      const attachmentIds = addAttachments(topicSpecificId, box, valid);
+      
+      // Marca os arquivos como sendo processados usando os IDs únicos
+      const fileKeys = valid.map((file, index) => `${attachmentIds[index]}-${file.name}-${file.size}`);
       setUploadingFiles(prev => {
         const next = new Set(prev);
         fileKeys.forEach(key => next.add(key));
@@ -184,9 +192,6 @@ export default function StepAttachments() {
       });
       
       try {
-        // Adiciona os anexos e obtém os IDs
-        const attachmentIds = addAttachments(topicSpecificId, box, valid);
-        
         // Verifica OCR de cada arquivo em paralelo
         await Promise.all(valid.map((file, index) => 
           verifyFileOcr(file, attachmentIds[index], false)
@@ -215,8 +220,11 @@ export default function StepAttachments() {
       } as any);
     }
     
-    // Marca os arquivos como sendo processados
-    const fileKeys = valid.map(file => `${file.name}-${file.size}`);
+    // Adiciona os anexos e obtém os IDs
+    const attachmentIds = addCommonAttachments(valid);
+    
+    // Marca os arquivos como sendo processados usando os IDs únicos
+    const fileKeys = valid.map((file, index) => `${attachmentIds[index]}-${file.name}-${file.size}`);
     setUploadingFiles(prev => {
       const next = new Set(prev);
       fileKeys.forEach(key => next.add(key));
@@ -224,9 +232,6 @@ export default function StepAttachments() {
     });
     
     try {
-      // Adiciona os anexos e obtém os IDs
-      const attachmentIds = addCommonAttachments(valid);
-      
       // Verifica OCR de cada arquivo em paralelo
       await Promise.all(valid.map((file, index) => 
         verifyFileOcr(file, attachmentIds[index], true)
@@ -309,16 +314,17 @@ export default function StepAttachments() {
         inputValue={promptSearch}
         onInputChange={(_, value) => setPromptSearch(value)}
         onChange={(_, value) => {
+          // Apenas limpa a busca após selecionar, sem preencher instruções
           if (value) {
-            setInstruction(value.description);
+            setPromptSearch('');
           }
         }}
         renderInput={(params) => (
           <TextField
             {...params}
             label="Selecionar Prompt (opcional)"
-            placeholder="Busque e selecione um prompt do sistema..."
-            helperText="Selecione um prompt para preencher automaticamente o campo de instruções abaixo"
+            placeholder="Busque e selecione um prompt do sistema para visualizar..."
+            helperText="Selecione um prompt para visualizar sua descrição como referência"
           />
         )}
         renderOption={(props, option) => (
@@ -392,7 +398,8 @@ export default function StepAttachments() {
                 const isPdf = /^application\/pdf$/i.test(f.type);
                 const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
                 const url = URL.createObjectURL(f);
-                const fileKey = `${f.name}-${f.size}`;
+                // Usa attachmentId na chave para garantir unicidade por anexo
+                const fileKey = `${a.id}-${f.name}-${f.size}`;
                 const isUploading = uploadingFiles.has(fileKey);
                 const isVerifying = verifyingOcr.has(fileKey);
                 const isLoading = isUploading || isVerifying;
@@ -490,7 +497,8 @@ export default function StepAttachments() {
                         const isPdf = /^application\/pdf$/i.test(f.type);
                         const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
                         const url = URL.createObjectURL(f);
-                        const fileKey = `${f.name}-${f.size}`;
+                        // Usa attachmentId na chave para garantir unicidade por anexo
+                        const fileKey = `${a.id}-${f.name}-${f.size}`;
                         const isUploading = uploadingFiles.has(fileKey);
                         const isVerifying = verifyingOcr.has(fileKey);
                         const isLoading = isUploading || isVerifying;

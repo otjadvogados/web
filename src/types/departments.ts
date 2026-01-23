@@ -4,7 +4,7 @@ export type DepartmentRow = {
   description?: string | null;
   company?: { id: string; name: string } | null;
   signatureUserId?: string | null;
-  signatureUser?: { id: string; name: string } | null;
+  signatureUser?: { id: string; name: string; email?: string } | null;
   createdAt?: string;
   updatedAt?: string;
 };
