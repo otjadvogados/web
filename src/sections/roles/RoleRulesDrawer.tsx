@@ -53,6 +53,34 @@ function flattenRuleTree(nodes: RuleTreeNode[]): RuleItem[] {
   return items;
 }
 
+// Função auxiliar para ordenar permissões: .read primeiro (usada globalmente)
+function sortRulesWithReadFirst(rules: RuleItem[]): RuleItem[] {
+  if (!rules || rules.length === 0) return rules;
+  
+  // Separa as permissões em dois grupos: com .read e sem .read
+  const withRead: RuleItem[] = [];
+  const withoutRead: RuleItem[] = [];
+  
+  rules.forEach(rule => {
+    const name = (rule.name || '').toLowerCase().trim();
+    const desc = (rule.description || '').toLowerCase().trim();
+    
+    const hasRead = 
+      name.includes('.read') || 
+      desc.includes('.read') || 
+      desc.includes('visualizar');
+    
+    if (hasRead) {
+      withRead.push(rule);
+    } else {
+      withoutRead.push(rule);
+    }
+  });
+  
+  // Retorna primeiro as com .read, depois as sem .read
+  return [...withRead, ...withoutRead];
+}
+
 function filterRuleTree(nodes: RuleTreeNode[], query: string): RuleTreeNode[] {
   const q = query.trim().toLowerCase();
   if (!q) return nodes;
@@ -72,7 +100,8 @@ function filterRuleTree(nodes: RuleTreeNode[], query: string): RuleTreeNode[] {
           result.children = filteredChildren;
         }
         if (hasData) {
-          result.data = filteredData;
+          // Ordena os dados filtrados também
+          result.data = sortRulesWithReadFirst(filteredData);
         }
         return result;
       })
@@ -179,14 +208,25 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
       }
     }
 
+    // Função recursiva para ordenar dados em todos os nós da árvore
+    const sortTreeData = (nodes: RuleTreeNode[]): RuleTreeNode[] => {
+      return nodes.map(node => ({
+        ...node,
+        data: node.data ? sortRulesWithReadFirst([...node.data]) : undefined,
+        children: node.children ? sortTreeData(node.children) : undefined
+      }));
+    };
+
     async function loadCatalog() {
       setLoadingCatalog(true);
       try {
         const rules = await listRules();
         if (!alive) return;
-        setCatalogTree(rules);
+        // Ordena os dados em todos os nós da árvore
+        const sortedRules = sortTreeData(rules);
+        setCatalogTree(sortedRules);
         setCatalogEnabled(true);
-        const rootKeys = rules.map((node, idx) => makeGroupKey([], node.name, idx));
+        const rootKeys = sortedRules.map((node, idx) => makeGroupKey([], node.name, idx));
         setExpanded(new Set(rootKeys));
       } catch {
         setCatalogEnabled(false);
@@ -428,6 +468,7 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
     );
   };
 
+
   const renderTree = (nodes: RuleTreeNode[], path: string[] = []) =>
     nodes.map((node, idx) => {
       const key = makeGroupKey(path, node.name, idx);
@@ -437,12 +478,15 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
       const hasData = node.data?.length;
       if (!hasChildren && !hasData) return null;
       
+      // Ordena as permissões: .read primeiro
+      const sortedData = hasData ? sortRulesWithReadFirst([...node.data]) : [];
+      
       // Se tem apenas data (sem children), renderiza os itens diretamente sem o grupo
       if (hasData && !hasChildren) {
         return (
           <Box key={key} sx={{ borderLeft: path.length ? '1px dashed' : 'none', borderColor: 'divider' }}>
             <List dense disablePadding sx={{ pl: path.length * 2 }}>
-              {node.data?.map((r) => renderDataItem(r))}
+              {sortedData.map((r) => renderDataItem(r))}
             </List>
           </Box>
         );
@@ -466,7 +510,7 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
           {/* Renderiza data sempre visível (sem Collapse) usando descrição */}
           {hasData && (
             <List dense disablePadding sx={{ pl: 4 }}>
-              {node.data?.map((r) => renderDataItem(r))}
+              {sortedData.map((r) => renderDataItem(r))}
             </List>
           )}
           {/* Renderiza children dentro do Collapse */}
