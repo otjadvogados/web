@@ -290,11 +290,23 @@ export default function StepAttachments() {
           sx={{ mb: 1 }}
         >
           <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
-            Atenção: Cada tópico específico deve ter pelo menos 1 anexo (em qualquer caixa), ou adicione arquivos em comum.
+            Atenção: Cada tópico específico deve ter pelo menos 1 arquivo em cada caixa (reclamante e reclamada).
           </Typography>
-          <Typography variant="body2">
-            Faltam anexos em: <strong>{validation.missingSpecs.join(', ')}</strong>
-          </Typography>
+          {validation.missingSpecs.length > 0 && (
+            <Typography variant="body2" sx={{ mb: 0.5 }}>
+              Faltam anexos nos tópicos: <strong>{validation.missingSpecs.join(', ')}</strong>
+            </Typography>
+          )}
+          {validation.missingBoxes.length > 0 && (
+            <Typography variant="body2">
+              Faltam anexos nas caixas: <strong>
+                {validation.missingBoxes.map(mb => {
+                  const boxLabel = mb.box === 'claimant' ? 'reclamante' : 'reclamada';
+                  return `${mb.specName} (${boxLabel})`;
+                }).join(', ')}
+              </strong>
+            </Typography>
+          )}
         </Alert>
       )}
       

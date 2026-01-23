@@ -77,7 +77,7 @@ type Ctx = {
   canNext: (s: number) => boolean;
   maxStep: number;
   payloadPreview: any; // mantido para compat, mas agora usamos formPreview para exibir no UI
-  validateAttachments: () => { valid: boolean; missingSpecs: string[] };
+  validateAttachments: () => { valid: boolean; missingSpecs: string[]; missingBoxes: Array<{ specName: string; box: 'claimant' | 'client' }> };
   hasOcrErrors: () => { hasErrors: boolean; errorFiles: string[] };
   // downloads
   downloadPieceDocx: () => Promise<void>;
@@ -214,36 +214,58 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     setTopic(topics[0] ?? null);
   }, [topics]);
 
-  // Valida se todos os tópicos específicos têm pelo menos 1 anexo
-  // Se houver anexos em comum, os tópicos específicos podem ficar vazios
+  // Valida se todos os tópicos específicos têm pelo menos 1 anexo em cada caixa (reclamante e reclamada)
   const validateAttachments = () => {
     if (specs.length === 0) {
-      return { valid: true, missingSpecs: [] }; // se não há specs, não precisa validar
-    }
-    
-    // Se houver anexos em comum, não precisa validar os tópicos específicos
-    if (commonAttachments.length > 0) {
-      return { valid: true, missingSpecs: [] };
+      return { valid: true, missingSpecs: [], missingBoxes: [] }; // se não há specs, não precisa validar
     }
     
     const specIds = new Set(specs.map(s => s.id));
-    const attachmentsBySpec = new Map<string, number>();
+    const attachmentsBySpecAndBox = new Map<string, { claimant: number; client: number }>();
     
-    // Conta anexos por spec (independente da caixa)
+    // Inicializa contadores para cada spec
+    specs.forEach(s => {
+      attachmentsBySpecAndBox.set(s.id, { claimant: 0, client: 0 });
+    });
+    
+    // Conta anexos por spec e por caixa
     attachments.forEach(a => {
       if (specIds.has(a.topicSpecificId)) {
-        attachmentsBySpec.set(a.topicSpecificId, (attachmentsBySpec.get(a.topicSpecificId) || 0) + 1);
+        const current = attachmentsBySpecAndBox.get(a.topicSpecificId) || { claimant: 0, client: 0 };
+        if (a.box === 'claimant') {
+          current.claimant += 1;
+        } else if (a.box === 'client') {
+          current.client += 1;
+        }
+        attachmentsBySpecAndBox.set(a.topicSpecificId, current);
       }
     });
     
-    // Encontra specs sem anexos
-    const missingSpecs = specs
-      .filter(s => !attachmentsBySpec.has(s.id) || attachmentsBySpec.get(s.id) === 0)
-      .map(s => s.name);
+    // Encontra specs sem anexos ou com caixas faltando
+    const missingSpecs: string[] = [];
+    const missingBoxes: Array<{ specName: string; box: 'claimant' | 'client' }> = [];
+    
+    specs.forEach(s => {
+      const counts = attachmentsBySpecAndBox.get(s.id) || { claimant: 0, client: 0 };
+      const hasClaimant = counts.claimant > 0;
+      const hasClient = counts.client > 0;
+      
+      if (!hasClaimant && !hasClient) {
+        missingSpecs.push(s.name);
+      } else {
+        if (!hasClaimant) {
+          missingBoxes.push({ specName: s.name, box: 'claimant' });
+        }
+        if (!hasClient) {
+          missingBoxes.push({ specName: s.name, box: 'client' });
+        }
+      }
+    });
     
     return {
-      valid: missingSpecs.length === 0,
-      missingSpecs
+      valid: missingSpecs.length === 0 && missingBoxes.length === 0,
+      missingSpecs,
+      missingBoxes
     };
   };
 
@@ -344,11 +366,21 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     if (!dept?.id || !piece?.id || !piece?.docxFileId) {
       throw new Error('Departamento e Peça com DOCX são obrigatórios para criar o caso.');
     }
-    // Valida se todos os tópicos específicos têm pelo menos 1 anexo (ou se há anexos em comum)
+    // Valida se todos os tópicos específicos têm pelo menos 1 anexo em cada caixa (reclamante e reclamada)
     const validation = validateAttachments();
     if (!validation.valid) {
-      const specsList = validation.missingSpecs.join(', ');
-      throw new Error(`Cada tópico específico deve ter pelo menos 1 anexo, ou adicione arquivos em comum. Faltam anexos em: ${specsList}`);
+      const errors: string[] = [];
+      if (validation.missingSpecs.length > 0) {
+        errors.push(`Faltam anexos nos tópicos: ${validation.missingSpecs.join(', ')}`);
+      }
+      if (validation.missingBoxes.length > 0) {
+        const boxErrors = validation.missingBoxes.map(mb => {
+          const boxLabel = mb.box === 'claimant' ? 'reclamante' : 'reclamada';
+          return `${mb.specName} (${boxLabel})`;
+        });
+        errors.push(`Faltam anexos nas caixas: ${boxErrors.join(', ')}`);
+      }
+      throw new Error(`Cada tópico específico deve ter pelo menos 1 arquivo em cada caixa (reclamante e reclamada). ${errors.join('; ')}`);
     }
     const fields: CaseContextFields = {
       departmentId: dept.id,

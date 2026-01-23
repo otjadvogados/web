@@ -235,7 +235,86 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
         const found = catalogMap.get(id);
         setCurrentIds((prev) => new Set(prev).add(id));
         setCurrentList((prev) => [...prev, found || ({ id, name: id } as RuleItem)]);
-        openSnackbar({ open: true, message: 'Permissão adicionada a um cargo', variant: 'alert', alert: { color: 'success' } } as any);
+        
+        // Se selecionou "ai.cases.create", adiciona automaticamente as permissões relacionadas
+        // Verifica pelo name ou description da regra
+        if (found) {
+          const ruleName = found.name || '';
+          const ruleDescription = found.description || '';
+          const ruleNameLower = ruleName.toLowerCase();
+          const ruleDescLower = ruleDescription.toLowerCase();
+          
+          // Verifica se é a regra de criar caso (pode estar no name ou description)
+          const isCreateCaseRule = 
+            ruleName === 'ai.cases.create' || 
+            ruleDescription === 'ai.cases.create' ||
+            ruleNameLower.includes('criar caso') ||
+            ruleDescLower.includes('criar caso') ||
+            ruleNameLower.includes('ai.cases.create') ||
+            ruleDescLower.includes('ai.cases.create');
+          
+          if (isCreateCaseRule) {
+            const requiredPermissionNames = [
+              'departments.read',
+              'customers.read',
+              'ai.pieces.read',
+              'ai.topics.read',
+              'ai.topic-specifics.read'
+            ];
+            
+            // Encontra as regras no catálogo que correspondem às permissões necessárias
+            const permissionsToAdd: string[] = [];
+            requiredPermissionNames.forEach(permName => {
+              // Procura no catálogo por name ou description que corresponda à permissão
+              const matchingRule = Array.from(catalogMap.values()).find(r => {
+                const rName = (r.name || '').toLowerCase();
+                const rDesc = (r.description || '').toLowerCase();
+                const permLower = permName.toLowerCase();
+                
+                return r.name === permName || 
+                       r.description === permName ||
+                       rName === permLower ||
+                       rDesc === permLower ||
+                       rName.includes(permLower) ||
+                       rDesc.includes(permLower);
+              });
+              
+              if (matchingRule && !currentIds.has(matchingRule.id)) {
+                permissionsToAdd.push(matchingRule.id);
+              }
+            });
+            
+            if (permissionsToAdd.length > 0) {
+              try {
+                // Adiciona todas as permissões relacionadas
+                await Promise.all(permissionsToAdd.map(permId => addRuleToRole(roleId, permId)));
+                
+                // Atualiza o estado com as novas permissões
+                permissionsToAdd.forEach(permId => {
+                  const permFound = catalogMap.get(permId);
+                  setCurrentIds((prev) => new Set(prev).add(permId));
+                  setCurrentList((prev) => [...prev, permFound || ({ id: permId, name: permId } as RuleItem)]);
+                });
+                
+                openSnackbar({ 
+                  open: true, 
+                  message: `Permissão adicionada. ${permissionsToAdd.length} permissão(ões) relacionada(s) também foram selecionadas automaticamente.`, 
+                  variant: 'alert', 
+                  alert: { color: 'success' } 
+                } as any);
+              } catch (err: any) {
+                // Se falhar ao adicionar as permissões relacionadas, mostra mensagem genérica
+                openSnackbar({ open: true, message: 'Permissão adicionada a um cargo', variant: 'alert', alert: { color: 'success' } } as any);
+              }
+            } else {
+              openSnackbar({ open: true, message: 'Permissão adicionada a um cargo', variant: 'alert', alert: { color: 'success' } } as any);
+            }
+          } else {
+            openSnackbar({ open: true, message: 'Permissão adicionada a um cargo', variant: 'alert', alert: { color: 'success' } } as any);
+          }
+        } else {
+          openSnackbar({ open: true, message: 'Permissão adicionada a um cargo', variant: 'alert', alert: { color: 'success' } } as any);
+        }
       }
       onChanged?.();
     } catch (err: any) {

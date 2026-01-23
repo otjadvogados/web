@@ -125,7 +125,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
            otherwise: (schema) => schema.optional().nullable()
          })
        : Yup.string().required('Confirme a senha').oneOf([Yup.ref('password')], 'As senhas devem ser iguais'),
-    roleId: isEdit ? Yup.string().nullable() : Yup.string().required('Função é obrigatória')
+    roleId: Yup.string().required('Função é obrigatória')
   });
 
   return (
@@ -159,8 +159,8 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                 ...(hasOAB ? { oab: values.oab || null } : {}),
                 ...(hasBirthdate ? { birthdate: values.birthdate || null } : {}),
                 ...(values.password ? { password: values.password } : {}),
-                // 👇 envia o roleId (string para definir/trocar, null para limpar)
-                ...(values.roleId !== undefined ? { roleId: values.roleId } : {})
+                // 👇 roleId é obrigatório
+                roleId: values.roleId!
               });
               
               // Se estiver editando o usuário atual, atualiza o contexto
@@ -203,8 +203,15 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
           }
         }}
       >
-        {({ values, errors, touched, handleBlur, handleChange, handleSubmit, isSubmitting, setFieldValue }) => (
-          <form id="user-form" onSubmit={handleSubmit} noValidate>
+        {({ values, errors, touched, handleBlur, handleChange, handleSubmit, isSubmitting, setFieldValue, setTouched }) => (
+          <form id="user-form" onSubmit={(e) => {
+            e.preventDefault();
+            // Marca o campo roleId como touched se houver erro de validação
+            if (!values.roleId) {
+              setTouched({ ...touched, roleId: true });
+            }
+            handleSubmit(e);
+          }} noValidate>
             <DialogContent dividers>
               <Grid container spacing={2}>
                                  <Grid size={{ xs: 12, md: 6 }}>
@@ -312,7 +319,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                                  {/* 👇 NOVO: Seletor de Função (Role) */}
                  <Grid size={{ xs: 12 }}>
                    <Stack sx={{ gap: 1 }}>
-                     <InputLabel>Função {!isEdit && '*'}</InputLabel>
+                     <InputLabel>Função *</InputLabel>
                      <Autocomplete<RoleOption>
                        options={roles}
                        loading={roleLoading}
@@ -341,11 +348,16 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                            loadRoles('');
                          }
                        }}
+                       onBlur={() => {
+                         // Marca o campo como touched quando perde o foco
+                         setTouched({ ...touched, roleId: true });
+                       }}
                        getOptionLabel={(opt) => opt?.name ?? ''}
                        renderInput={(params) => (
                          <TextField
                            {...params}
-                           placeholder={isEdit ? "Buscar e selecionar a função" : "Selecione uma função (obrigatório)"}
+                           placeholder="Selecione uma função (obrigatório)"
+                           error={Boolean(touched.roleId && errors.roleId)}
                            InputProps={{
                              ...params.InputProps,
                              endAdornment: (
@@ -364,6 +376,7 @@ export default function UserFormDialog({ open, onClose, editingId, initial, onSa
                        }}
                        filterOptions={(options) => options}
                      />
+                     {touched.roleId && errors.roleId && <FormHelperText error>{errors.roleId as string}</FormHelperText>}
                    </Stack>
                  </Grid>
 
