@@ -32,6 +32,21 @@ import {
   addDepartmentToRole,
   removeDepartmentFromRole
 } from '../../api/roleDepartments';
+import { listRoleRules } from '../../api/roleRules';
+import { RuleTreeNode } from '../../types/rules';
+
+// Função auxiliar para achatar a árvore de regras
+function flattenRuleTree(nodes: RuleTreeNode[]): any[] {
+  const items: any[] = [];
+  const walk = (list: RuleTreeNode[]) => {
+    list.forEach((node) => {
+      if (node.data?.length) items.push(...node.data);
+      if (node.children?.length) walk(node.children);
+    });
+  };
+  walk(nodes);
+  return items;
+}
 
 type Props = {
   open: boolean;
@@ -41,7 +56,7 @@ type Props = {
     name?: string;
     description?: string | null;
   };
-  onSaved: () => void;
+  onSaved: (createdRoleId?: string) => void;
 };
 
 const schema = Yup.object({
@@ -151,6 +166,39 @@ export default function RoleFormDialog({ open, onClose, editingId, initial, onSa
                 ...toAdd.map((id) => addDepartmentToRole(roleId!, id)),
                 ...toRemove.map((id) => removeDepartmentFromRole(roleId!, id))
               ]);
+            }
+
+            // 3) Se for criação (não edição), verifica se há permissões
+            if (!editingId && roleId) {
+              try {
+                const rules = await listRoleRules(roleId);
+                const flattenedRules = flattenRuleTree(rules);
+                const hasPermissions = flattenedRules.length > 0;
+                
+                if (!hasPermissions) {
+                  // Se não tem permissões, passa o roleId para o callback
+                  openSnackbar({
+                    open: true,
+                    message: 'Função criada! Selecione ao menos uma permissão.',
+                    variant: 'alert',
+                    alert: { color: 'warning' }
+                  } as any);
+                  onSaved(roleId); // Passa o roleId criado
+                  onClose();
+                  return; // Retorna sem chamar onSaved novamente
+                }
+              } catch (err) {
+                // Se falhar ao buscar regras, assume que não há permissões
+                openSnackbar({
+                  open: true,
+                  message: 'Função criada! Selecione ao menos uma permissão.',
+                  variant: 'alert',
+                  alert: { color: 'warning' }
+                } as any);
+                onSaved(roleId);
+                onClose();
+                return;
+              }
             }
 
             openSnackbar({

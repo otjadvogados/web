@@ -141,9 +141,16 @@ function collectGroupKeys(nodes: RuleTreeNode[], path: string[] = []): string[] 
   return keys;
 }
 
-type Props = { open: boolean; role: RoleRow | null; onClose: () => void; onChanged?: () => void };
+type Props = { 
+  open: boolean; 
+  role: RoleRow | null; 
+  onClose: () => void; 
+  onChanged?: () => void;
+  requireAtLeastOnePermission?: boolean; // Se true, não permite fechar sem pelo menos uma permissão
+  onRequirementMet?: () => void; // Callback quando a primeira permissão é adicionada (remove a obrigatoriedade)
+};
 
-export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Props) {
+export default function RoleRulesDrawer({ open, role, onClose, onChanged, requireAtLeastOnePermission = false, onRequirementMet }: Props) {
   const roleId = role?.id || '';
 
   const [loadingCurrent, setLoadingCurrent] = useState(false);
@@ -187,6 +194,23 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
   const checkedCount = visibleLeaves.filter((r) => isLinked(r.id)).length;
   const allChecked = totalFiltered > 0 && checkedCount === totalFiltered;
   const someChecked = checkedCount > 0 && checkedCount < totalFiltered;
+
+  // Função para lidar com o fechamento, verificando se há permissões quando necessário
+  const handleClose = (event?: {}, reason?: string) => {
+    // Se é obrigatório ter permissões e não há nenhuma, bloqueia o fechamento
+    if (requireAtLeastOnePermission && currentIds.size === 0) {
+      openSnackbar({
+        open: true,
+        message: 'É obrigatório selecionar ao menos uma permissão para esta função.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+      // Não chama onClose, impedindo o fechamento
+      return;
+    }
+    // Permite fechar normalmente
+    onClose();
+  };
 
   // carregar dados
   useEffect(() => {
@@ -245,6 +269,13 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
     if (!debSearch.trim() || !hasCatalog) return;
     setExpanded(new Set(collectGroupKeys(filteredTree)));
   }, [debSearch, filteredTree, hasCatalog]);
+
+  // Remove a obrigatoriedade quando a primeira permissão é adicionada
+  useEffect(() => {
+    if (requireAtLeastOnePermission && currentIds.size > 0 && onRequirementMet) {
+      onRequirementMet();
+    }
+  }, [requireAtLeastOnePermission, currentIds.size, onRequirementMet]);
 
   const toggleExpand = (key: string) => {
     setExpanded((prev) => {
@@ -523,8 +554,16 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
       );
     });
 
+  const canClose = !requireAtLeastOnePermission || currentIds.size > 0;
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog 
+      open={open} 
+      onClose={canClose ? handleClose : undefined}
+      disableEscapeKeyDown={!canClose}
+      fullWidth 
+      maxWidth="md"
+    >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
         <Stack direction="row" spacing={1.25} alignItems="center">
           <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'primary.main', color: 'white', display: 'grid', placeItems: 'center' }}>
@@ -533,9 +572,14 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
           <Box>
             <Typography variant="h6" fontWeight={700}>Gerenciar Permissões da função</Typography>
             <Typography variant="body2" color="text.secondary">{role?.name || '—'}</Typography>
+            {requireAtLeastOnePermission && currentIds.size === 0 && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                * Selecione ao menos uma permissão para continuar
+              </Typography>
+            )}
           </Box>
         </Stack>
-        <IconButton onClick={onClose}><CloseOutlined /></IconButton>
+        <IconButton onClick={handleClose} disabled={!canClose}><CloseOutlined /></IconButton>
       </DialogTitle>
 
       <DialogContent dividers>
@@ -592,7 +636,9 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged }: Prop
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose}>Fechar</Button>
+        <Button onClick={handleClose} disabled={!canClose}>
+          Fechar
+        </Button>
       </DialogActions>
     </Dialog>
   );

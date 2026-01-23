@@ -59,10 +59,16 @@ export default function RolesPage() {
   // Drawer de Rules
   const [rulesOpen, setRulesOpen] = useState(false);
   const [rulesRole, setRulesRole] = useState<RoleRow | null>(null);
+  const [roleRequiringPermissions, setRoleRequiringPermissions] = useState<string | null>(null); // ID da função que precisa de permissões obrigatórias
 
-  const openRules = (r: RoleRow) => {
+  const openRules = (r: RoleRow, requirePermissions = false) => {
     setRulesRole(r);
     setRulesOpen(true);
+    if (requirePermissions) {
+      setRoleRequiringPermissions(r.id);
+    } else {
+      setRoleRequiringPermissions(null);
+    }
   };
 
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
@@ -259,7 +265,40 @@ export default function RolesPage() {
         onClose={() => setFormOpen(false)}
         editingId={editId}
         initial={editInitial || undefined}
-        onSaved={load}
+        onSaved={async (createdRoleId) => {
+          await load();
+          // Se foi criada uma função sem permissões, abre o drawer de regras
+          if (createdRoleId) {
+            // Busca a função criada na lista atualizada
+            const updatedRes = await listRoles({ page: 1, limit: 100 });
+            const createdRole = updatedRes.data.find(r => r.id === createdRoleId);
+            
+            if (createdRole) {
+              // Aguarda um pouco para garantir que o diálogo fechou
+              setTimeout(() => {
+                openRules(createdRole, true); // Passa true para indicar que precisa de permissões obrigatórias
+              }, 100);
+            } else {
+              // Se não encontrou na lista, tenta buscar diretamente
+              try {
+                const role = await getRole(createdRoleId);
+                const roleRow: RoleRow = {
+                  id: role.id,
+                  name: role.name,
+                  description: role.description,
+                  company: role.company,
+                  createdAt: role.createdAt
+                };
+                setTimeout(() => {
+                  openRules(roleRow, true); // Passa true para indicar que precisa de permissões obrigatórias
+                }, 100);
+              } catch (err) {
+                // Se falhar, apenas recarrega a lista
+                console.error('Erro ao buscar função criada:', err);
+              }
+            }
+          }
+        }}
       />
 
       {/* Confirmação de deleção */}
@@ -299,8 +338,17 @@ export default function RolesPage() {
       <RoleRulesDrawer
         open={rulesOpen}
         role={rulesRole}
-        onClose={() => { setRulesOpen(false); setRulesRole(null); }}
+        onClose={() => { 
+          setRulesOpen(false); 
+          setRulesRole(null);
+          setRoleRequiringPermissions(null);
+        }}
         onChanged={load}
+        requireAtLeastOnePermission={roleRequiringPermissions === rulesRole?.id}
+        onRequirementMet={() => {
+          // Remove a obrigatoriedade quando a primeira permissão é adicionada
+          setRoleRequiringPermissions(null);
+        }}
       />
     </Grid>
     </Permission>
