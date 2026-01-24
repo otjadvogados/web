@@ -636,8 +636,8 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged, requir
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={handleClose} disabled={!canClose}>
-          Fechar
+        <Button onClick={handleClose} disabled={!canClose} variant="contained" color="primary">
+          Salvar
         </Button>
       </DialogActions>
     </Dialog>
