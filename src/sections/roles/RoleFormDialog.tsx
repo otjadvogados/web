@@ -61,7 +61,10 @@ type Props = {
 
 const schema = Yup.object({
   name: Yup.string().required('Nome é obrigatório').min(3, 'Mínimo 3 caracteres'),
-  description: Yup.string().nullable().max(200, 'Máx. 200 caracteres')
+  description: Yup.string()
+    .required('Descrição é obrigatória')
+    .test('not-empty', 'Descrição é obrigatória', (value) => value?.trim().length > 0)
+    .max(200, 'Máx. 200 caracteres')
   // sem companyId no formulário
 });
 
@@ -125,7 +128,7 @@ export default function RoleFormDialog({ open, onClose, editingId, initial, onSa
               {isEdit ? 'Editar Função' : 'Nova Função'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {isEdit ? 'Atualize os detalhes da função' : 'Defina um nome e uma descrição (opcional)'}
+              {isEdit ? 'Atualize os detalhes da função' : 'Defina um nome e uma descrição'}
             </Typography>
           </Box>
         </Stack>
@@ -145,7 +148,7 @@ export default function RoleFormDialog({ open, onClose, editingId, initial, onSa
             setIsSubmitting(true);
             const payload = {
               name: values.name.trim(),
-              description: values.description?.trim() || null
+              description: values.description.trim()
             };
 
             // 1) cria/atualiza role
@@ -232,9 +235,9 @@ export default function RoleFormDialog({ open, onClose, editingId, initial, onSa
                 </Stack>
 
                 <Stack gap={1}>
-                  <InputLabel htmlFor="description">Descrição</InputLabel>
+                  <InputLabel htmlFor="description">Descrição *</InputLabel>
                   <TextField id="description" name="description" value={values.description ?? ''} onChange={handleChange} onBlur={handleBlur}
-                             multiline minRows={2} />
+                             multiline minRows={2} error={Boolean(touched.description && errors.description)} />
                   {touched.description && errors.description && <FormHelperText error>{errors.description as string}</FormHelperText>}
                 </Stack>
 

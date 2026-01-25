@@ -261,7 +261,7 @@ export function getValidationChecklist(): ChecklistSection[] {
         {
           id: 'check-contract-data',
           label: 'Dados do contrato: admissão/demissão (incluir modalidade); função (histórico funcional); último salário',
-          required: false,
+          required: true,
           checked: false
         },
         {
