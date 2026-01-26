@@ -35,6 +35,8 @@ import Permission from 'components/Permission';
 import { getValidationChecklist } from 'sections/ai/cases/checklists';
 import useAuth from 'hooks/useAuth';
 import { usePermissions } from 'hooks/usePermissions';
+import { useWorkspaceAutosave } from 'hooks/useWorkspaceAutosave';
+import { useWorkspaceRestore } from 'hooks/useWorkspaceRestore';
 
 export default function EditCasePage() {
   const { id } = useParams<{ id: string }>();
@@ -56,6 +58,59 @@ export default function EditCasePage() {
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [currentTab, setCurrentTab] = useState(0);
   const caseDataRef = useRef<CaseResult | null>(null);
+  const hasRestoredStateRef = useRef(false);
+
+  // Restaura estado do workspace ao carregar
+  const { workspaceState } = useWorkspaceRestore({
+    context: 'case-editor',
+    expectedResourceId: id || null,
+    autoRestore: true
+  });
+
+  // Restaura estado do workspace após carregar dados do caso
+  useEffect(() => {
+    if (!workspaceState || !caseData || hasRestoredStateRef.current) return;
+    
+    // Restaura scroll position
+    if (workspaceState.state.scrollPosition !== undefined) {
+      setTimeout(() => {
+        window.scrollTo(0, workspaceState.state.scrollPosition as number);
+      }, 100);
+    }
+    
+    // Restaura aba selecionada
+    if (workspaceState.state.selectedTab !== undefined) {
+      setCurrentTab(workspaceState.state.selectedTab as number);
+    }
+    
+    // Restaura checklist se houver (só se não houver checklist salvo no caso)
+    const savedChecklist = caseData?.tags?.validationChecklist as Record<string, boolean> | undefined;
+    if (!savedChecklist || Object.keys(savedChecklist).length === 0) {
+      if (workspaceState.state.checkedItems && typeof workspaceState.state.checkedItems === 'object') {
+        setCheckedItems(workspaceState.state.checkedItems as Record<string, boolean>);
+      }
+    }
+    
+    hasRestoredStateRef.current = true;
+  }, [workspaceState, caseData]);
+
+  // Autosave periódico do estado do workspace
+  useWorkspaceAutosave({
+    context: 'case-editor',
+    resourceId: id || null,
+    interval: 30000, // 30 segundos
+    getState: () => ({
+      scrollPosition: window.scrollY,
+      selectedTab: currentTab,
+      checkedItems,
+      // Não salva html no workspace state (já é salvo no caso)
+    }),
+    getMetadata: () => ({
+      url: window.location.pathname
+    }),
+    saveOnMount: false, // Não salva ao montar, apenas após interação
+    saveOnUnmount: true // Salva antes de desmontar
+  });
 
   const loadCaseData = useCallback(async () => {
     if (!id) return;
@@ -386,6 +441,9 @@ export default function EditCasePage() {
   // Restaura os dados do checklist quando o caseData é carregado pela primeira vez
   useEffect(() => {
     if (!caseData) return;
+    
+    // Se já restaurou do workspace state, não sobrescreve
+    if (hasRestoredStateRef.current) return;
     
     const savedChecklist = caseData?.tags?.validationChecklist as Record<string, boolean> | undefined;
     

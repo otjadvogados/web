@@ -16,6 +16,7 @@ import HorizontalBar from './Drawer/HorizontalBar';
 import Loader from 'components/Loader';
 import Breadcrumbs from 'components/@extended/Breadcrumbs';
 import AuthGuard from 'utils/route-guard/AuthGuard';
+import WorkspaceManager from 'components/WorkspaceManager';
 
 import { MenuOrientation } from 'config';
 import useConfig from 'hooks/useConfig';
@@ -49,6 +50,7 @@ export default function DashboardLayout() {
 
   return (
     <AuthGuard>
+      <WorkspaceManager />
       <Box sx={{ display: 'flex', width: '100%' }} data-page={isA4Playground ? 'a4-playground' : 'other'}>
         <Header />
         {!isHorizontal ? <Drawer /> : <HorizontalBar />}

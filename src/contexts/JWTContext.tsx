@@ -9,6 +9,7 @@ import Loader from 'components/Loader';
 import axios from 'utils/axios';
 import { AuthProps, JWTContextType } from 'types/auth';
 import { clearToken } from 'utils/axios';
+import type { WorkspaceStateData } from 'types/workspace';
 
 // constant
 const initialState: AuthProps = {
@@ -70,8 +71,8 @@ export const JWTProvider = ({ children }: { children: React.ReactElement }) => {
       // chama seu backend real
       const response = await axios.post('/auth/login', { email, password });
       
-      // A API retorna { serviceToken, user, expiresIn }
-      const { serviceToken, user: userData, expiresIn } = response.data;
+      // A API retorna { serviceToken, user, expiresIn, lastWorkspaceState? }
+      const { serviceToken, user: userData, expiresIn, lastWorkspaceState } = response.data;
 
       // Garante que o userData existe e tem a estrutura correta
       if (!userData) {
@@ -83,11 +84,59 @@ export const JWTProvider = ({ children }: { children: React.ReactElement }) => {
         type: LOGIN,
         payload: { isLoggedIn: true, user: userData, expiresIn }
       });
+
+      // Redireciona baseado no lastWorkspaceState (sessão expirada)
+      // Se houver lastWorkspaceState, significa que a sessão expirou e o usuário estava trabalhando
+      if (lastWorkspaceState) {
+        handleWorkspaceRedirect(lastWorkspaceState);
+      } else {
+        // Logout manual ou primeiro acesso - redireciona para dashboard
+        // O redirecionamento será feito pelo componente de login ou roteamento
+      }
     } catch (error: any) {
       // Extrai a mensagem de erro da API ou usa uma mensagem padrão
       const errorMessage = error.response?.data?.message || error.message || 'Erro ao fazer login';
       throw new Error(errorMessage);
     }
+  };
+
+  /**
+   * Redireciona o usuário para onde estava trabalhando baseado no estado do workspace
+   */
+  const handleWorkspaceRedirect = (workspaceState: WorkspaceStateData) => {
+    // Prioridade 1: URL salva nos metadados
+    if (workspaceState.metadata?.url) {
+      window.location.href = workspaceState.metadata.url;
+      return;
+    }
+
+    // Prioridade 2: Constrói URL baseada no contexto e resourceId
+    if (workspaceState.resourceId) {
+      let url = '';
+      
+      switch (workspaceState.context) {
+        case 'case-editor':
+          url = `/ai/cases/${workspaceState.resourceId}/edit`;
+          break;
+        case 'draft-editor':
+          url = `/ai/drafts/${workspaceState.resourceId}/edit`;
+          break;
+        case 'document-viewer':
+          url = `/ai/documents/${workspaceState.resourceId}`;
+          break;
+        default:
+          // Tenta construir URL genérica baseada no contexto
+          url = `/${workspaceState.context}/${workspaceState.resourceId}`;
+      }
+
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+    }
+
+    // Fallback: redireciona para dashboard
+    window.location.href = '/dashboard';
   };
 
   // register/resetPassword podem continuar mock ou apontar para seus endpoints reais, se existirem
