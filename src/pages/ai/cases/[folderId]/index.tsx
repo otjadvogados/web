@@ -13,9 +13,9 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Avatar from 'components/@extended/Avatar';
 import useAvatarUrl from 'hooks/useAvatarUrl';
+import { containsNormalized } from 'utils/normalize';
 
 import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
-import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
 import EditOutlined from '@ant-design/icons/EditOutlined';
@@ -421,12 +421,12 @@ export default function CasesFolderPage() {
   }, [folderId]);
 
   const applySearchFilter = (cases: CaseResult[], q: string) => {
-    const term = q.trim().toLowerCase();
+    const term = q.trim();
     if (!term) return cases;
     return cases.filter((caseItem) => 
-      (caseItem.name || '').toLowerCase().includes(term) ||
-      (caseItem.pieceName || '').toLowerCase().includes(term) ||
-      (caseItem.departmentName || '').toLowerCase().includes(term)
+      containsNormalized(caseItem.name || '', term) ||
+      containsNormalized(caseItem.pieceName || '', term) ||
+      containsNormalized(caseItem.departmentName || '', term)
     );
   };
 
@@ -529,28 +529,14 @@ export default function CasesFolderPage() {
             ) : (
               <>
                 {/* Busca */}
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={1.25}
-                  alignItems={{ xs: 'stretch', sm: 'center' }}
-                  justifyContent="space-between"
-                >
-                  <TextField
-                    label="Buscar casos"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar por nome..."
-                    sx={{ flex: 1 }}
-                    size="small"
-                  />
-                  <Stack direction="row" spacing={1}>
-                    <Permission resources={['ai.cases.read']}>
-                      <Button variant="outlined" startIcon={<ReloadOutlined />} onClick={loadCases} disabled={loadingCases}>
-                        Atualizar
-                      </Button>
-                    </Permission>
-                  </Stack>
-                </Stack>
+                <TextField
+                  label="Buscar casos"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Digite para buscar (ex: Salario ou Salário)"
+                  sx={{ width: '100%' }}
+                  size="small"
+                />
 
                 <Divider />
 

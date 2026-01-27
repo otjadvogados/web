@@ -17,7 +17,6 @@ import Chip from '@mui/material/Chip';
 import Box from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { Theme } from '@mui/material/styles';
-import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
@@ -31,6 +30,8 @@ import TopicFormDialog from 'sections/ai/topics/TopicFormDialog';
 import Permission from 'components/Permission';
 import useAuth from 'hooks/useAuth';
 import { usePermissions } from 'hooks/usePermissions';
+import useDebounced from 'utils/useDebounced';
+import { normalizeForSearch } from 'utils/normalize';
 
 export default function AITopicsPage() {
   const { user } = useAuth();
@@ -41,6 +42,7 @@ export default function AITopicsPage() {
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search, 350);
   const [pieceId, setPieceId] = useState<string>('');
   const [pieceCatalog, setPieceCatalog] = useState<Array<{ id: string; name: string }>>([]);
   const [sortBy, setSortBy] = useState<'createdAt' | 'name'>('createdAt');
@@ -60,10 +62,12 @@ export default function AITopicsPage() {
   async function load() {
     try {
       setLoading(true);
+      // Normaliza o termo de busca removendo acentos antes de enviar para a API
+      const normalizedSearch = debouncedSearch.trim() ? normalizeForSearch(debouncedSearch.trim()) : undefined;
       const res = await listTopics({
         page: page + 1,
         limit,
-        search: search.trim() || undefined,
+        search: normalizedSearch,
         pieceId: pieceId || undefined,
         sortBy,
         sortOrder
@@ -85,7 +89,7 @@ export default function AITopicsPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, sortBy, sortOrder]);
+  }, [page, limit, sortBy, sortOrder, debouncedSearch, pieceId]);
 
   useEffect(() => {
     // catálogo de peças para filtro e formulário
@@ -98,8 +102,7 @@ export default function AITopicsPage() {
     })();
   }, []);
 
-  const onSearch = () => { setPage(0); load(); };
-  const onClearFilters = () => { setSearch(''); setPieceId(''); setPage(0); load(); };
+  const onClearFilters = () => { setSearch(''); setPieceId(''); setPage(0); };
 
   const openCreate = () => { setEditId(null); setEditInitial(null); setFormOpen(true); };
   const openEdit = (row: AiTopic) => { setEditId(row.id); setEditInitial(row); setFormOpen(true); };
@@ -133,8 +136,8 @@ export default function AITopicsPage() {
                 label="Buscar por nome/descrição"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
                 sx={{ minWidth: 240, flex: 1 }}
+                placeholder="Digite para buscar (ex: Salario ou Salário)"
               />
               <TextField
                 select
@@ -149,9 +152,6 @@ export default function AITopicsPage() {
                 ))}
               </TextField>
               <Stack direction="row" spacing={1}>
-                <Button variant="outlined" startIcon={<ReloadOutlined />} onClick={onSearch} disabled={loading}>
-                  Buscar
-                </Button>
                 <Button variant="text" onClick={onClearFilters} disabled={loading}>
                   Limpar
                 </Button>

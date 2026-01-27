@@ -28,7 +28,6 @@ import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import TeamOutlined from '@ant-design/icons/TeamOutlined';
 import UserAddOutlined from '@ant-design/icons/UserAddOutlined';
-import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 
 
 import { listUsers, deleteUser, getUser } from 'api/users';
@@ -44,6 +43,8 @@ import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import Permission from 'components/Permission';
 import useAuth from 'hooks/useAuth';
 import { usePermissions } from 'hooks/usePermissions';
+import useDebounced from 'utils/useDebounced';
+import { normalizeForSearch } from 'utils/normalize';
 
 // Avatar protegido por token
 function UserAvatar({ id, name, size = 36, avatarFileId }: { id: string; name: string; size?: number; avatarFileId?: string | null }) {
@@ -68,6 +69,7 @@ export default function UsersPage() {
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search, 350);
   const [sortBy, setSortBy] = useState<'name' | 'email' | 'createdAt'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(false);
@@ -105,10 +107,12 @@ export default function UsersPage() {
   async function load() {
     try {
       setLoading(true);
+      // Normaliza o termo de busca removendo acentos antes de enviar para a API
+      const normalizedSearch = debouncedSearch.trim() ? normalizeForSearch(debouncedSearch.trim()) : undefined;
       const res = await listUsers({
         page: page + 1,
         limit,
-        search: search.trim() || undefined,
+        search: normalizedSearch,
         sortBy,
         sortOrder
       });
@@ -121,7 +125,7 @@ export default function UsersPage() {
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [page, limit, sortBy, sortOrder]);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [page, limit, sortBy, sortOrder, debouncedSearch]);
 
   const requestDelete = (u: UserRow) => {
     setDeleteTarget({ id: u.id, name: u.name, email: u.email });
@@ -336,11 +340,11 @@ export default function UsersPage() {
               label="Buscar por nome ou e-mail"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && (setPage(0), load())}
               sx={{ 
                 minWidth: isMobile ? '100%' : 280,
                 flex: isMobile ? 'none' : 1
               }}
+              placeholder="Digite para buscar (ex: Jose ou José)"
               name="search-users"
               id="search-users"
               autoComplete="off"
@@ -360,16 +364,6 @@ export default function UsersPage() {
                  justifyContent: isMobile ? 'space-between' : 'flex-start'
                }}
              >
-              <Button 
-                variant="outlined" 
-                startIcon={<ReloadOutlined />} 
-                onClick={() => (setPage(0), load())} 
-                disabled={loading}
-                size={isSmallMobile ? "small" : "medium"}
-              >
-                {isSmallMobile ? 'Buscar' : 'Buscar'}
-              </Button>
-              
               <Permission resources={['users.create']}>
                 <Button 
                   variant="contained" 
