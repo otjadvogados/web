@@ -25,13 +25,27 @@ export default function DrawerHeader({ open }: Props) {
       open={open}
       sx={{
         minHeight: isHorizontal ? 'unset' : '60px',
-        width: isHorizontal ? { xs: '100%', lg: '424px' } : 'initial',
-        paddingTop: isHorizontal ? { xs: '10px', lg: '0' } : '8px',
-        paddingBottom: isHorizontal ? { xs: '18px', lg: '0' } : '8px',
-        paddingLeft: isHorizontal ? { xs: '24px', lg: '0' } : open ? '24px' : 0
+        width: isHorizontal ? { xs: '100%', lg: '424px' } : '100%',
+        paddingTop: isHorizontal ? { xs: '10px', lg: '0' } : '10px',
+        paddingBottom: isHorizontal ? { xs: '10px', lg: '0' } : '10px',
+        paddingLeft: 0,
+        paddingRight: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}
     >
-      <Logo isIcon={!open} sx={{ width: open ? 50 : 35, height: open ? 50 : 35 }} />
+      <Logo 
+        isIcon={!open} 
+        sx={{ 
+          width: open ? 50 : 35, 
+          height: open ? 50 : 35,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto'
+        }} 
+      />
     </DrawerHeaderStyled>
   );
 }

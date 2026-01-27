@@ -5,15 +5,23 @@ import Box from '@mui/material/Box';
 // ==============================|| DRAWER HEADER - STYLED ||============================== //
 
 const DrawerHeaderStyled = styled(Box, { shouldForwardProp: (prop) => prop !== 'open' })<{ open: boolean }>(({ theme }) => ({
-  ...theme.mixins.toolbar,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   paddingLeft: theme.spacing(0),
+  paddingRight: theme.spacing(0),
+  paddingTop: theme.spacing(0),
+  paddingBottom: theme.spacing(0),
+  minHeight: theme.mixins.toolbar.minHeight,
   variants: [
     {
       props: ({ open }) => open,
-      style: { justifyContent: 'flex-start', paddingLeft: theme.spacing(3) }
+      style: { 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        paddingLeft: theme.spacing(0),
+        paddingRight: theme.spacing(0)
+      }
     }
   ]
 }));
