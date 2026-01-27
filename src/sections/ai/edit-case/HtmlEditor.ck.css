@@ -1,79 +1,236 @@
 /**
- * Blindagem leve contra CSS global do app.
- * Objetivo: manter a aparência/UX do toolbar igual ao demo do CKEditor.
- * Sem reestilizar cores/tokens — só restaurar layout/ícones/fluxo.
+ * ============================================
+ * CKEDITOR – TOOLBAR MODERNA + COLOR PICKER OK
+ * ============================================
+ * ✔ Toolbar dark moderna
+ * ✔ Dropdowns funcionais
+ * ✔ Color picker sem sobreposição
+ * ✔ Tiles de cor visíveis
+ * ✔ Compatível com MUI / AppBar / Drawer
  */
 
-/* Remove bordas da última tabela do documento */
-.otj-ckeditor .ck-content table:last-of-type,
-.otj-ckeditor .ck-content figure.table:last-of-type table,
-.otj-ckeditor article table:last-of-type,
-.otj-ckeditor article figure.table:last-of-type table {
-  border: none !important;
-}
-
-.otj-ckeditor .ck-content table:last-of-type td,
-.otj-ckeditor .ck-content table:last-of-type th,
-.otj-ckeditor .ck-content figure.table:last-of-type table td,
-.otj-ckeditor .ck-content figure.table:last-of-type table th,
-.otj-ckeditor article table:last-of-type td,
-.otj-ckeditor article table:last-of-type th,
-.otj-ckeditor article figure.table:last-of-type table td,
-.otj-ckeditor article figure.table:last-of-type table th {
-  border: none !important;
-}
+/* ============================
+   BLINDAGEM BÁSICA
+   ============================ */
 
 .otj-ckeditor .ck,
 .otj-ckeditor .ck * {
   box-sizing: border-box;
 }
 
-/* Garante que toolbar e itens mantenham layout horizontal padrão */
-.otj-ckeditor .ck-toolbar,
-.otj-ckeditor .ck-toolbar__items {
+  /* Exceção CRÍTICA: color picker tiles NUNCA devem herdar background transparent */
+  /* Esta regra é aplicada via JavaScript para garantir que funcione */
+   
+   /* ============================
+      TOOLBAR
+      ============================ */
+   
+   .otj-ckeditor .ck.ck-toolbar {
+     background-color: #1a1a2e !important;
+     border: none !important;
+     border-radius: 8px 8px 0 0 !important;
+     box-shadow: none !important;
+   
+     height: 44px;
+     padding: 0 6px;
+   
+     display: flex;
+     align-items: center;
+   
+     position: relative; /* necessário */
+     z-index: 100;       /* abaixo dos balões */
+   }
+   
+   .otj-ckeditor .ck.ck-toolbar__items {
   display: flex;
-  flex-direction: row;
   align-items: center;
-  flex-wrap: wrap;
-}
-
-/* Evita que resets globais de button/text transform estraguem ícones */
-.otj-ckeditor .ck-button,
-.otj-ckeditor .ck-dropdown__button {
+     gap: 4px;
+   }
+   
+   /* Separadores */
+   .otj-ckeditor .ck.ck-toolbar__separator {
+     width: 1px;
+     height: 20px;
+     background: rgba(255, 255, 255, 0.2);
+     margin: 0 4px;
+     border: none;
+   }
+   
+  /* ============================
+     BOTÕES
+     ============================ */
+  
+  /* Botões da toolbar (NÃO afeta color picker) */
+  .otj-ckeditor .ck.ck-toolbar .ck.ck-button:not(.ck-dropdown__button) {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  
+    border-radius: 6px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+  
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-transform: none;
-  line-height: normal;
-}
+  
+    transition: background 0.2s ease;
+  }
+  
+  .otj-ckeditor .ck.ck-toolbar .ck.ck-button:hover:not(.ck-disabled) {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .otj-ckeditor .ck.ck-toolbar .ck.ck-button.ck-on {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+  }
+  
+  .otj-ckeditor .ck.ck-button.ck-disabled {
+    opacity: 0.4;
+  }
+   
+   /* Ícones */
+   .otj-ckeditor .ck.ck-icon,
+   .otj-ckeditor .ck.ck-icon svg {
+     width: 18px;
+     height: 18px;
+   }
+   
+   /* ============================
+      DROPDOWNS (FONT, SIZE, HEADING)
+      ============================ */
+   
+   .otj-ckeditor .ck.ck-dropdown__button {
+     height: 32px;
+     padding: 0 8px;
+   
+     background: transparent;
+     color: rgba(255, 255, 255, 0.85);
+     border-radius: 6px;
+   
+     display: inline-flex;
+     align-items: center;
+     gap: 4px;
+   }
+   
+   .otj-ckeditor .ck.ck-dropdown__button:hover {
+     background: rgba(255, 255, 255, 0.1);
+   }
+   
+   .otj-ckeditor .ck.ck-dropdown__button .ck-button__label {
+     font-size: 13px;
+     font-weight: 400;
+     color: inherit;
+   }
+   
+   /* Seta */
+   .otj-ckeditor .ck.ck-dropdown__arrow {
+     width: 12px;
+     height: 12px;
+     color: inherit;
+   }
+   
+   /* ============================
+      PAINEL DE DROPDOWN NORMAL
+      ============================ */
+   
+   .otj-ckeditor .ck.ck-dropdown {
+     position: relative;
+   }
+   
+   .otj-ckeditor .ck.ck-dropdown__panel:not(.ck-color-selector) {
+     background: #2a2a3e;
+     border-radius: 6px;
+     border: 1px solid rgba(255, 255, 255, 0.1);
+   
+     position: absolute;
+     top: calc(100% + 6px);
+     left: 0;
+   
+     z-index: 200;
+   }
+   
+   /* Lista */
+   .otj-ckeditor .ck.ck-list {
+     display: flex;
+     flex-direction: column;
+   }
+   
+   .otj-ckeditor .ck.ck-list__item .ck-button {
+     width: 100%;
+     justify-content: flex-start;
+     color: rgba(255, 255, 255, 0.9);
+   }
+   
+  /* ============================
+     COLOR PICKER – FIX FINAL
+     ============================ */
+  
+  /* Balloon geral */
+  .otj-ckeditor .ck.ck-balloon-panel {
+    z-index: 3000;
+  }
+  
+  /* Balloon */
+  .otj-ckeditor .ck.ck-balloon-panel.ck-color-selector {
+    position: fixed !important;
+    z-index: 3000 !important;
+    /* background: #ffffff !important; - REMOVIDO PARA TESTE */
+    border-radius: 6px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+  }
+  
+  /* Grid */
+  .otj-ckeditor .ck.ck-color-grid {
+    /* background: #ffffff !important; - REMOVIDO PARA TESTE */
+    padding: 8px !important;
+  }
+  
+  /* TILE (button!) - REGRA MAIS ESPECÍFICA POSSÍVEL */
+  /* Nota: O JavaScript aplica a cor diretamente, mas esta regra garante fallback */
+  /* IMPORTANTE: Não usar currentColor como fallback - deixa o JavaScript cuidar */
+  .otj-ckeditor .ck.ck-color-grid__tile.ck-button,
+  .otj-ckeditor .ck.ck-color-grid button.ck-color-grid__tile,
+  .otj-ckeditor .ck.ck-balloon-panel .ck.ck-color-grid__tile.ck-button,
+  .otj-ckeditor .ck.ck-color-grid__tile[style*="--ck-color-grid-tile-background"] {
+    /* Usa a variável CSS se disponível - JavaScript sobrescreve se necessário */
+    background-color: var(--ck-color-grid-tile-background) !important;
+    background: var(--ck-color-grid-tile-background) !important;
+    color: transparent !important;
 
-/* Mantém tamanho de ícone consistente caso algum reset global mexa em svg */
-.otj-ckeditor .ck .ck-icon,
-.otj-ckeditor .ck .ck-icon svg {
-  width: 1em;
-  height: 1em;
-}
+    border: 1px solid #dadce0 !important;
+    border-radius: 4px !important;
 
-/* Dropdowns do toolbar precisam ficar acima de AppBar/Drawer/MUI layers */
-.otj-ckeditor .ck-dropdown__panel {
-  z-index: 1400;
-}
-
-/* Evita que estilos globais tornem listas da UI do CK "em coluna gigante" */
-.otj-ckeditor .ck-list,
-.otj-ckeditor .ck-list__item,
-.otj-ckeditor .ck-list__item .ck-button {
-  flex-direction: row;
-}
-
-/* Mantém tooltips e balões legíveis */
-.otj-ckeditor .ck-tooltip,
-.otj-ckeditor .ck-balloon-panel {
-  font-family: inherit;
-}
-
-/* Centraliza frases específicas de fechamento de documentos legais */
-/* Backup CSS para garantir centralização mesmo se o JavaScript não processar */
-.otj-ckeditor .ck-content p[style*="text-align:center"] {
-  text-align: center !important;
-}
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+  }
+  
+  /* Hover */
+  .otj-ckeditor .ck.ck-color-grid__tile.ck-button:hover {
+    transform: scale(1.08);
+    border-color: #1a73e8 !important;
+  }
+  
+  /* Remove color */
+  .otj-ckeditor .ck.ck-color-selector__remove-color {
+    color: #ffffff !important;
+  }
+  
+  .otj-ckeditor .ck.ck-color-selector__remove-color .ck-button__label {
+    color: #ffffff !important;
+  }
+   
+   /* ============================
+      TOOLTIP
+      ============================ */
+   
+   .otj-ckeditor .ck.ck-tooltip {
+     background: rgba(0, 0, 0, 0.9);
+     color: #fff;
+     border-radius: 4px;
+     font-size: 12px;
+   }
+   

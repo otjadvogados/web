@@ -404,15 +404,9 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
       options: [
         'default',
         'Arial, Helvetica, sans-serif',
-        'Calibri, Arial, sans-serif',
-        'Century Gothic, Arial, sans-serif',
-        'Courier New, Courier, monospace',
-        'Georgia, serif',
-        'Lucida Sans Unicode, Lucida Grande, sans-serif',
-        'Tahoma, Geneva, sans-serif',
         'Times New Roman, Times, serif',
-        'Trebuchet MS, Helvetica, sans-serif',
-        'Verdana, Geneva, sans-serif'
+        'Georgia, serif',
+        'Courier New, Courier, monospace'
       ]
     },
     fontSize: {
@@ -420,6 +414,14 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
         '9pt', '10pt', '11pt', '12pt', '13pt', '14pt', '15pt', '16pt', '18pt', '20pt', '22pt', '24pt', '26pt', '28pt', '36pt', '48pt', '72pt'
       ],
       supportAllValues: true
+    },
+    heading: {
+      options: [
+        { model: 'paragraph' as const, title: 'Parágrafo', class: 'ck-heading_paragraph' },
+        { model: 'heading1' as const, view: 'h1', title: 'Título 1', class: 'ck-heading_heading1' },
+        { model: 'heading2' as const, view: 'h2', title: 'Título 2', class: 'ck-heading_heading2' },
+        { model: 'heading3' as const, view: 'h3', title: 'Título 3', class: 'ck-heading_heading3' }
+      ]
     },
     indentBlock: {
       offset: 38,
@@ -496,7 +498,7 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
               minHeight: 'auto',
               padding: 0,
               outline: 'none',
-              background: 'transparent',
+              backgroundColor: 'inherit',
               ...baselineTypography
             }
           : {
@@ -506,24 +508,31 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
               ...baselineTypography
             },
         /**
-         * CKEditor também usa .ck-content como raiz do conteúdo.
-         * Garantimos o mesmo baseline aqui.
+         * NUNCA estilizar .ck-content diretamente - ela é usada pelo editor inteiro, inclusive UI flutuante.
+         * Aplicamos baseline apenas no elemento editável.
          */
-        '& .ck-content': {
-          ...baselineTypography
-        }
+        // '& .ck-content': {
+        //   ...baselineTypography
+        // }
+        
+        /* BLINDAGEM DEFINITIVA DO COLOR PICKER (NO SX) */
+        /* REMOVIDO: Deixar o JavaScript e CSS externo cuidar disso */
       }}
     >
       {/* Toolbar externa (padrão decoupled/document editor) */}
       <Paper
         variant="outlined"
         sx={{
-          borderRadius: 0,
+          borderRadius: '8px 8px 0 0',
           borderLeft: 0,
           borderRight: 0,
           borderTop: 0,
-          bgcolor: 'background.paper',
-          boxShadow: 'none'
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          bgcolor: '#1a1a2e',
+          boxShadow: 'none',
+          overflow: 'visible',
+          position: 'relative',
+          zIndex: 100
         }}
       >
         <Box ref={toolbarRef} />
@@ -588,6 +597,108 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
                 }
               }
 
+              // Define "Parágrafo" como padrão quando não há seleção e atualiza tooltip
+              setTimeout(() => {
+                const headingButton = el?.querySelector('.ck-heading-dropdown .ck-dropdown__button') as HTMLElement;
+                if (headingButton) {
+                  let currentLabel = 'Parágrafo';
+                  
+                  const updateHeadingLabel = () => {
+                    const label = headingButton.querySelector('.ck-button__label') as HTMLElement;
+                    if (label) {
+                      const labelText = label.textContent?.trim() || '';
+                      // Se contém "Choose", "Escolher" ou está vazio, define como "Parágrafo"
+                      if (labelText.toLowerCase().includes('choose') || 
+                          labelText.toLowerCase().includes('escolher') || 
+                          labelText === '') {
+                        label.textContent = 'Parágrafo';
+                        currentLabel = 'Parágrafo';
+                      } else {
+                        currentLabel = labelText;
+                      }
+                      
+                      // Força a cor do texto sempre
+                      label.style.setProperty('color', 'rgba(255, 255, 255, 0.8)', 'important');
+                      label.style.setProperty('display', 'block', 'important');
+                    }
+                    
+                    // Atualiza aria-label para o tooltip
+                    headingButton.setAttribute('aria-label', currentLabel);
+                  };
+                  
+                  // Observa tooltips sendo criados e atualiza o texto
+                  const tooltipObserver = new MutationObserver(() => {
+                    const tooltip = document.querySelector('.ck-tooltip') as HTMLElement;
+                    if (tooltip) {
+                      const tooltipText = tooltip.querySelector('.ck-tooltip__text') as HTMLElement;
+                      if (tooltipText) {
+                        const text = tooltipText.textContent || '';
+                        // Se contém "heading", "Heading", "escolher" ou "choose", substitui
+                        if (text.toLowerCase().includes('heading') || 
+                            text.toLowerCase().includes('escolher') ||
+                            text.toLowerCase().includes('choose')) {
+                          tooltipText.textContent = currentLabel;
+                        }
+                      }
+                    }
+                  });
+                  
+                  tooltipObserver.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                  });
+                  
+                  // Observa mudanças no estado do botão
+                  const observer = new MutationObserver(updateHeadingLabel);
+                  observer.observe(headingButton, { 
+                    attributes: true, 
+                    attributeFilter: ['class'],
+                    childList: true,
+                    subtree: true
+                  });
+                  
+                  // Atualiza quando o editor muda
+                  editor.model.document.on('change:data', () => {
+                    setTimeout(updateHeadingLabel, 50);
+                  });
+                  
+                  // Atualiza quando a seleção muda
+                  editor.model.document.selection.on('change', () => {
+                    setTimeout(updateHeadingLabel, 50);
+                  });
+                  
+                  // Atualiza inicialmente
+                  updateHeadingLabel();
+                  
+                  // Atualiza tooltip periodicamente quando o botão está com hover
+                  const tooltipInterval = setInterval(() => {
+                    const tooltip = document.querySelector('.ck-tooltip') as HTMLElement;
+                    if (tooltip && headingButton.matches(':hover')) {
+                      const tooltipText = tooltip.querySelector('.ck-tooltip__text') as HTMLElement;
+                      if (tooltipText) {
+                        const text = tooltipText.textContent || '';
+                        if (text.toLowerCase().includes('heading') || 
+                            text.toLowerCase().includes('escolher') ||
+                            text.toLowerCase().includes('choose')) {
+                          tooltipText.textContent = currentLabel;
+                        }
+                      }
+                    }
+                  }, 100);
+                  
+                  // Atualiza periodicamente para garantir
+                  const intervalId = setInterval(updateHeadingLabel, 500);
+                  
+                  // Limpa o intervalo quando o editor for destruído
+                  editor.on('destroy', () => {
+                    clearInterval(intervalId);
+                    clearInterval(tooltipInterval);
+                    observer.disconnect();
+                    tooltipObserver.disconnect();
+                  });
+                }
+              }, 200);
+
               // Processa imagens existentes no conteúdo inicial
               // Usa um timeout para garantir que o DOM está pronto
               setTimeout(() => {
@@ -613,6 +724,178 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
                   }
                 }
               }, 100);
+
+              // FIX COLOR PICKER - Força background nos tiles via JavaScript (ABORDAGEM AGRESSIVA)
+              const fixColorPickerTiles = () => {
+                const tiles = document.querySelectorAll('.ck.ck-color-grid__tile') as NodeListOf<HTMLElement>;
+                tiles.forEach((tile) => {
+                  let color = '';
+                  const styleAttr = tile.getAttribute('style') || '';
+                  
+                  // Método 1: Busca variável CSS no atributo style
+                  const varMatch = styleAttr.match(/--ck-color-grid-tile-background:\s*([^;'"]+)/i);
+                  if (varMatch && varMatch[1]) {
+                    color = varMatch[1].trim();
+                  }
+                  
+                  // Método 2: Busca background-color direto no style
+                  if (!color) {
+                    const bgColorMatch = styleAttr.match(/background-color:\s*([^;'"]+)/i);
+                    if (bgColorMatch && bgColorMatch[1]) {
+                      color = bgColorMatch[1].trim();
+                    }
+                  }
+                  
+                  // Método 3: Via getPropertyValue - variável CSS
+                  if (!color) {
+                    color = tile.style.getPropertyValue('--ck-color-grid-tile-background')?.trim() || '';
+                  }
+                  
+                  // Método 4: Via getPropertyValue - background-color direto
+                  if (!color) {
+                    color = tile.style.getPropertyValue('background-color')?.trim() || '';
+                  }
+                  
+                  // Método 5: Via computed style
+                  if (!color) {
+                    try {
+                      const computed = getComputedStyle(tile);
+                      color = computed.getPropertyValue('--ck-color-grid-tile-background')?.trim() || 
+                              computed.getPropertyValue('background-color')?.trim() || '';
+                    } catch (e) {
+                      // Ignora erros
+                    }
+                  }
+                  
+                  // Método 6: Busca em atributos data-*
+                  if (!color) {
+                    for (const attr of tile.attributes) {
+                      if (attr.name.startsWith('data-') && (attr.value.includes('rgb') || attr.value.includes('#'))) {
+                        color = attr.value;
+                        break;
+                      }
+                    }
+                  }
+                  
+                  // Se encontrou a cor válida, aplica de forma ULTRA AGRESSIVA
+                  if (color && color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)' && color !== 'initial' && color !== 'inherit') {
+                    // Remove TODAS as propriedades que possam interferir
+                    tile.style.removeProperty('background');
+                    tile.style.removeProperty('background-color');
+                    tile.style.removeProperty('background-image');
+                    tile.style.removeProperty('background-size');
+                    tile.style.removeProperty('color');
+                    
+                    // Aplica via setProperty com important
+                    tile.style.setProperty('background-color', color, 'important');
+                    tile.style.setProperty('background', color, 'important');
+                    tile.style.setProperty('color', 'transparent', 'important');
+                    
+                    // Força via atributo style direto (sobrescreve tudo)
+                    tile.setAttribute('style', 
+                      `background-color: ${color} !important; ` +
+                      `background: ${color} !important; ` +
+                      `color: transparent !important; ` +
+                      `border: 1px solid #dadce0 !important; ` +
+                      `border-radius: 4px !important; ` +
+                      `width: 18px !important; ` +
+                      `height: 18px !important; ` +
+                      `min-width: 18px !important; ` +
+                      `min-height: 18px !important;`
+                    );
+                    
+                    // Força também via cssText (método mais direto)
+                    tile.style.cssText = 
+                      `background-color: ${color} !important; ` +
+                      `background: ${color} !important; ` +
+                      `color: transparent !important; ` +
+                      `border: 1px solid #dadce0 !important; ` +
+                      `border-radius: 4px !important; ` +
+                      `width: 18px !important; ` +
+                      `height: 18px !important; ` +
+                      `min-width: 18px !important; ` +
+                      `min-height: 18px !important;`;
+                  }
+                });
+              };
+
+              // Observa quando o color picker é aberto (MULTIPLAS ESTRATÉGIAS)
+              const colorPickerObserver = new MutationObserver(() => {
+                requestAnimationFrame(() => {
+                  fixColorPickerTiles();
+                  setTimeout(fixColorPickerTiles, 5);
+                  setTimeout(fixColorPickerTiles, 20);
+                });
+              });
+
+              // Observa mudanças no documento para detectar color picker
+              colorPickerObserver.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class', 'style']
+              });
+
+              // Fix inicial com múltiplas tentativas
+              setTimeout(() => {
+                fixColorPickerTiles();
+                setTimeout(fixColorPickerTiles, 50);
+                setTimeout(fixColorPickerTiles, 100);
+                setTimeout(fixColorPickerTiles, 200);
+              }, 100);
+
+              // Fix periódico quando color picker está visível (MUITO FREQUENTE)
+              const colorPickerInterval = setInterval(() => {
+                const colorPicker = document.querySelector('.ck.ck-balloon-panel.ck-color-selector');
+                if (colorPicker) {
+                  // Executa múltiplas vezes em sequência
+                  requestAnimationFrame(fixColorPickerTiles);
+                  setTimeout(fixColorPickerTiles, 5);
+                  setTimeout(fixColorPickerTiles, 15);
+                  setTimeout(fixColorPickerTiles, 30);
+                }
+              }, 20); // Reduzido para 20ms para máxima reatividade
+
+              // Traduz botão "Remove color" para "Remover a cor" (todos os color pickers)
+              const translateRemoveColorButton = () => {
+                // Busca todos os botões "remove color" (fontColor e fontBackgroundColor)
+                const removeColorButtons = document.querySelectorAll('.ck.ck-color-selector__remove-color') as NodeListOf<HTMLElement>;
+                removeColorButtons.forEach((removeColorButton) => {
+                  const label = removeColorButton.querySelector('.ck-button__label') as HTMLElement;
+                  if (label && (label.textContent?.toLowerCase().includes('remove') || label.textContent?.toLowerCase().includes('remover'))) {
+                    // Verifica se já não está traduzido
+                    if (!label.textContent?.includes('Remover a cor')) {
+                      label.textContent = 'Remover a cor';
+                    }
+                  }
+                  // Atualiza aria-label e title
+                  removeColorButton.setAttribute('aria-label', 'Remover a cor');
+                  removeColorButton.setAttribute('title', 'Remover a cor');
+                });
+              };
+
+              // Observa quando o color picker é aberto para traduzir o botão
+              const removeColorObserver = new MutationObserver(() => {
+                setTimeout(translateRemoveColorButton, 10);
+              });
+
+              removeColorObserver.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class']
+              });
+
+              // Traduz inicialmente
+              setTimeout(translateRemoveColorButton, 200);
+              setTimeout(translateRemoveColorButton, 500);
+
+              // Limpa quando o editor for destruído
+              editor.on('destroy', () => {
+                clearInterval(colorPickerInterval);
+                colorPickerObserver.disconnect();
+                removeColorObserver.disconnect();
+              });
             }}
             onChange={(_, editor) => {
               const newInner = editor.getData();
