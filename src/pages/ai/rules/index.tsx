@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -31,6 +31,7 @@ import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import {
   AiRulebook,
   listRulebooks,
+  getRulebook,
   deleteRulebook,
   uploadRulebookFile,
   deleteRulebookFile,
@@ -66,11 +67,12 @@ export default function AIRulebooksPage() {
   // file upload
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingUploadId, setPendingUploadId] = useState<string | null>(null);
-
-  // overlay loading IA
+  
+  // overlay loading IA - mostra até "Salvando..."
   const [overlayOpen, setOverlayOpen] = useState(false);
   const overlayTexts = useMemo(
     () => [
+      'Enviando arquivo…',
       'Analisando arquivo…',
       'Detectando contencioso/consultivo…',
       'Normalizando formatação…',
@@ -80,15 +82,18 @@ export default function AIRulebooksPage() {
       'Citações/jurisprudência com autos, relator, data e link…',
       'Assinaturas centralizadas…',
       'Persistindo resultado…',
-      'Salvando…',
-      'Só mais um pouco…'
+      'Salvando…'
     ],
     []
   );
+  
+  // polling para verificar status de processamento
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const res = await listRulebooks({
@@ -110,12 +115,55 @@ export default function AIRulebooksPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, limit, search, sortBy, sortOrder]);
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, sortBy, sortOrder]);
+
+  // Polling para verificar status de processamento
+  useEffect(() => {
+    if (processingIds.size === 0) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const checkStatus = async () => {
+      for (const id of processingIds) {
+        try {
+          const rulebook = await getRulebook(id);
+          // Se não está mais processando, remove do set
+          if (rulebook.fileStatus !== 'PROCESSING') {
+            setProcessingIds((prev) => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+            // Recarrega a lista para atualizar o status
+            load();
+          }
+        } catch (err) {
+          // Em caso de erro, continua tentando
+          console.warn('Erro ao verificar status do arquivo:', err);
+        }
+      }
+    };
+
+    // Verifica imediatamente e depois a cada 5 segundos
+    checkStatus();
+    pollingIntervalRef.current = setInterval(checkStatus, 5000);
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [processingIds, load]);
 
 
   const onSearch = () => { setPage(0); load(); };
@@ -156,29 +204,80 @@ export default function AIRulebooksPage() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || !pendingUploadId) return;
+    
+    const uploadId = pendingUploadId;
+    setPendingUploadId(null);
+    
+    // Mostra overlay imediatamente para começar a animação
+    setOverlayOpen(true);
+    
+    // Calcula tempo mínimo para mostrar todas as etapas
+    // 11 etapas × 1.5s (stepMs + holdMs médio) = ~16.5s mínimo
+    const minDisplayTime = overlayTexts.length * 1500;
+    
+    const uploadPromise = uploadRulebookFile(uploadId, file);
+    const minTimePromise = new Promise(resolve => setTimeout(resolve, minDisplayTime));
+    
     try {
-      setOverlayOpen(true);
-      await uploadRulebookFile(pendingUploadId, file);
+      // Aguarda o upload OU o tempo mínimo (o que demorar mais)
+      await Promise.all([uploadPromise, minTimePromise]);
+      
+      // Mantém overlay aberto um pouco mais para garantir que mostre "Salvando..."
+      setTimeout(() => {
+        setOverlayOpen(false);
+      }, 2000);
+      
       openSnackbar({
         open: true,
-        message: 'Arquivo anexado com sucesso!',
+        message: 'Arquivo enviado com sucesso! O processamento está em andamento.',
         variant: 'alert',
         alert: { color: 'success' }
       } as any);
+      
+      // Adiciona ao set de processamento para polling
+      setProcessingIds((prev) => new Set(prev).add(uploadId));
+      
+      // Recarrega a lista para mostrar o arquivo
       load();
     } catch (err: any) {
+      // Aguarda o tempo mínimo mesmo em caso de erro para mostrar as etapas
+      await minTimePromise.catch(() => {});
+      
+      // Fecha overlay após mostrar as etapas
+      setTimeout(() => {
+        setOverlayOpen(false);
+      }, 1000);
+      
+      // Trata timeout como sucesso parcial - arquivo foi enviado mas processamento continua
+      if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+        openSnackbar({
+          open: true,
+          message: 'Arquivo enviado, processamento em andamento. Você pode acompanhar o status na lista.',
+          variant: 'alert',
+          alert: { color: 'info' }
+        } as any);
+        
+        // Adiciona ao set de processamento para polling
+        setProcessingIds((prev) => new Set(prev).add(uploadId));
+        
+        // Recarrega após um tempo para verificar se o arquivo foi salvo
+        setTimeout(() => {
+          load();
+        }, 2000);
+        return;
+      }
+      
+      // Outros erros
+      const errorMessage = err?.response?.data?.reason
+        ? `${err?.response?.data?.message || 'Falha no upload'} — ${err?.response?.data?.reason}`
+        : err?.response?.data?.message || 'Falha no upload do arquivo';
+      
       openSnackbar({
         open: true,
-        message:
-          err?.response?.data?.reason
-            ? `${err?.response?.data?.message || 'Falha no upload/análise'} — ${err?.response?.data?.reason}`
-            : err?.response?.data?.message || 'Falha no upload do arquivo',
+        message: errorMessage,
         variant: 'alert',
         alert: { color: 'error' }
       } as any);
-    } finally {
-      setOverlayOpen(false);
-      setPendingUploadId(null);
     }
   };
 
@@ -505,13 +604,13 @@ export default function AIRulebooksPage() {
         style={{ display: 'none' }}
       />
 
-      {/* Overlay de processamento (reutilizável) */}
+      {/* Overlay de processamento - mostra até "Salvando..." */}
       <TextCarouselOverlay
         open={overlayOpen}
         texts={overlayTexts}
-        stepMs={1000}
-        holdMs={5000}
-        startAt="Analisando arquivo…"
+        stepMs={1200}
+        holdMs={1500}
+        startAt="Enviando arquivo…"
       />
       </Grid>
     </Permission>

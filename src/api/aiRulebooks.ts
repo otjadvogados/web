@@ -14,6 +14,7 @@ export type AiRulebook = {
   fileMime?: string | null;
   originalName?: string | null;
   uploadedAt?: string | null;
+  fileStatus?: 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -96,8 +97,11 @@ export async function activateRulebook(id: string) {
 export async function uploadRulebookFile(id: string, file: File) {
   const form = new FormData();
   form.append('file', file);
+  // Timeout curto (30s) - apenas para confirmar que o arquivo foi recebido
+  // O processamento acontece em background
   const { data } = await axios.post<{ message: string; data: AiRulebook }>(`/ai/rules/${id}/file`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 30000 // 30 segundos - apenas para confirmar recebimento do arquivo
   });
   return data.data;
 }
