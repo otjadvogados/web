@@ -46,7 +46,10 @@ const PromptsPage = Loadable(lazy(() => import('pages/ai/prompts')));
 const PromptsFolderPage = Loadable(lazy(() => import('pages/ai/prompts/[folderId]')));
 // NOVO: AI > Criar Caso
 const CreateCasePage = Loadable(lazy(() => import('pages/ai/cases/create')));
-// NOVO: AI > Listar Casos
+// NOVO: AI > Listar Casos (pastas)
+const CasesPage = Loadable(lazy(() => import('pages/ai/cases')));
+const CasesFolderPage = Loadable(lazy(() => import('pages/ai/cases/[folderId]')));
+// NOVO: AI > Listar Casos (lista completa)
 const ListCasesPage = Loadable(lazy(() => import('pages/ai/list-cases')));
 // NOVO: AI > Editar Caso
 const EditCasePage = Loadable(lazy(() => import('pages/ai/cases/[id]/edit')));
@@ -150,16 +153,24 @@ const MainRoutes = {
         },
         // Inteligência Artificial
         {
-          path: 'ai/cases',
-          element: <ListCasesPage />
-        },
-        {
           path: 'ai/cases/create',
           element: <CreateCasePage />
         },
         {
           path: 'ai/cases/:id/edit',
           element: <EditCasePage />
+        },
+        {
+          path: 'ai/cases/:folderId',
+          element: <CasesFolderPage />
+        },
+        {
+          path: 'ai/cases',
+          element: <CasesPage />
+        },
+        {
+          path: 'ai/list-cases',
+          element: <ListCasesPage />
         },
         {
           path: 'ai/pieces',

@@ -93,9 +93,9 @@ export default function StepAttachments() {
     /(^application\/pdf$)|(^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$)|(^image\/(png|jpeg|jpg|webp|gif)$)/i.test(file.type);
 
   const verifyFileOcr = async (file: File, attachmentId: string, isCommon: boolean = false): Promise<void> => {
-    // Usa attachmentId na chave para garantir unicidade por anexo
+    // Usa apenas attachmentId como chave para garantir unicidade por anexo
     // Isso evita conflitos quando o mesmo arquivo é usado em múltiplos tópicos
-    const fileKey = `${attachmentId}-${file.name}-${file.size}`;
+    const fileKey = attachmentId;
     setVerifyingOcr((prev) => new Set(prev).add(fileKey));
 
     try {
@@ -183,11 +183,10 @@ export default function StepAttachments() {
       // Adiciona os anexos e obtém os IDs
       const attachmentIds = addAttachments(topicSpecificId, box, valid);
       
-      // Marca os arquivos como sendo processados usando os IDs únicos
-      const fileKeys = valid.map((file, index) => `${attachmentIds[index]}-${file.name}-${file.size}`);
+      // Marca os arquivos como sendo processados usando apenas os IDs únicos
       setUploadingFiles(prev => {
         const next = new Set(prev);
-        fileKeys.forEach(key => next.add(key));
+        attachmentIds.forEach(id => next.add(id));
         return next;
       });
       
@@ -200,7 +199,7 @@ export default function StepAttachments() {
         // Remove os arquivos do estado de loading após concluir
         setUploadingFiles(prev => {
           const next = new Set(prev);
-          fileKeys.forEach(key => next.delete(key));
+          attachmentIds.forEach(id => next.delete(id));
           return next;
         });
       }
@@ -223,11 +222,10 @@ export default function StepAttachments() {
     // Adiciona os anexos e obtém os IDs
     const attachmentIds = addCommonAttachments(valid);
     
-    // Marca os arquivos como sendo processados usando os IDs únicos
-    const fileKeys = valid.map((file, index) => `${attachmentIds[index]}-${file.name}-${file.size}`);
+    // Marca os arquivos como sendo processados usando apenas os IDs únicos
     setUploadingFiles(prev => {
       const next = new Set(prev);
-      fileKeys.forEach(key => next.add(key));
+      attachmentIds.forEach(id => next.add(id));
       return next;
     });
     
@@ -240,7 +238,7 @@ export default function StepAttachments() {
       // Remove os arquivos do estado de loading após concluir
       setUploadingFiles(prev => {
         const next = new Set(prev);
-        fileKeys.forEach(key => next.delete(key));
+        attachmentIds.forEach(id => next.delete(id));
         return next;
       });
     }
@@ -410,10 +408,9 @@ export default function StepAttachments() {
                 const isPdf = /^application\/pdf$/i.test(f.type);
                 const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
                 const url = URL.createObjectURL(f);
-                // Usa attachmentId na chave para garantir unicidade por anexo
-                const fileKey = `${a.id}-${f.name}-${f.size}`;
-                const isUploading = uploadingFiles.has(fileKey);
-                const isVerifying = verifyingOcr.has(fileKey);
+                // Usa apenas attachmentId como chave para garantir unicidade por anexo
+                const isUploading = uploadingFiles.has(a.id);
+                const isVerifying = verifyingOcr.has(a.id);
                 const isLoading = isUploading || isVerifying;
                 const ocrStatusIcon = getOcrStatusIcon(a.ocrResult);
                 return (
@@ -509,10 +506,9 @@ export default function StepAttachments() {
                         const isPdf = /^application\/pdf$/i.test(f.type);
                         const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
                         const url = URL.createObjectURL(f);
-                        // Usa attachmentId na chave para garantir unicidade por anexo
-                        const fileKey = `${a.id}-${f.name}-${f.size}`;
-                        const isUploading = uploadingFiles.has(fileKey);
-                        const isVerifying = verifyingOcr.has(fileKey);
+                        // Usa apenas attachmentId como chave para garantir unicidade por anexo
+                        const isUploading = uploadingFiles.has(a.id);
+                        const isVerifying = verifyingOcr.has(a.id);
                         const isLoading = isUploading || isVerifying;
                         const ocrStatusIcon = getOcrStatusIcon(a.ocrResult);
                         return (

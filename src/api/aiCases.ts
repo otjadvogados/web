@@ -277,6 +277,7 @@ export type ListCaseResultsQuery = {
   customerName?: string;
   createdFrom?: string;
   createdTo?: string;
+  folderId?: string;
   tags?: Record<string, string>;
   includeApprovalFlow?: boolean;
 };
@@ -295,6 +296,7 @@ export async function listCaseResults(q: ListCaseResultsQuery = {}) {
     customerName: q.customerName || undefined,
     createdFrom: q.createdFrom || undefined,
     createdTo: q.createdTo || undefined,
+    folderId: q.folderId || undefined,
     includeApprovalFlow: q.includeApprovalFlow !== undefined ? q.includeApprovalFlow : true
   };
 
@@ -527,4 +529,120 @@ export async function deleteQuestion(caseId: string, questionId: string) {
     `/ai/cases/results/${caseId}/questions/${questionId}`
   );
   return data;
+}
+
+// ==============================|| CASE FOLDERS APIs ||============================== //
+
+export type CaseFolder = {
+  id: string;
+  customerId: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  caseCount: number;
+  customer?: {
+    id: string;
+    displayName: string;
+    kind: 'PERSON' | 'COMPANY';
+  };
+};
+
+export type CaseFolderWithItems = CaseFolder & {
+  items: CaseResult[];
+};
+
+export type CreateCaseFolderInput = {
+  customerId: string;
+  name: string;
+  description?: string | null;
+};
+
+export type UpdateCaseFolderInput = {
+  name?: string;
+  description?: string | null;
+};
+
+export type MoveCaseToFolderInput = {
+  folderId: string | null;
+};
+
+export type ListCaseFoldersResponse = {
+  message: string;
+  data: CaseFolder[];
+};
+
+export type GetCaseFolderResponse = {
+  message: string;
+  data: CaseFolder;
+};
+
+export type CreateCaseFolderResponse = {
+  message: string;
+  data: CaseFolder;
+};
+
+export type UpdateCaseFolderResponse = {
+  message: string;
+  data: CaseFolder;
+};
+
+export type MoveCaseToFolderResponse = {
+  message: string;
+  data: {
+    ok: boolean;
+    id: string;
+    folderId: string | null;
+  };
+};
+
+/**
+ * GET /ai/cases/folders - Listar todas as pastas
+ */
+export async function listCaseFolders(customerId?: string): Promise<CaseFolder[]> {
+  const params: Record<string, any> = {};
+  if (customerId) {
+    params.customerId = customerId;
+  }
+  const { data } = await axios.get<ListCaseFoldersResponse>('/ai/cases/folders', { params });
+  return data.data;
+}
+
+/**
+ * GET /ai/cases/folders/:id - Obter pasta específica
+ */
+export async function getCaseFolder(id: string): Promise<CaseFolder> {
+  const { data } = await axios.get<GetCaseFolderResponse>(`/ai/cases/folders/${id}`);
+  return data.data;
+}
+
+/**
+ * POST /ai/cases/folders - Criar nova pasta
+ */
+export async function createCaseFolder(input: CreateCaseFolderInput): Promise<CaseFolder> {
+  const { data } = await axios.post<CreateCaseFolderResponse>('/ai/cases/folders', input);
+  return data.data;
+}
+
+/**
+ * PATCH /ai/cases/folders/:id - Atualizar pasta
+ */
+export async function updateCaseFolder(id: string, input: UpdateCaseFolderInput): Promise<CaseFolder> {
+  const { data } = await axios.patch<UpdateCaseFolderResponse>(`/ai/cases/folders/${id}`, input);
+  return data.data;
+}
+
+/**
+ * DELETE /ai/cases/folders/:id - Excluir pasta
+ */
+export async function deleteCaseFolder(id: string): Promise<void> {
+  await axios.delete<{ message: string; ok: boolean }>(`/ai/cases/folders/${id}`);
+}
+
+/**
+ * PATCH /ai/cases/results/:id/folder - Mover caso para pasta
+ */
+export async function moveCaseToFolder(caseId: string, input: MoveCaseToFolderInput): Promise<MoveCaseToFolderResponse['data']> {
+  const { data } = await axios.patch<MoveCaseToFolderResponse>(`/ai/cases/results/${caseId}/folder`, input);
+  return data.data;
 }

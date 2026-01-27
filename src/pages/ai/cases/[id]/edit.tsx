@@ -656,9 +656,6 @@ export default function EditCasePage() {
                 {caseData?.hasAudit && (
                   <Chip label="Auditado" color="success" size="small" />
                 )}
-                {caseData?.hasQuestions && (
-                  <Chip label={`${caseData.suggestedQuestions?.length || 0} perguntas`} color="info" size="small" />
-                )}
               </Stack>
             } 
           />
@@ -695,14 +692,6 @@ export default function EditCasePage() {
             <AuditTab
               caseId={caseData.id}
               hasAudit={caseData.hasAudit}
-              hasQuestions={caseData.hasQuestions}
-              onQuestionsGenerated={async (count) => {
-                // Atualiza o caseData para refletir que há perguntas
-                if (count > 0) {
-                  // Recarrega os dados do caso para sincronizar
-                  await loadCaseData();
-                }
-              }}
             />
           </Box>
         )}

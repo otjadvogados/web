@@ -1,10 +1,11 @@
-import { createContext, useContext, useMemo, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { Department, getDepartment } from 'api/departments';
 import { Customer, getCustomer } from 'api/customers';
 import { AiPiece, fetchPieceDocx, getPiece } from 'api/aiPieces';
 import { AiTopic, getTopic } from 'api/aiTopics';
 import { AiTopicSpecific, fetchTopicSpecificDocx, getTopicSpecific } from 'api/aiTopicSpecifics';
 import { openSnackbar } from 'api/snackbar';
+import { saveWorkspaceState, getWorkspaceState } from 'api/workspace';
 import type { CaseContextFields, AttachmentBox, CaseAttachmentMeta, CaseCommonAttachmentMeta } from 'api/aiCases';
 
 export type OptionDept = Pick<Department, 'id'|'name'>;
@@ -123,6 +124,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   
   // Flag para desabilitar resets automáticos durante restauração
   const isRestoringRef = useRef(false);
+  // Flag para evitar múltiplas chamadas simultâneas de saveWizardState
+  const isSavingRef = useRef(false);
 
   const [pieceDetail, setPieceDetail] = useState<OptionPiece | null>(null);
   const [topicDetail, setTopicDetail] = useState<OptionTopic | null>(null);
@@ -197,10 +200,14 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     if (isRestoringRef.current) return;
     setSpecs([]); 
   }, [topic?.id]);
-  // NOVO: se a lista de tópicos mudar (mesmo que o primeiro permaneça igual), limpar specs
+  // NOVO: se a lista de tópicos mudar (mesmo que o primeiro permaneça igual), manter apenas specs dos tópicos que permaneceram
   useEffect(() => { 
     if (isRestoringRef.current) return;
-    setSpecs([]); 
+    // Mantém apenas os tópicos específicos que pertencem aos tópicos que ainda estão selecionados
+    setSpecs((prevSpecs) => {
+      const currentTopicIds = new Set(topics.map(t => t.id));
+      return prevSpecs.filter(spec => currentTopicIds.has(spec.topicId));
+    });
   }, [topics.map(t => t.id).join('|')]);
 
   // remove anexos de specs que não estão mais selecionados
@@ -511,9 +518,13 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  // Salva o estado completo do wizard no sessionStorage
-  const saveWizardState = () => {
+  // Salva o estado completo do wizard no Redis (workspace) e sessionStorage (fallback)
+  const saveWizardState = useCallback(async () => {
+    if (isSavingRef.current) return; // Evita múltiplas chamadas simultâneas
+    if (isRestoringRef.current) return; // Não salva durante restauração
+    
     try {
+      isSavingRef.current = true;
       const state: WizardState = {
         step,
         deptId: dept?.id ?? null,
@@ -524,20 +535,66 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
         instruction,
         timestamp: Date.now()
       };
+      
+      // Salva no Redis via workspace API
+      try {
+        await saveWorkspaceState({
+          context: 'case-wizard',
+          resourceId: null,
+          state: state as any,
+          metadata: {
+            url: window.location.pathname,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (redisErr) {
+        console.warn('Erro ao salvar estado no Redis, usando sessionStorage como fallback:', redisErr);
+      }
+      
+      // Mantém sessionStorage como fallback
       sessionStorage.setItem('wizard_return_state', JSON.stringify(state));
     } catch (err) {
       console.error('Erro ao salvar estado do wizard:', err);
+    } finally {
+      isSavingRef.current = false;
     }
-  };
+  }, [step, dept?.id, customers, piece?.id, topics, specs, instruction]);
 
-  // Restaura o estado completo do wizard do sessionStorage
+  // Salva automaticamente o estado no Redis quando os tópicos específicos ou tópicos mudarem
+  useEffect(() => {
+    if (isRestoringRef.current) return;
+    // Salva após um pequeno delay para evitar muitas chamadas
+    const timeoutId = setTimeout(() => {
+      saveWizardState();
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [specs.map(s => s.id).join('|'), topics.map(t => t.id).join('|'), saveWizardState]);
+
+  // Restaura o estado completo do wizard do Redis (workspace) ou sessionStorage (fallback)
   const restoreWizardState = async () => {
     try {
-      const saved = sessionStorage.getItem('wizard_return_state');
-      if (!saved) return;
+      let state: WizardState | null = null;
 
-      const state: WizardState = JSON.parse(saved);
-      
+      // Tenta buscar do Redis primeiro
+      try {
+        const workspaceResponse = await getWorkspaceState('case-wizard');
+        if (workspaceResponse?.data?.state) {
+          state = workspaceResponse.data.state as WizardState;
+        }
+      } catch (redisErr) {
+        console.warn('Erro ao buscar estado do Redis, tentando sessionStorage:', redisErr);
+      }
+
+      // Se não encontrou no Redis, tenta sessionStorage como fallback
+      if (!state) {
+        const saved = sessionStorage.getItem('wizard_return_state');
+        if (saved) {
+          state = JSON.parse(saved);
+        }
+      }
+
+      if (!state) return;
+
       // Verifica se o estado não é muito antigo (mais de 2 horas)
       const twoHours = 2 * 60 * 60 * 1000;
       if (Date.now() - state.timestamp > twoHours) {
@@ -599,13 +656,17 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
         }
       }
 
-      // Restaura tópicos específicos
+      // Restaura tópicos específicos - IMPORTANTE: mantém apenas os que pertencem aos tópicos restaurados
       if (state.specIds.length > 0) {
         try {
           const specsData = await Promise.all(
             state.specIds.map(id => getTopicSpecific(id))
           );
-          setSpecs(specsData);
+          // Filtra apenas os tópicos específicos que pertencem aos tópicos que foram restaurados
+          // Isso garante que se um tópico foi removido, seus tópicos específicos também sejam removidos
+          const restoredTopicIds = new Set(state.topicIds);
+          const validSpecs = specsData.filter(spec => restoredTopicIds.has(spec.topicId));
+          setSpecs(validSpecs);
         } catch (err) {
           console.error('Erro ao restaurar tópicos específicos:', err);
         }
@@ -619,14 +680,18 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       // Aguarda um pouco para garantir que todos os estados foram atualizados
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Remove o estado salvo após restaurar
-      sessionStorage.removeItem('wizard_return_state');
+      // Remove o estado salvo após restaurar (tanto Redis quanto sessionStorage)
+      try {
+        sessionStorage.removeItem('wizard_return_state');
+      } catch {}
       
       // Desativa flag de restauração
       isRestoringRef.current = false;
     } catch (err) {
       console.error('Erro ao restaurar estado do wizard:', err);
-      sessionStorage.removeItem('wizard_return_state');
+      try {
+        sessionStorage.removeItem('wizard_return_state');
+      } catch {}
       isRestoringRef.current = false;
     }
   };
