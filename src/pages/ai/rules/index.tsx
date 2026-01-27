@@ -24,6 +24,14 @@ import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import UploadOutlined from '@ant-design/icons/UploadOutlined';
 import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
+import EyeOutlined from '@ant-design/icons/EyeOutlined';
+import CloseOutlined from '@ant-design/icons/CloseOutlined';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import IconButton from '@mui/material/IconButton';
+import CircularProgress from '@mui/material/CircularProgress';
 import AIIcon from 'components/icons/AIIcon';
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
@@ -36,13 +44,15 @@ import {
   uploadRulebookFile,
   deleteRulebookFile,
   fetchRulebookFile,
-  activateRulebook
+  activateRulebook,
+  rulebookFileUrl
 } from 'api/aiRulebooks';
 import RulebookFormDialog from 'sections/ai/rules/RulebookFormDialog';
 import TextCarouselOverlay from 'components/loaders/TextCarouselOverlay';
 import Permission from 'components/Permission';
 import useAuth from 'hooks/useAuth';
 import { usePermissions } from 'hooks/usePermissions';
+import { renderAsync } from 'docx-preview';
 
 export default function AIRulebooksPage() {
   const { user } = useAuth();
@@ -67,6 +77,16 @@ export default function AIRulebooksPage() {
   // file upload
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingUploadId, setPendingUploadId] = useState<string | null>(null);
+  
+  // visualizar arquivo
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewingRulebook, setViewingRulebook] = useState<AiRulebook | null>(null);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [viewTextContent, setViewTextContent] = useState<string | null>(null);
+  const [viewHtmlContent, setViewHtmlContent] = useState<string | null>(null);
+  const [docxArrayBuffer, setDocxArrayBuffer] = useState<ArrayBuffer | null>(null);
+  const [loadingView, setLoadingView] = useState(false);
+  const docxContainerRef = useRef<HTMLDivElement>(null);
   
   // overlay loading IA - mostra até "Salvando..."
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -121,6 +141,40 @@ export default function AIRulebooksPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, sortBy, sortOrder]);
+
+  // Renderiza DOCX quando o modal abrir e o container estiver disponível
+  useEffect(() => {
+    if (viewOpen && docxArrayBuffer && docxContainerRef.current && !loadingView) {
+      const renderDocx = async () => {
+        try {
+          if (docxContainerRef.current) {
+            docxContainerRef.current.innerHTML = '';
+            await renderAsync(docxArrayBuffer, docxContainerRef.current, undefined, {
+              inWrapper: true,
+              ignoreWidth: false,
+              ignoreHeight: false,
+              breakPages: false,
+              useBase64URL: true
+            });
+          }
+        } catch (err) {
+          console.error('Erro ao renderizar DOCX no useEffect:', err);
+          openSnackbar({
+            open: true,
+            message: 'Erro ao renderizar arquivo DOCX',
+            variant: 'alert',
+            alert: { color: 'error' }
+          } as any);
+        }
+      };
+      const timer = setTimeout(() => {
+        renderDocx();
+      }, 300); // Small delay to ensure DOM is ready
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewOpen, docxArrayBuffer, loadingView]);
+
 
   // Polling para verificar status de processamento
   useEffect(() => {
@@ -322,6 +376,81 @@ export default function AIRulebooksPage() {
     }
   };
 
+  const getFileType = (mime?: string | null, filename?: string | null) => {
+    if (mime) {
+      if (mime.includes('pdf')) return 'pdf';
+      if (mime.includes('word') || mime.includes('document')) return 'docx';
+      if (mime.includes('text')) return 'text';
+      if (mime.includes('markdown')) return 'markdown';
+    }
+    if (filename) {
+      const ext = filename.toLowerCase().split('.').pop();
+      if (ext === 'pdf') return 'pdf';
+      if (ext === 'docx' || ext === 'doc') return 'docx';
+      if (ext === 'txt') return 'text';
+      if (ext === 'md') return 'markdown';
+    }
+    return 'unknown';
+  };
+
+  const handleViewFile = async (r: AiRulebook) => {
+    if (!r.fileId) return;
+    
+    setViewingRulebook(r);
+    setViewOpen(true);
+    setLoadingView(true);
+    setViewUrl(null);
+    setViewTextContent(null);
+    setViewHtmlContent(null);
+    
+    try {
+      const { blob } = await fetchRulebookFile(r.id, r.fileId);
+      const fileType = getFileType(r.fileMime, r.originalName);
+      
+      // Para arquivos de texto, ler o conteúdo diretamente
+      if (fileType === 'text' || fileType === 'markdown') {
+        const text = await blob.text();
+        setViewTextContent(text);
+      } else if (fileType === 'docx') {
+        // Para DOCX, armazena o arrayBuffer para o useEffect renderizar
+        const arrayBuffer = await blob.arrayBuffer();
+        setDocxArrayBuffer(arrayBuffer);
+      } else {
+        // Para PDF e outros, criar URL do blob
+        const url = URL.createObjectURL(blob);
+        setViewUrl(url);
+      }
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || err?.message || 'Falha ao carregar o arquivo',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+      setViewOpen(false);
+      setViewingRulebook(null);
+    } finally {
+      setLoadingView(false);
+    }
+  };
+
+  const handleCloseView = () => {
+    if (viewUrl) {
+      URL.revokeObjectURL(viewUrl);
+    }
+    // Limpa o container do DOCX
+    if (docxContainerRef.current) {
+      docxContainerRef.current.innerHTML = '';
+    }
+    setViewOpen(false);
+    setViewingRulebook(null);
+    setViewUrl(null);
+    setViewTextContent(null);
+    setViewHtmlContent(null);
+    setDocxArrayBuffer(null);
+    setLoadingView(false);
+  };
+
   const titleNode = useMemo(() => (
     <Stack direction="row" spacing={1} alignItems="center">
       <AIIcon />
@@ -397,6 +526,9 @@ export default function AIRulebooksPage() {
                         </Button>
                         {r.fileId && (
                           <>
+                            <Button size="small" variant="outlined" startIcon={<EyeOutlined />} onClick={() => handleViewFile(r)}>
+                              Visualizar
+                            </Button>
                             <Button size="small" variant="outlined" startIcon={<DownloadOutlined />} onClick={() => handleDownload(r)}>
                               Baixar
                             </Button>
@@ -482,6 +614,9 @@ export default function AIRulebooksPage() {
                             </Button>
                             {r.fileId && (
                               <>
+                                <Button size="small" variant="outlined" startIcon={<EyeOutlined />} onClick={() => handleViewFile(r)}>
+                                  Visualizar
+                                </Button>
                                 <Button size="small" variant="outlined" startIcon={<DownloadOutlined />} onClick={() => handleDownload(r)}>
                                   Baixar
                                 </Button>
@@ -594,6 +729,215 @@ export default function AIRulebooksPage() {
         title="Remover regra e tipografia"
         description={<span>Esta ação <b>não pode ser desfeita</b>. Deseja remover a regra e tipografia <b>{deleteTarget?.name}</b>?</span>}
       />
+
+      {/* Modal de visualização de arquivo */}
+      <Dialog
+        open={viewOpen}
+        onClose={handleCloseView}
+        fullWidth
+        maxWidth="lg"
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh'
+          }
+        }}
+      >
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">
+              {viewingRulebook?.originalName || viewingRulebook?.name || 'Visualizar arquivo'}
+            </Typography>
+            <IconButton size="small" onClick={handleCloseView}>
+              <CloseOutlined />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent
+          dividers={false}
+          sx={{
+            p: 0,
+            height: '100%',
+            overflow: 'auto',
+            bgcolor: '#f1f3f4', // fundo tipo Google Docs
+            '&::-webkit-scrollbar': {
+              width: '8px'
+            },
+            '&::-webkit-scrollbar-track': {
+              background: '#f1f3f4'
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: '#dadce0',
+              borderRadius: '4px'
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              background: '#bdc1c6'
+            }
+          }}
+        >
+          {loadingView ? (
+            <Stack alignItems="center" justifyContent="center" sx={{ height: '100%', minHeight: 400 }}>
+              <CircularProgress />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                Carregando arquivo...
+              </Typography>
+            </Stack>
+          ) : viewingRulebook ? (
+            (() => {
+              const fileType = getFileType(viewingRulebook.fileMime, viewingRulebook.originalName);
+              
+              if (fileType === 'pdf') {
+                return (
+                  <Box
+                    component="iframe"
+                    src={viewUrl || ''}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      minHeight: 500
+                    }}
+                  />
+                );
+              } else if (fileType === 'docx') {
+                return (
+                  <Box
+                    sx={{
+                      minHeight: '100%',
+                      px: 4,
+                      py: 3,
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'flex-start'
+                    }}
+                  >
+                    <Box
+                      ref={docxContainerRef}
+                      sx={{
+                        width: '100%',
+                        maxWidth: '900px',
+                        bgcolor: '#fff',
+                        borderRadius: '4px',
+                        boxShadow: '0 1px 3px rgba(60,64,67,.3), 0 4px 8px rgba(60,64,67,.15)',
+                        padding: '48px 56px',
+                        boxSizing: 'border-box',
+                        /* 🔥 ISSO AQUI É A CHAVE 🔥 */
+                        '& .docx-wrapper': {
+                          background: 'transparent !important',
+                          boxShadow: 'none !important',
+                          border: 'none !important',
+                          padding: '0 !important',
+                          margin: '0 !important'
+                        },
+                        '& .docx': {
+                          background: 'transparent !important',
+                          boxShadow: 'none !important',
+                          border: 'none !important',
+                          margin: '0 !important'
+                        },
+                        /* NÃO deixar o docx-preview criar "página falsa" */
+                        '& .docx-wrapper > section': {
+                          background: 'transparent !important',
+                          boxShadow: 'none !important',
+                          border: 'none !important'
+                        },
+                        /* remove shapes flutuantes laterais */
+                        '& .docx-wrapper [style*="position:absolute"], & .docx-wrapper [style*="position: absolute"]': {
+                          background: 'transparent !important',
+                          boxShadow: 'none !important'
+                        },
+                        /* remove barras verticais estreitas */
+                        '& .docx-wrapper div': {
+                          maxWidth: '100%'
+                        },
+                        '& .docx-wrapper div[style*="width:"][style*="height:"]': {
+                          background: 'transparent !important'
+                        },
+                        '& img': {
+                          maxWidth: '100%',
+                          height: 'auto',
+                          display: 'block'
+                        }
+                      }}
+                    />
+                  </Box>
+                );
+              } else if (fileType === 'text' || fileType === 'markdown') {
+                return (
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      overflow: 'auto',
+                      p: 2,
+                      bgcolor: 'background.default'
+                    }}
+                  >
+                    <Box
+                      component="pre"
+                      sx={{
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                        fontSize: '0.875rem',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        margin: 0
+                      }}
+                    >
+                      {viewTextContent || 'Carregando conteúdo...'}
+                    </Box>
+                  </Box>
+                );
+              } else {
+                return (
+                  <Stack spacing={2} sx={{ p: 3, alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+                    <Typography variant="h6" color="text.secondary">
+                      Tipo de arquivo não suportado para visualização
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" align="center">
+                      Este tipo de arquivo não pode ser visualizado diretamente no navegador.
+                      <br />
+                      Use o botão "Baixar" para abrir o arquivo.
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<DownloadOutlined />}
+                      onClick={() => {
+                        if (viewingRulebook) {
+                          handleDownload(viewingRulebook);
+                        }
+                      }}
+                    >
+                      Baixar arquivo
+                    </Button>
+                  </Stack>
+                );
+              }
+            })()
+          ) : (
+            <Stack alignItems="center" justifyContent="center" sx={{ height: '100%', minHeight: 400 }}>
+              <Typography variant="body2" color="text.secondary">
+                Nenhum arquivo para visualizar
+              </Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseView}>Fechar</Button>
+          {viewingRulebook && (
+            <Button
+              variant="contained"
+              startIcon={<DownloadOutlined />}
+              onClick={() => {
+                if (viewingRulebook) {
+                  handleDownload(viewingRulebook);
+                }
+              }}
+            >
+              Baixar
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
 
       {/* Input de arquivo oculto */}
       <input
