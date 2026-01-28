@@ -173,22 +173,11 @@ export default function PreAudienciaReportPage() {
       return;
     }
 
-    const file = files[0];
-    
-    if (files.length > 1) {
-      openSnackbar({
-        open: true,
-        message: `Processando apenas o primeiro arquivo: ${file.name}. Os outros arquivos serão ignorados.`,
-        variant: 'alert',
-        alert: { color: 'info' }
-      } as any);
-    }
-
     try {
       setGenerating(true);
       
       const params = {
-        file,
+        files,
         customerId: selectedCustomer?.id,
         reportTypes: [ReportType.RELATORIO_PRE_AUDIENCIA],
         promptId: selectedPrompt?.id,
@@ -196,8 +185,8 @@ export default function PreAudienciaReportPage() {
       };
       
       console.log('Gerando relatório pré-audiência com parâmetros:', {
-        fileName: file.name,
-        fileSize: file.size,
+        fileCount: files.length,
+        fileNames: files.map((f) => f.name),
         customerId: params.customerId,
         reportTypes: params.reportTypes,
         hasPromptId: !!params.promptId,

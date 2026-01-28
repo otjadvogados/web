@@ -92,7 +92,8 @@ export type GenerateReportsRequest = {
 };
 
 export type GenerateReportFromFileParams = {
-  file: File;
+  /** Arquivos a serem processados (todos enviados para a API) */
+  files: File[];
   customerId?: string; // UUID ou "general" ou undefined (pasta geral)
   reportTypes: ReportType[]; // Array com tipos de relatório
   promptId?: string; // UUID do prompt salvo (opcional)
@@ -246,7 +247,7 @@ export async function generateGeneralReports(
  * Endpoint: POST /customers/:customerId/reports/generate ou POST /reports/generate
  * 
  * @param params - Parâmetros da geração:
- *   - file: Arquivo a ser processado (obrigatório)
+ *   - files: Arquivos a serem processados (todos enviados para a API)
  *   - customerId: UUID do cliente, "general" ou undefined para pasta geral (opcional)
  *   - reportTypes: Array de tipos de relatório (obrigatório)
  *   - promptId: ID do prompt salvo (opcional)
@@ -257,7 +258,7 @@ export async function generateGeneralReports(
  * @example
  * ```typescript
  * const reports = await generateReportFromFile({
- *   file: myFile,
+ *   files: [myFile],
  *   customerId: 'uuid-do-cliente',
  *   reportTypes: [ReportType.RELATORIO_PROVISIONAMENTO_RISCO],
  *   additionalInstructions: 'Analisar risco de crédito'
@@ -269,8 +270,13 @@ export async function generateReportFromFile(
 ): Promise<CustomerReport[]> {
   const formData = new FormData();
   
-  // 1. Arquivo (obrigatório)
-  formData.append('file', params.file);
+  // 1. Arquivos (obrigatório)
+  if (!params.files?.length) {
+    throw new Error('É necessário enviar pelo menos um arquivo em params.files.');
+  }
+  params.files.forEach((file) => {
+    formData.append('file', file);
+  });
   
   // 2. Tipos de relatório (obrigatório - array como JSON string)
   formData.append('reportTypes', JSON.stringify(params.reportTypes));

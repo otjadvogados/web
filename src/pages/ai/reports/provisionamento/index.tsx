@@ -158,24 +158,11 @@ export default function ProvisionamentoReportPage() {
       return;
     }
 
-    // A API aceita apenas um arquivo por vez, então usamos o primeiro
-    const file = files[0];
-    
-    // Se houver múltiplos arquivos, avisamos o usuário
-    if (files.length > 1) {
-      openSnackbar({
-        open: true,
-        message: `Processando apenas o primeiro arquivo: ${file.name}. Os outros arquivos serão ignorados.`,
-        variant: 'alert',
-        alert: { color: 'info' }
-      } as any);
-    }
-
     try {
       setGenerating(true);
       
       const params = {
-        file,
+        files,
         customerId: selectedCustomer?.id,
         reportTypes: [ReportType.RELATORIO_PROVISIONAMENTO_RISCO],
         promptId: selectedPrompt?.id,
@@ -183,8 +170,8 @@ export default function ProvisionamentoReportPage() {
       };
       
       console.log('Gerando relatório com parâmetros:', {
-        fileName: file.name,
-        fileSize: file.size,
+        fileCount: files.length,
+        fileNames: files.map((f) => f.name),
         customerId: params.customerId,
         reportTypes: params.reportTypes,
         hasPromptId: !!params.promptId,

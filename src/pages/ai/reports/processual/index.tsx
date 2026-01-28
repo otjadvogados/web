@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
@@ -17,19 +18,24 @@ import { listPromptFolders, type Prompt } from 'api/prompts';
 import { openSnackbar } from 'api/snackbar';
 import useDebounced from 'utils/useDebounced';
 import { listCustomersAdvanced, type Customer, sortCustomersMatrizFilialPF } from 'api/customers';
+import { ReportType, generateReportFromFile } from 'api/reports';
 import ReportTabsLayout from 'sections/ai/reports/ReportTabsLayout';
+import CircularProgress from '@mui/material/CircularProgress';
 
 type OptionCust = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
 
 const labelCustomer = (c?: OptionCust | null) => c?.displayName ?? c?.name ?? '';
 
 export default function ProcessualReportPage() {
+  const navigate = useNavigate();
   const theme = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [instructions, setInstructions] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<OptionCust | null>(null);
+  const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  const [generating, setGenerating] = useState(false);
   
   // Estados para seletor de clientes
   const [customerOptions, setCustomerOptions] = useState<OptionCust[]>([]);
@@ -140,9 +146,66 @@ export default function ProcessualReportPage() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleGenerate = () => {
-    // TODO: Implementar geração de relatório
-    console.log('Gerar relatório com:', { files, instructions });
+  const handleGenerate = async () => {
+    if (files.length === 0) {
+      openSnackbar({
+        open: true,
+        message: 'Selecione pelo menos um arquivo para gerar o relatório',
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+      return;
+    }
+
+    try {
+      setGenerating(true);
+      const params = {
+        files,
+        customerId: selectedCustomer?.id,
+        reportTypes: [ReportType.RELATORIO_PROCESSUAL],
+        promptId: selectedPrompt?.id,
+        additionalInstructions: instructions.trim() || undefined
+      };
+      const reports = await generateReportFromFile(params);
+
+      if (!reports || reports.length === 0) {
+        openSnackbar({
+          open: true,
+          message: 'Nenhum relatório foi criado. Verifique os logs do servidor.',
+          variant: 'alert',
+          alert: { color: 'warning' }
+        } as any);
+        return;
+      }
+
+      openSnackbar({
+        open: true,
+        message: `Relatório gerado com sucesso! ${reports.length} relatório(s) criado(s).`,
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+
+      if (reports.length > 0) {
+        const firstReport = reports[0];
+        const customerIdToUse = firstReport.customerId || 'general';
+        const backToParams = new URLSearchParams();
+        backToParams.set('reportTypeFilter', ReportType.RELATORIO_PROCESSUAL);
+        const backTo = `/ai/reports/${customerIdToUse}?${backToParams.toString()}`;
+        navigate(`/ai/reports/${customerIdToUse}/${firstReport.id}/edit`, { state: { backTo } });
+      } else {
+        setTimeout(() => navigate('/ai/reports'), 1500);
+      }
+    } catch (err: any) {
+      console.error('Erro ao gerar relatório:', err);
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || err?.message || 'Falha ao gerar relatório',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -322,11 +385,10 @@ export default function ProcessualReportPage() {
                       p.description.toLowerCase().includes(term)
                     );
                   }}
+                  value={selectedPrompt}
                   inputValue={promptSearch}
                   onInputChange={(_, value) => setPromptSearch(value)}
-                  onChange={(_, value) => {
-                    // Não preenche o campo de instruções - o prompt será usado via promptId (quando implementado)
-                  }}
+                  onChange={(_, value) => setSelectedPrompt(value)}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -377,9 +439,10 @@ export default function ProcessualReportPage() {
                   variant="contained"
                   size="large"
                   onClick={handleGenerate}
-                  disabled={files.length === 0}
+                  disabled={files.length === 0 || generating}
+                  startIcon={generating ? <CircularProgress size={20} /> : null}
                 >
-                  Gerar Relatório
+                  {generating ? 'Gerando...' : 'Gerar Relatório'}
                 </Button>
               </Box>
               </Stack>
