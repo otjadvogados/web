@@ -23,6 +23,8 @@ const DevicesCenter = Loadable(lazy(() => import('pages/security/devices-center'
 const AIPiecesPage = Loadable(lazy(() => import('pages/ai/pieces')));
 // NOVO: AI > Regras
 const AIRulesPage = Loadable(lazy(() => import('pages/ai/rules')));
+// NOVO: AI > Documentos Gerais do Escritório
+const AIOfficeDocumentsPage = Loadable(lazy(() => import('pages/ai/office-documents')));
 // NOVO: AI > Tópicos
 const AITopicsPage = Loadable(lazy(() => import('pages/ai/topics')));
 // NOVO: AI > Tópicos Específicos
@@ -179,6 +181,10 @@ const MainRoutes = {
         {
           path: 'ai/rules',
           element: <AIRulesPage />
+        },
+        {
+          path: 'ai/office-documents',
+          element: <AIOfficeDocumentsPage />
         },
         {
           path: 'ai/topics',

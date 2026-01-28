@@ -128,7 +128,7 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.ToolOutlined,
       isDropdown: true,
-      permissions: ['ai.prompts.read', 'ai.prompts.create', 'ai.prompts.update', 'ai.prompts.delete', 'reports.read', 'reports.create', 'reports.update', 'reports.delete'],
+      permissions: ['ai.prompts.read', 'ai.prompts.create', 'ai.prompts.update', 'ai.prompts.delete', 'reports.read', 'reports.create', 'reports.update', 'reports.delete', 'ai.office-documents.read', 'ai.office-documents.create', 'ai.office-documents.update', 'ai.office-documents.delete'],
       children: [
         {
           id: 'ai-reports',
@@ -179,6 +179,13 @@ const pages: NavItemType = {
           type: 'item',
           url: '/ai/prompts',
           permissions: ['ai.prompts.read', 'ai.prompts.create', 'ai.prompts.update', 'ai.prompts.delete'],
+        },
+        {
+          id: 'ai-office-documents',
+          title: 'Base de conhecimento',
+          type: 'item',
+          url: '/ai/office-documents',
+          permissions: ['ai.office-documents.read', 'ai.office-documents.create', 'ai.office-documents.update', 'ai.office-documents.delete'],
         },
       ]
     },
