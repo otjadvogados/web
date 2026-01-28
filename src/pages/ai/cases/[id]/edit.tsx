@@ -631,7 +631,14 @@ export default function EditCasePage() {
                 >
                   Baixar DOCX
                 </MenuItem>
+                <MenuItem
+                  onClick={handleDownloadPdf}
+                  disabled={downloading || downloadingPdf}
+                >
+                  Baixar PDF
+                </MenuItem>
               </Menu>
+            
             </>
             <Button
               variant="contained"
