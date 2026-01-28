@@ -61,6 +61,19 @@ const formatDuration = (seconds: number) => {
   }
 };
 
+// Formata duração total em horas, minutos e segundos (segundos com 2 casas decimais)
+const formatDurationTotal = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600);
+  const remainderAfterHours = seconds % 3600;
+  const minutes = Math.floor(remainderAfterHours / 60);
+  const secs = remainderAfterHours % 60;
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}min`);
+  parts.push(`${secs.toFixed(2)}s`);
+  return parts.join(' ');
+};
+
 // Avatar protegido por token
 function UserAvatar({ userId, name }: { userId: string; name: string }) {
   const url = useAvatarUrl(userId, null);
@@ -308,7 +321,7 @@ export default function PieceProductivitySection({ startDate, endDate, getDefaul
                   <CardContent>
                     <Typography variant="body2" color="text.secondary">Tempo Médio Total</Typography>
                     <Typography variant="h6" fontWeight={700} color="error.main">
-                      {formatDuration(stats.avgTotalTime)}
+                      {formatDurationTotal(stats.avgTotalTime)}
                     </Typography>
                   </CardContent>
                 </Card>
