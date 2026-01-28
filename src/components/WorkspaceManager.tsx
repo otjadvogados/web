@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useWorkspaceAutosave } from 'hooks/useWorkspaceAutosave';
 import { useWorkspaceRestore } from 'hooks/useWorkspaceRestore';
 import { getWorkspaceContext, getResourceIdFromPath, shouldEnableAutosave, getRouteMetadata } from 'utils/workspace';
 import useAuth from 'hooks/useAuth';
+import type { WorkspaceStateData } from 'types/workspace';
 
 /**
  * Componente global que gerencia autosave e restauração de estado do workspace
@@ -22,22 +23,32 @@ export default function WorkspaceManager() {
   const resourceId = getResourceIdFromPath(location.pathname);
   const shouldEnable = shouldEnableAutosave(location.pathname);
 
+  const onRestore = useCallback(
+    (state: WorkspaceStateData) => {
+      if (state.metadata?.url === location.pathname && state.state.scrollPosition !== undefined) {
+        setTimeout(() => {
+          window.scrollTo(0, state.state.scrollPosition as number);
+        }, 300);
+      }
+    },
+    [location.pathname]
+  );
+
+  const getState = useCallback(() => ({ scrollPosition: window.scrollY }), []);
+  const getMetadata = useCallback(
+    () => getRouteMetadata(location.pathname, location.search),
+    [location.pathname, location.search]
+  );
+  const onAutosaveError = useCallback((error: Error) => {
+    console.warn('Erro ao salvar estado do workspace:', error);
+  }, []);
+
   // Restaura estado ao mudar de rota
   const { workspaceState } = useWorkspaceRestore({
     context,
     expectedResourceId: resourceId,
     autoRestore: shouldEnable && isLoggedIn,
-    onRestore: (state) => {
-      // Só restaura scroll se for a mesma rota
-      if (state.metadata?.url === location.pathname) {
-        if (state.state.scrollPosition !== undefined) {
-          // Aguarda um pouco para garantir que a página carregou
-          setTimeout(() => {
-            window.scrollTo(0, state.state.scrollPosition as number);
-          }, 300);
-        }
-      }
-    }
+    onRestore
   });
 
   // Restaura scroll quando a rota muda e há estado salvo
@@ -72,17 +83,11 @@ export default function WorkspaceManager() {
     context,
     resourceId,
     interval: 30000, // 30 segundos
-    getState: () => ({
-      scrollPosition: window.scrollY,
-      // Pode adicionar mais estado global aqui se necessário
-    }),
-    getMetadata: () => getRouteMetadata(location.pathname, location.search),
+    getState,
+    getMetadata,
     saveOnMount: false, // Não salva ao montar, apenas após interação
     saveOnUnmount: true, // Salva antes de desmontar
-    onError: (error) => {
-      // Log silencioso - não interrompe o fluxo do usuário
-      console.warn('Erro ao salvar estado do workspace:', error);
-    }
+    onError: onAutosaveError
   });
 
   // Não renderiza nada - é apenas um gerenciador

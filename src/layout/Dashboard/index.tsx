@@ -50,30 +50,32 @@ export default function DashboardLayout() {
 
   return (
     <AuthGuard>
-      <WorkspaceManager />
-      <Box sx={{ display: 'flex', width: '100%' }} data-page={isA4Playground ? 'a4-playground' : 'other'}>
-        <Header />
-        {!isHorizontal ? <Drawer /> : <HorizontalBar />}
+      <>
+        <WorkspaceManager />
+        <Box sx={{ display: 'flex', width: '100%' }} data-page={isA4Playground ? 'a4-playground' : 'other'}>
+          <Header />
+          {!isHorizontal ? <Drawer /> : <HorizontalBar />}
 
-        <Box component="main" sx={{ width: 'calc(100% - 260px)', flexGrow: 1, p: isWelcomePage ? 0 : { xs: 2, sm: 3 }, position: 'relative' }}>
-          {!isWelcomePage && <Toolbar sx={{ mt: isHorizontal ? 8 : 'inherit' }} />}
-          <Container
-            maxWidth={container ? 'xl' : false}
-            sx={{
-              ...(container && { px: { xs: 0, sm: 2 } }),
-              position: 'relative',
-              minHeight: 'calc(100vh - 110px)',
-              display: 'flex',
-              flexDirection: 'column',
-              ...(isWelcomePage && { maxWidth: '100%', px: 0, py: 0, minHeight: '100%' })
-            }}
-          >
-            {pathname !== '#!' && !isA4Playground && !isWelcomePage && <Breadcrumbs />}
-            <Outlet />
-            {!isWelcomePage && <Footer />}
-          </Container>
+          <Box component="main" sx={{ width: 'calc(100% - 260px)', flexGrow: 1, p: isWelcomePage ? 0 : { xs: 2, sm: 3 }, position: 'relative' }}>
+            {!isWelcomePage && <Toolbar sx={{ mt: isHorizontal ? 8 : 'inherit' }} />}
+            <Container
+              maxWidth={container ? 'xl' : false}
+              sx={{
+                ...(container && { px: { xs: 0, sm: 2 } }),
+                position: 'relative',
+                minHeight: 'calc(100vh - 110px)',
+                display: 'flex',
+                flexDirection: 'column',
+                ...(isWelcomePage && { maxWidth: '100%', px: 0, py: 0, minHeight: '100%' })
+              }}
+            >
+              {pathname !== '#!' && !isA4Playground && !isWelcomePage && <Breadcrumbs />}
+              <Outlet />
+              {!isWelcomePage && <Footer />}
+            </Container>
+          </Box>
         </Box>
-      </Box>
+      </>
     </AuthGuard>
   );
 }

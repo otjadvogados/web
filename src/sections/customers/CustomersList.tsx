@@ -499,7 +499,7 @@ export default function CustomersList() {
         <DialogTitle>Confirmar Exclusão</DialogTitle>
         <DialogContent>
           <Typography>
-            Tem certeza que deseja excluir o cliente "{selectedCustomer?.displayName || selectedCustomer?.name || 'este cliente'}"?
+            Tem certeza que deseja excluir o cliente "{selectedCustomer?.displayName ?? 'este cliente'}"?
             Esta ação não pode ser desfeita.
           </Typography>
         </DialogContent>

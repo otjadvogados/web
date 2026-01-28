@@ -510,7 +510,7 @@ export default function RoleRulesDrawer({ open, role, onClose, onChanged, requir
       if (!hasChildren && !hasData) return null;
       
       // Ordena as permissões: .read primeiro
-      const sortedData = hasData ? sortRulesWithReadFirst([...node.data]) : [];
+      const sortedData = hasData ? sortRulesWithReadFirst([...(node.data ?? [])]) : [];
       
       // Se tem apenas data (sem children), renderiza os itens diretamente sem o grupo
       if (hasData && !hasChildren) {

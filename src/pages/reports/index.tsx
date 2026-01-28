@@ -145,7 +145,13 @@ export default function ReportsPage() {
     const labels: Record<ReportType, string> = {
       [ReportType.RELATORIO_SENTENCA]: 'Relatório de Sentença',
       [ReportType.ANALISE_PRELIMINAR_RISCO]: 'Análise Preliminar de Risco',
-      [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA]: 'Relatório de Audiência Trabalhista'
+      [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA]: 'Relatório de Audiência Trabalhista',
+      [ReportType.RELATORIO_PROVISIONAMENTO_RISCO]: 'Provisionamento e Risco',
+      [ReportType.RELATORIO_PRE_AUDIENCIA]: 'Pré-Audiência',
+      [ReportType.RELATORIO_POS_AUDIENCIA]: 'Pós-Audiência',
+      [ReportType.RELATORIO_DECISOES_SENTENCA]: 'Decisões - Sentença',
+      [ReportType.RELATORIO_DECISOES_ACORDAO]: 'Decisões - Acórdão',
+      [ReportType.RELATORIO_PROCESSUAL]: 'Processual'
     };
     return labels[type] || type;
   };

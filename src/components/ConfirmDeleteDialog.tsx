@@ -18,7 +18,9 @@ type Props = {
   cancelText?: string;
   loading?: boolean;
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
+  onClose?: () => void;
+  itemName?: string;
 };
 
 /**
@@ -33,12 +35,18 @@ export default function ConfirmDeleteDialog({
   cancelText = 'Cancelar',
   loading = false,
   onConfirm,
-  onCancel
+  onCancel,
+  onClose,
+  itemName
 }: Props) {
   const theme = useTheme();
+  const handleCancel = onClose ?? onCancel ?? (() => {});
+  const effectiveDescription = description ?? (itemName
+    ? `Tem certeza que deseja remover "${itemName}"? Esta ação não pode ser desfeita.`
+    : undefined);
 
   return (
-    <Dialog open={open} onClose={loading ? undefined : onCancel} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={loading ? undefined : handleCancel} fullWidth maxWidth="xs">
       <DialogTitle>
         <Stack direction="row" spacing={1} alignItems="center">
           <WarningOutlined style={{ color: theme.palette.error.main }} />
@@ -47,8 +55,8 @@ export default function ConfirmDeleteDialog({
       </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={1.5}>
-          {description ? (
-            <Typography variant="body2">{description}</Typography>
+          {effectiveDescription ? (
+            <Typography variant="body2">{effectiveDescription}</Typography>
           ) : (
             <Typography variant="body2">
               Esta ação não pode ser desfeita. Tem certeza que deseja remover este registro?
@@ -60,7 +68,7 @@ export default function ConfirmDeleteDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onCancel} color="secondary" disabled={loading}>
+        <Button onClick={handleCancel} color="secondary" disabled={loading}>
           {cancelText}
         </Button>
         <Button
