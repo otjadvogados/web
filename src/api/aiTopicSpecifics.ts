@@ -7,6 +7,10 @@ export type AiTopicSpecific = {
   name: string;
   instruction?: string | null;
   allowAiEdit: boolean;
+  /** Redigir sem Resumo: IA não cria introdução/síntese; vai direto à contestação */
+  writeWithoutSummary?: boolean;
+  /** UUID do prompt da caixa; null = desvinculado. Instrução efetiva = conteúdo do prompt + instruction */
+  promptId?: string | null;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -70,6 +74,9 @@ export type CreateTopicSpecificDTO = {
   name: string;
   instruction?: string | null;
   allowAiEdit?: boolean;
+  writeWithoutSummary?: boolean;
+  /** UUID do prompt da caixa ou null para desvincular */
+  promptId?: string | null;
 };
 
 export async function createTopicSpecific(payload: CreateTopicSpecificDTO) {
@@ -82,6 +89,8 @@ export type UpdateTopicSpecificDTO = Partial<{
   name: string;
   instruction: string | null;
   allowAiEdit: boolean;
+  writeWithoutSummary: boolean;
+  promptId: string | null;
 }>;
 
 export async function updateTopicSpecific(id: string, payload: UpdateTopicSpecificDTO) {

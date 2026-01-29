@@ -14,6 +14,7 @@ import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import InputAdornment from '@mui/material/InputAdornment';
 import * as Yup from 'yup';
 import { Formik } from 'formik';
 
@@ -24,6 +25,7 @@ import AIIcon from 'components/icons/AIIcon';
 
 import { AiTopicSpecific, createTopicSpecific, updateTopicSpecific, UpdateTopicSpecificDTO } from 'api/aiTopicSpecifics';
 import { listTopics } from 'api/aiTopics';
+import { listPrompts } from 'api/prompts';
 import { openSnackbar } from 'api/snackbar';
 import Textarea from '@mui/material/TextareaAutosize';
 
@@ -39,32 +41,61 @@ const schemaCreate = Yup.object({
   name: Yup.string().required('Nome é obrigatório').min(2, 'Mínimo 2 caracteres'),
   topicId: Yup.string().required('Tópico é obrigatório'),
   instruction: Yup.string().nullable().optional(),
-  allowAiEdit: Yup.boolean().optional()
+  allowAiEdit: Yup.boolean().optional(),
+  writeWithoutSummary: Yup.boolean().optional(),
+  promptId: Yup.string().nullable().optional()
 });
 
 const schemaEdit = Yup.object({
   name: Yup.string().min(2, 'Mínimo 2 caracteres').optional(),
   topicId: Yup.string().optional(),
   instruction: Yup.string().nullable().optional(),
-  allowAiEdit: Yup.boolean().optional()
+  allowAiEdit: Yup.boolean().optional(),
+  writeWithoutSummary: Yup.boolean().optional(),
+  promptId: Yup.string().nullable().optional()
 });
 
 export default function TopicSpecificFormDialog({ open, onClose, editingId, initial, onSaved }: Props) {
   const isEdit = Boolean(editingId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [topicCatalog, setTopicCatalog] = useState<Array<{ id: string; name: string }>>([]);
+  const [promptCatalog, setPromptCatalog] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => { if (!open) setIsSubmitting(false); }, [open]);
   const handleClose = () => { if (!isSubmitting) onClose(); };
 
   useEffect(() => {
     if (!open) return;
+    console.log('[TopicSpecificFormDialog] Dialog aberto, carregando tópicos e prompts...');
     (async () => {
       try {
-        const res = await listTopics({ page: 1, limit: 100, sortBy: 'name', sortOrder: 'asc' });
-        // @ts-ignore
-        setTopicCatalog((res.data || []).map((t: any) => ({ id: t.id, name: t.name })));
-      } catch {}
+        const [topicsRes, promptsRes] = await Promise.all([
+          listTopics({ page: 1, limit: 100, sortBy: 'name', sortOrder: 'asc' }),
+          listPrompts({ page: 1, limit: 100, sortBy: 'name', sortOrder: 'asc' })
+        ]);
+        console.log('[TopicSpecificFormDialog] Resposta listTopics (raw):', topicsRes);
+        console.log('[TopicSpecificFormDialog] Resposta listPrompts (raw):', promptsRes);
+        const topicList = Array.isArray(topicsRes)
+          ? topicsRes
+          : (topicsRes?.data ?? (topicsRes as any)?.items ?? []);
+        const promptList = Array.isArray(promptsRes)
+          ? promptsRes
+          : (promptsRes?.data ?? (promptsRes as any)?.items ?? []);
+        console.log('[TopicSpecificFormDialog] topicList extraído:', topicList?.length, topicList);
+        console.log('[TopicSpecificFormDialog] promptList extraído:', promptList?.length, promptList);
+        const topics = (topicList || []).map((t: any) => ({ id: t.id, name: t.name }));
+        const prompts = (promptList || []).map((p: any) => ({ id: p.id, name: p.name }));
+        console.log('[TopicSpecificFormDialog] Catálogo tópicos:', topics.length, topics);
+        console.log('[TopicSpecificFormDialog] Catálogo prompts:', prompts.length, prompts);
+        setTopicCatalog(topics);
+        setPromptCatalog(prompts);
+      } catch (err: any) {
+        console.error('TopicSpecificFormDialog: erro ao carregar tópicos/prompts', err);
+        setTopicCatalog([]);
+        setPromptCatalog([]);
+        const msg = err?.response?.data?.message || err?.message || 'Falha ao carregar tópicos e prompts';
+        openSnackbar({ open: true, message: msg, variant: 'alert', alert: { color: 'error' } } as any);
+      }
     })();
   }, [open]);
 
@@ -97,7 +128,9 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
           name: initial?.name || '',
           topicId: initial?.topicId || '',
           instruction: initial?.instruction ?? '',
-          allowAiEdit: initial?.allowAiEdit ?? true
+          allowAiEdit: initial?.allowAiEdit ?? true,
+          writeWithoutSummary: initial?.writeWithoutSummary ?? false,
+          promptId: initial?.promptId ?? ''
         }}
         validationSchema={isEdit ? schemaEdit : schemaCreate}
         onSubmit={async (values, { setSubmitting, setErrors }) => {
@@ -108,7 +141,9 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
                 name: values.name?.trim() || initial?.name,
                 topicId: values.topicId || initial?.topicId,
                 instruction: typeof values.instruction === 'string' ? (values.instruction?.trim() || null) : values.instruction ?? undefined,
-                allowAiEdit: typeof values.allowAiEdit === 'boolean' ? values.allowAiEdit : initial?.allowAiEdit
+                allowAiEdit: typeof values.allowAiEdit === 'boolean' ? values.allowAiEdit : initial?.allowAiEdit,
+                writeWithoutSummary: typeof values.writeWithoutSummary === 'boolean' ? values.writeWithoutSummary : initial?.writeWithoutSummary,
+                promptId: values.promptId?.trim() || null
               };
               await updateTopicSpecific(editingId, payload);
               openSnackbar({ open: true, message: 'Tópico específico atualizado!', variant: 'alert', alert: { color: 'success' } } as any);
@@ -117,7 +152,9 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
                 name: values.name.trim(),
                 topicId: values.topicId,
                 instruction: values.instruction?.trim() || null,
-                allowAiEdit: !!values.allowAiEdit
+                allowAiEdit: !!values.allowAiEdit,
+                writeWithoutSummary: !!values.writeWithoutSummary,
+                promptId: values.promptId?.trim() || null
               });
               openSnackbar({ open: true, message: 'Tópico específico criado!', variant: 'alert', alert: { color: 'success' } } as any);
             }
@@ -160,8 +197,22 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
                     onChange={handleChange}
                     onBlur={handleBlur}
                     error={Boolean(touched.topicId && errors.topicId)}
+                    InputProps={{
+                      endAdornment: values.topicId ? (
+                        <InputAdornment position="end" sx={{ mr: 2 }}>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); setFieldValue('topicId', ''); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            aria-label="Limpar tópico"
+                          >
+                            <CloseOutlined style={{ fontSize: 14 }} />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : undefined
+                    }}
                   >
-                    <MenuItem value="">{isEdit ? '(não alterar)' : 'Selecione…'}</MenuItem>
+                    <MenuItem value="">—</MenuItem>
                     {topicCatalog.map((t) => (
                       <MenuItem key={t.id} value={t.id}>
                         {t.name}
@@ -169,6 +220,41 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
                     ))}
                   </TextField>
                   {touched.topicId && errors.topicId && <FormHelperText error>{errors.topicId as string}</FormHelperText>}
+                </Stack>
+
+                <Stack gap={1}>
+                  <InputLabel htmlFor="promptId">Prompt da caixa (opcional)</InputLabel>
+                  <TextField
+                    id="promptId"
+                    name="promptId"
+                    select
+                    value={values.promptId ?? ''}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={Boolean(touched.promptId && errors.promptId)}
+                    InputProps={{
+                      endAdornment: values.promptId ? (
+                        <InputAdornment position="end" sx={{ mr: 2 }}>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); setFieldValue('promptId', ''); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            aria-label="Desvincular prompt"
+                          >
+                            <CloseOutlined style={{ fontSize: 14 }} />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : undefined
+                    }}
+                  >
+                    <MenuItem value="">—</MenuItem>
+                    {promptCatalog.map((p) => (
+                      <MenuItem key={p.id} value={p.id}>
+                        {p.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  {touched.promptId && errors.promptId && <FormHelperText error>{errors.promptId as string}</FormHelperText>}
                 </Stack>
 
                 <Stack gap={1}>
@@ -184,10 +270,16 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
                   />
                 </Stack>
 
-                <FormControlLabel
-                  control={<Switch checked={!!values.allowAiEdit} onChange={(e) => setFieldValue('allowAiEdit', e.target.checked)} />}
-                  label="Permitir IA editar o texto"
-                />
+                <Stack direction="row" flexWrap="wrap" gap={2}>
+                  <FormControlLabel
+                    control={<Switch checked={!!values.allowAiEdit} onChange={(e) => setFieldValue('allowAiEdit', e.target.checked)} />}
+                    label="Permitir IA editar o texto"
+                  />
+                  <FormControlLabel
+                    control={<Switch checked={!!values.writeWithoutSummary} onChange={(e) => setFieldValue('writeWithoutSummary', e.target.checked)} />}
+                    label="Redigir sem Resumo"
+                  />
+                </Stack>
               </Stack>
             </DialogContent>
             <DialogActions>
