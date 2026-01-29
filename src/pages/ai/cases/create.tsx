@@ -80,7 +80,7 @@ function CreateCaseWizardInner() {
   const [initialChecklistData, setInitialChecklistData] = useState<Record<string, boolean> | null>(null);
 
   // Restaura o estado completo do wizard se houver estado salvo
-  // Este useEffect só roda uma vez quando o componente é montado
+  // O checklist inicial é sempre exibido ao entrar em criar caso
   useEffect(() => {
     (async () => {
       try {
@@ -97,9 +97,7 @@ function CreateCaseWizardInner() {
               variant: 'alert',
               alert: { color: 'success' }
             } as any);
-            // Se restaurou estado, não mostra checklist inicial
-            setInitialChecklistCompleted(true);
-            // Restaura dados do checklist se houver
+            // Restaura dados do checklist para pré-preencher o dialog (se houver)
             const savedChecklist = sessionStorage.getItem('case_initial_checklist_data');
             if (savedChecklist) {
               try {
@@ -108,29 +106,14 @@ function CreateCaseWizardInner() {
                 console.error('Erro ao restaurar dados do checklist:', e);
               }
             }
-            return;
           } else {
             sessionStorage.removeItem('wizard_return_state');
           }
         }
-        
-        // Restaura dados do checklist se houver
-        const savedChecklist = sessionStorage.getItem('case_initial_checklist_data');
-        if (savedChecklist) {
-          try {
-            setInitialChecklistData(JSON.parse(savedChecklist));
-            setInitialChecklistCompleted(true);
-            return; // Não mostra o checklist se já foi preenchido
-          } catch (e) {
-            console.error('Erro ao restaurar dados do checklist:', e);
-          }
-        }
-        
-        // Mostra o checklist inicial imediatamente ao entrar na página
+        // Checklist inicial: sempre exibir ao entrar em criar caso
         setShowInitialChecklist(true);
       } catch (err) {
         console.error('Erro ao restaurar estado do wizard:', err);
-        // Em caso de erro, mostra o checklist inicial imediatamente
         setShowInitialChecklist(true);
       }
     })();
