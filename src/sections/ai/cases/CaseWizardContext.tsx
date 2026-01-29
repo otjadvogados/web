@@ -221,58 +221,39 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     setTopic(topics[0] ?? null);
   }, [topics]);
 
-  // Valida se todos os tópicos específicos têm pelo menos 1 anexo em cada caixa (reclamante e reclamada)
+  // Valida se há documentos para processar: arquivos em comum OU pelo menos 1 anexo por tópico (reclamante OU reclamada)
   const validateAttachments = () => {
     if (specs.length === 0) {
       return { valid: true, missingSpecs: [], missingBoxes: [] }; // se não há specs, não precisa validar
     }
-    
+    // Se há arquivos em comum (ex.: petição inicial), já pode gerar
+    if (commonAttachments.length > 0) {
+      return { valid: true, missingSpecs: [], missingBoxes: [] };
+    }
     const specIds = new Set(specs.map(s => s.id));
     const attachmentsBySpecAndBox = new Map<string, { claimant: number; client: number }>();
-    
-    // Inicializa contadores para cada spec
     specs.forEach(s => {
       attachmentsBySpecAndBox.set(s.id, { claimant: 0, client: 0 });
     });
-    
-    // Conta anexos por spec e por caixa
     attachments.forEach(a => {
       if (specIds.has(a.topicSpecificId)) {
         const current = attachmentsBySpecAndBox.get(a.topicSpecificId) || { claimant: 0, client: 0 };
-        if (a.box === 'claimant') {
-          current.claimant += 1;
-        } else if (a.box === 'client') {
-          current.client += 1;
-        }
+        if (a.box === 'claimant') current.claimant += 1;
+        else if (a.box === 'client') current.client += 1;
         attachmentsBySpecAndBox.set(a.topicSpecificId, current);
       }
     });
-    
-    // Encontra specs sem anexos ou com caixas faltando
+    // Só exige pelo menos 1 documento por tópico (em qualquer caixa); não exige as duas caixas
     const missingSpecs: string[] = [];
-    const missingBoxes: Array<{ specName: string; box: 'claimant' | 'client' }> = [];
-    
     specs.forEach(s => {
       const counts = attachmentsBySpecAndBox.get(s.id) || { claimant: 0, client: 0 };
-      const hasClaimant = counts.claimant > 0;
-      const hasClient = counts.client > 0;
-      
-      if (!hasClaimant && !hasClient) {
-        missingSpecs.push(s.name);
-      } else {
-        if (!hasClaimant) {
-          missingBoxes.push({ specName: s.name, box: 'claimant' });
-        }
-        if (!hasClient) {
-          missingBoxes.push({ specName: s.name, box: 'client' });
-        }
-      }
+      const hasAny = counts.claimant > 0 || counts.client > 0;
+      if (!hasAny) missingSpecs.push(s.name);
     });
-    
     return {
-      valid: missingSpecs.length === 0 && missingBoxes.length === 0,
+      valid: missingSpecs.length === 0,
       missingSpecs,
-      missingBoxes
+      missingBoxes: [] // não bloqueia mais por caixa vazia; fluxo segue com os docs disponíveis
     };
   };
 
@@ -373,21 +354,12 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     if (!dept?.id || !piece?.id || !piece?.docxFileId) {
       throw new Error('Departamento e Peça com DOCX são obrigatórios para criar o caso.');
     }
-    // Valida se todos os tópicos específicos têm pelo menos 1 anexo em cada caixa (reclamante e reclamada)
     const validation = validateAttachments();
     if (!validation.valid) {
-      const errors: string[] = [];
-      if (validation.missingSpecs.length > 0) {
-        errors.push(`Faltam anexos nos tópicos: ${validation.missingSpecs.join(', ')}`);
-      }
-      if (validation.missingBoxes.length > 0) {
-        const boxErrors = validation.missingBoxes.map(mb => {
-          const boxLabel = mb.box === 'claimant' ? 'reclamante' : 'reclamada';
-          return `${mb.specName} (${boxLabel})`;
-        });
-        errors.push(`Faltam anexos nas caixas: ${boxErrors.join(', ')}`);
-      }
-      throw new Error(`Cada tópico específico deve ter pelo menos 1 arquivo em cada caixa (reclamante e reclamada). ${errors.join('; ')}`);
+      const msg = validation.missingSpecs.length > 0
+        ? `Adicione ao menos um documento por tópico (reclamante ou reclamada) ou use arquivos em comum. Faltam anexos nos tópicos: ${validation.missingSpecs.join(', ')}`
+        : 'Adicione ao menos um documento por tópico ou arquivos em comum para criar o caso.';
+      throw new Error(msg);
     }
     const fields: CaseContextFields = {
       departmentId: dept.id,
