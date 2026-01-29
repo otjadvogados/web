@@ -30,6 +30,7 @@ import {
   finalizeCase,
   approveCase,
   releaseCase,
+  isGeneralFolder,
   type CaseFolder,
   type CaseResult 
 } from 'api/aiCases';
@@ -371,31 +372,28 @@ export default function CasesFolderPage() {
   };
 
   const loadCases = async () => {
-    if (!folderId) {
-      console.warn('folderId não definido');
-      return;
-    }
-    
+    if (!folderId) return;
+    if (!folder) return; // espera a pasta estar carregada para saber se é geral
+
     try {
       setLoadingCases(true);
-      console.log('Buscando casos para folderId:', folderId);
-      // Busca todos os casos da pasta (sem paginação, como em prompts)
+      const isGeneral = isGeneralFolder(folder);
+      // Pasta geral: não filtrar por folderId e pedir noCustomer para incluir casos com folder/cliente null
       const res = await listCaseResults({
         page: 1,
-        pageSize: 1000, // Busca muitos para pegar todos
-        folderId: folderId
+        pageSize: 1000,
+        folderId: isGeneral ? undefined : folderId,
+        noCustomer: isGeneral ? true : undefined
       });
-      console.log('Resposta completa da API:', res);
-      console.log('res.data:', res.data);
-      console.log('res.items:', res.items);
-      const resultItems = res.data || res.items || [];
-      console.log('Casos encontrados (array):', resultItems);
-      console.log('Quantidade de casos:', resultItems.length);
+      let resultItems = res.data || res.items || [];
+      if (isGeneral) {
+        // Garante que só aparecem casos sem cliente (fallback se o backend não suportar noCustomer)
+        resultItems = resultItems.filter(
+          (c) => !c.customers || (Array.isArray(c.customers) && c.customers.length === 0)
+        );
+      }
       setItems(Array.isArray(resultItems) ? resultItems : []);
     } catch (err: any) {
-      console.error('Erro ao carregar casos:', err);
-      console.error('Status do erro:', err?.response?.status);
-      console.error('Detalhes do erro:', err?.response?.data);
       openSnackbar({
         open: true,
         message: err?.response?.data?.message || 'Falha ao carregar casos',
@@ -414,11 +412,11 @@ export default function CasesFolderPage() {
   }, [folderId]);
 
   useEffect(() => {
-    if (folderId) {
+    if (folderId && folder) {
       loadCases();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [folderId]);
+  }, [folderId, folder]);
 
   const applySearchFilter = (cases: CaseResult[], q: string) => {
     const term = q.trim();
@@ -430,13 +428,7 @@ export default function CasesFolderPage() {
     );
   };
 
-  const filteredCases = useMemo(() => {
-    const filtered = applySearchFilter(items, search);
-    console.log('Items:', items);
-    console.log('Filtered cases:', filtered);
-    console.log('Search term:', search);
-    return filtered;
-  }, [items, search]);
+  const filteredCases = useMemo(() => applySearchFilter(items, search), [items, search]);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '—';
@@ -493,6 +485,10 @@ export default function CasesFolderPage() {
     navigate(`/ai/cases/${caseId}/edit`);
   };
 
+  const folderDisplayName = !folder
+    ? 'Carregando...'
+    : (isGeneralFolder(folder) ? 'Geral' : (folder.name || 'Casos'));
+
   return (
     <Grid container spacing={3}>
       <Grid size={12}>
@@ -509,7 +505,7 @@ export default function CasesFolderPage() {
               </Button>
               <AIIcon />
               <Typography variant="h6" fontWeight={700}>
-                {folder?.name || 'Carregando...'}
+                {folderDisplayName}
               </Typography>
             </Stack>
           }
@@ -557,7 +553,7 @@ export default function CasesFolderPage() {
                       {/* Header estilo Explorer */}
                       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5, mt: 0.5 }}>
                         <Typography variant="subtitle1" fontWeight={800}>
-                          {folder.name || 'Casos'}
+                          {folderDisplayName}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {filteredCases.length} {filteredCases.length === 1 ? 'caso' : 'casos'}

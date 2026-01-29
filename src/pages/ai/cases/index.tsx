@@ -16,7 +16,7 @@ import PlusOutlined from '@ant-design/icons/PlusOutlined';
 
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
-import { listCaseFolders, type CaseFolder } from 'api/aiCases';
+import { listCaseFolders, isGeneralFolder, type CaseFolder } from 'api/aiCases';
 import Permission from 'components/Permission';
 import FolderTile from 'sections/ai/transcribe/FolderTile';
 import AIIcon from 'components/icons/AIIcon';
@@ -46,7 +46,17 @@ export default function CasesPage() {
     try {
       setLoading(true);
       const foldersArray = await listCaseFolders();
-
+      console.log('[Casos] listCaseFolders resposta:', {
+        total: foldersArray?.length ?? 0,
+        folders: (foldersArray ?? []).map((f) => ({
+          id: f.id,
+          name: f.name,
+          companyId: f.companyId,
+          customerId: f.customerId,
+          caseCount: f.caseCount,
+          isGeneral: isGeneralFolder(f),
+        })),
+      });
       setAllFolders(foldersArray);
       setFolders(applySearchFilter(foldersArray, search));
     } catch (err: any) {
@@ -169,11 +179,12 @@ export default function CasesPage() {
                   >
                     {folders.map((folder) => {
                       // Converte CaseFolder para formato esperado pelo FolderTile
-                      // O FolderTile usa items.length para mostrar a contagem, então criamos um array fake
+                      // Pasta geral: customerId === null e companyId !== null → exibir "Geral"
+                      const displayName = isGeneralFolder(folder) ? 'Geral' : (folder.name || '');
                       const fakeItems = Array(folder.caseCount || 0).fill(null);
                       const folderForTile = {
                         id: folder.id,
-                        name: folder.name,
+                        name: displayName,
                         type: 'customer' as const,
                         customerId: folder.customerId,
                         departmentId: null,

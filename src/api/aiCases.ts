@@ -275,6 +275,8 @@ export type ListCaseResultsQuery = {
   pieceId?: string;
   customerId?: string;
   customerName?: string;
+  /** Quando true, retorna apenas casos sem cliente (customer null/vazio). Útil para a pasta geral. */
+  noCustomer?: boolean;
   createdFrom?: string;
   createdTo?: string;
   folderId?: string;
@@ -294,6 +296,7 @@ export async function listCaseResults(q: ListCaseResultsQuery = {}) {
     pieceId: q.pieceId || undefined,
     customerId: q.customerId || undefined,
     customerName: q.customerName || undefined,
+    noCustomer: q.noCustomer === true ? true : undefined,
     createdFrom: q.createdFrom || undefined,
     createdTo: q.createdTo || undefined,
     folderId: q.folderId || undefined,
@@ -535,25 +538,40 @@ export async function deleteQuestion(caseId: string, questionId: string) {
 
 export type CaseFolder = {
   id: string;
-  customerId: string;
+  /** Preenchido na pasta geral da empresa (casos sem cliente) */
+  companyId: string | null;
+  /** null na pasta geral; preenchido nas pastas por cliente */
+  customerId: string | null;
   name: string;
   description: string | null;
-  createdAt: string;
-  updatedAt: string;
   caseCount: number;
   customer?: {
     id: string;
-    displayName: string;
-    kind: 'PERSON' | 'COMPANY';
-  };
+    displayName?: string;
+    name?: string;
+    kind?: 'PERSON' | 'COMPANY';
+    [key: string]: any;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
+
+/**
+ * Identifica a pasta geral (casos sem cliente).
+ * Regra: customerId === null e companyId !== null.
+ * O front exibe como "Geral".
+ */
+export function isGeneralFolder(folder: CaseFolder): boolean {
+  return folder.customerId == null && folder.companyId != null && folder.companyId !== '';
+}
 
 export type CaseFolderWithItems = CaseFolder & {
   items: CaseResult[];
 };
 
 export type CreateCaseFolderInput = {
-  customerId: string;
+  /** Omitir ou null = criar pasta geral (casos sem cliente) */
+  customerId?: string | null;
   name: string;
   description?: string | null;
 };
@@ -618,9 +636,14 @@ export async function getCaseFolder(id: string): Promise<CaseFolder> {
 
 /**
  * POST /ai/cases/folders - Criar nova pasta
+ * Para pasta geral (casos sem cliente), omita customerId ou use customerId: null.
  */
 export async function createCaseFolder(input: CreateCaseFolderInput): Promise<CaseFolder> {
-  const { data } = await axios.post<CreateCaseFolderResponse>('/ai/cases/folders', input);
+  const body =
+    input.customerId !== undefined && input.customerId !== null
+      ? input
+      : { name: input.name, description: input.description ?? null };
+  const { data } = await axios.post<CreateCaseFolderResponse>('/ai/cases/folders', body);
   return data.data;
 }
 
