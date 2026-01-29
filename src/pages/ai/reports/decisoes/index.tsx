@@ -238,22 +238,11 @@ export default function DecisoesReportPage() {
       return;
     }
 
-    const file = files[0];
-    
-    if (files.length > 1) {
-      openSnackbar({
-        open: true,
-        message: `Processando apenas o primeiro arquivo: ${file.name}. Os outros arquivos serão ignorados.`,
-        variant: 'alert',
-        alert: { color: 'info' }
-      } as any);
-    }
-
     try {
       setGenerating(true);
       
       const params = {
-        file,
+        files,
         customerId: selectedCustomer?.id,
         reportTypes: [selectedReportType],
         promptId: selectedPrompt?.id,
