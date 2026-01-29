@@ -80,6 +80,7 @@ function TabPanel(props: TabPanelProps) {
 interface CustomerFormData {
   kind: CustomerKind;
   displayName: string;
+  code: string;
   isActive: boolean;
   // Pessoa Física
   fullName: string;
@@ -111,6 +112,7 @@ const SIZE_OPTIONS = ['MEI', 'MICRO EMPRESA', 'PEQUENA EMPRESA', 'MÉDIA EMPRESA
 const initialFormData: CustomerFormData = {
   kind: 'PERSON',
   displayName: '',
+  code: '',
   isActive: true,
   fullName: '',
   cpf: '',
@@ -201,6 +203,7 @@ export default function CustomerForm() {
   const [creatingBranch, setCreatingBranch] = useState(false);
   const [newBranch, setNewBranch] = useState({
     displayName: '',
+    code: '',
     legalName: '',
     cnpj: '',
     tradeName: '',
@@ -437,6 +440,7 @@ export default function CustomerForm() {
        setFormData({
          kind: customer.kind,
          displayName: customer.displayName,
+         code: (customer as { code?: string | null }).code ?? '',
          isActive: customer.isActive,
          fullName: customer.person?.fullName || '',
          cpf: customer.person?.cpf || '',
@@ -797,6 +801,7 @@ export default function CustomerForm() {
     setAddTab(0);
     setNewBranch({
       displayName: '',
+      code: '',
       legalName: '',
       cnpj: '',
       tradeName: '',
@@ -880,6 +885,7 @@ export default function CustomerForm() {
         await createCompanyAsBranch(id, {
           kind: 'COMPANY',
           displayName: newBranch.displayName || newBranch.legalName,
+          ...(newBranch.code.trim() ? { code: newBranch.code.trim() } : {}),
           company: {
             legalName: newBranch.legalName,
             tradeName: newBranch.tradeName || undefined,
@@ -914,6 +920,7 @@ export default function CustomerForm() {
         // Atualizar dados básicos do cliente
         await updateCustomer(id, {
           displayName: formData.displayName,
+          code: formData.code.trim() === '' ? null : formData.code.trim(),
           isActive: formData.isActive
         });
 
@@ -1005,6 +1012,7 @@ export default function CustomerForm() {
             ? {
                 kind: 'PERSON',
                 displayName: formData.displayName,
+                ...(formData.code.trim() ? { code: formData.code.trim() } : {}),
                 person: {
                   fullName: formData.fullName,
                   cpf: extractDigits(formData.cpf),
@@ -1021,6 +1029,7 @@ export default function CustomerForm() {
              : {
                  kind: 'COMPANY',
                  displayName: formData.displayName,
+                 ...(formData.code.trim() ? { code: formData.code.trim() } : {}),
                  company: {
                    legalName: formData.legalName,
                    tradeName: formData.tradeName,
@@ -1077,6 +1086,7 @@ export default function CustomerForm() {
           const payload: CreateCustomerPayload = {
             kind: 'COMPANY',
             displayName: formData.displayName,
+            ...(formData.code.trim() ? { code: formData.code.trim() } : {}),
             company: {
               legalName: formData.legalName,
               tradeName: formData.tradeName,
@@ -1216,6 +1226,15 @@ export default function CustomerForm() {
                       value={formData.displayName}
                       onChange={(e) => handleInputChange('displayName', e.target.value)}
                       required
+                    />
+                  </Box>
+                  <Box>
+                    <TextField
+                      fullWidth
+                      label="Apelido (opcional)"
+                      value={formData.code}
+                      onChange={(e) => handleInputChange('code', e.target.value)}
+                      placeholder="Ex.: FIL-001"
                     />
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -1834,7 +1853,13 @@ export default function CustomerForm() {
                       onChange={(e) => setNewBranch({ ...newBranch, tradeName: e.target.value })}
                       fullWidth
                     />
-                    {/* Opcionalmente já sugere o displayName com a razão social */}
+                    <TextField
+                      label="Apelido (opcional)"
+                      value={newBranch.code}
+                      onChange={(e) => setNewBranch({ ...newBranch, code: e.target.value })}
+                      placeholder="Ex.: FIL-SUL"
+                      fullWidth
+                    />
                     <TextField
                       label="Nome de Exibição (opcional)"
                       value={newBranch.displayName}

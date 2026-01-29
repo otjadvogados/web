@@ -33,6 +33,8 @@ export default function StepAttachments() {
   const [verifyingOcr, setVerifyingOcr] = useState<Set<string>>(new Set());
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [ocrMessageDialog, setOcrMessageDialog] = useState<{ open: boolean; message: string; fileName: string }>({ open: false, message: '', fileName: '' });
+  /** Zona de drag ativa: 'common' ou `${topicSpecificId}-${box}` (claimant/client) */
+  const [dragOverZone, setDragOverZone] = useState<string | null>(null);
   
   // Estados para seletor de prompts
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -165,77 +167,29 @@ export default function StepAttachments() {
     setOcrMessageDialog({ open: true, message, fileName });
   };
 
-  const handlePick = (topicSpecificId: string, box: 'claimant' | 'client') =>
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const f = Array.from(e.target.files || []);
-      e.target.value = '';
-      if (!f.length) return;
-      const valid = f.filter(isValidType);
-      if (valid.length !== f.length) {
-        openSnackbar({
-          open: true,
-          message: 'Alguns arquivos foram ignorados (somente PDF, DOCX e imagens).',
-          variant: 'alert',
-          alert: { color: 'warning' }
-        } as any);
-      }
-      
-      // Adiciona os anexos e obtém os IDs
-      const attachmentIds = addAttachments(topicSpecificId, box, valid);
-      
-      // Marca os arquivos como sendo processados usando apenas os IDs únicos
-      setUploadingFiles(prev => {
-        const next = new Set(prev);
-        attachmentIds.forEach(id => next.add(id));
-        return next;
-      });
-      
-      try {
-        // Verifica OCR de cada arquivo em paralelo
-        await Promise.all(valid.map((file, index) => 
-          verifyFileOcr(file, attachmentIds[index], false)
-        ));
-      } finally {
-        // Remove os arquivos do estado de loading após concluir
-        setUploadingFiles(prev => {
-          const next = new Set(prev);
-          attachmentIds.forEach(id => next.delete(id));
-          return next;
-        });
-      }
-    };
-
-  const handlePickCommon = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = Array.from(e.target.files || []);
-    e.target.value = '';
-    if (!f.length) return;
-    const valid = f.filter(isValidType);
-    if (valid.length !== f.length) {
+  const processFilesForBox = async (topicSpecificId: string, box: 'claimant' | 'client', files: File[]) => {
+    if (!files.length) return;
+    const valid = files.filter(isValidType);
+    if (valid.length !== files.length) {
       openSnackbar({
         open: true,
         message: 'Alguns arquivos foram ignorados (somente PDF, DOCX e imagens).',
         variant: 'alert',
         alert: { color: 'warning' }
       } as any);
+      if (!valid.length) return;
     }
-    
-    // Adiciona os anexos e obtém os IDs
-    const attachmentIds = addCommonAttachments(valid);
-    
-    // Marca os arquivos como sendo processados usando apenas os IDs únicos
+    const attachmentIds = addAttachments(topicSpecificId, box, valid);
     setUploadingFiles(prev => {
       const next = new Set(prev);
       attachmentIds.forEach(id => next.add(id));
       return next;
     });
-    
     try {
-      // Verifica OCR de cada arquivo em paralelo
-      await Promise.all(valid.map((file, index) => 
-        verifyFileOcr(file, attachmentIds[index], true)
+      await Promise.all(valid.map((file, index) =>
+        verifyFileOcr(file, attachmentIds[index], false)
       ));
     } finally {
-      // Remove os arquivos do estado de loading após concluir
       setUploadingFiles(prev => {
         const next = new Set(prev);
         attachmentIds.forEach(id => next.delete(id));
@@ -243,6 +197,92 @@ export default function StepAttachments() {
       });
     }
   };
+
+  const processFilesCommon = async (files: File[]) => {
+    if (!files.length) return;
+    const valid = files.filter(isValidType);
+    if (valid.length !== files.length) {
+      openSnackbar({
+        open: true,
+        message: 'Alguns arquivos foram ignorados (somente PDF, DOCX e imagens).',
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+      if (!valid.length) return;
+    }
+    const attachmentIds = addCommonAttachments(valid);
+    setUploadingFiles(prev => {
+      const next = new Set(prev);
+      attachmentIds.forEach(id => next.add(id));
+      return next;
+    });
+    try {
+      await Promise.all(valid.map((file, index) =>
+        verifyFileOcr(file, attachmentIds[index], true)
+      ));
+    } finally {
+      setUploadingFiles(prev => {
+        const next = new Set(prev);
+        attachmentIds.forEach(id => next.delete(id));
+        return next;
+      });
+    }
+  };
+
+  const handlePick = (topicSpecificId: string, box: 'claimant' | 'client') =>
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = Array.from(e.target.files || []);
+      e.target.value = '';
+      await processFilesForBox(topicSpecificId, box, f);
+    };
+
+  const handlePickCommon = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = Array.from(e.target.files || []);
+    e.target.value = '';
+    await processFilesCommon(f);
+  };
+
+  const handleDragOver = (e: React.DragEvent, zone: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) {
+      e.dataTransfer.dropEffect = 'copy';
+      setDragOverZone(zone);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent, zone: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const related = e.relatedTarget as Node | null;
+    const current = e.currentTarget;
+    if (dragOverZone === zone && (!related || !current.contains(related))) setDragOverZone(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, zone: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverZone(null);
+    if (isProcessingFiles) return;
+    const files = Array.from(e.dataTransfer.files || []);
+    if (!files.length) return;
+    if (zone === 'common') {
+      processFilesCommon(files);
+    } else {
+      const sep = '::';
+      const idx = zone.indexOf(sep);
+      if (idx !== -1) {
+        const topicSpecificId = zone.slice(0, idx);
+        const box = zone.slice(idx + sep.length) as 'claimant' | 'client';
+        if (box === 'claimant' || box === 'client') {
+          processFilesForBox(topicSpecificId, box, files);
+        }
+      }
+    }
+  };
+
+  /** ID da zona de drop para tópico: specId::claimant ou specId::client */
+  const dropZoneId = (topicSpecificId: string, box: 'claimant' | 'client') => `${topicSpecificId}::${box}`;
 
   const bySpec = useMemo(() => {
     const map: Record<string, { claimant: any[]; client: any[] }> = {};
@@ -360,23 +400,26 @@ export default function StepAttachments() {
 
       {/* Campo de Arquivos em comum */}
       {specs.length > 0 && (
-        <Paper variant="outlined" sx={{ p: 1.5 }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 1.5,
+            transition: 'border-color 0.2s, background-color 0.2s',
+            ...(dragOverZone === 'common'
+              ? { borderColor: 'primary.main', borderWidth: 2, bgcolor: 'action.hover' }
+              : {})
+          }}
+          onDragOver={(e) => handleDragOver(e, 'common')}
+          onDragLeave={(e) => handleDragLeave(e, 'common')}
+          onDrop={(e) => handleDrop(e, 'common')}
+        >
           <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
             <Stack>
               <Typography fontWeight={700}>Arquivos em comum</Typography>
               <Typography variant="caption" color="text.secondary">
-                Arquivos que serão aplicados a todos os tópicos específicos
+                Arquivos que serão aplicados a todos os tópicos específicos. Arraste e solte ou clique na área para selecionar.
               </Typography>
             </Stack>
-            <Button
-              size="small"
-              startIcon={<UploadOutlined />}
-              variant="outlined"
-              onClick={() => document.getElementById('common-attachments-input')?.click()}
-              disabled={isProcessingFiles}
-            >
-              Adicionar
-            </Button>
             <input
               id="common-attachments-input"
               type="file"
@@ -387,9 +430,35 @@ export default function StepAttachments() {
             />
           </Stack>
           {!commonAttachments.length ? (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-              Nenhum arquivo em comum adicionado.
-            </Typography>
+            <Box
+              component="label"
+              htmlFor="common-attachments-input"
+              sx={{
+                border: '2px dashed',
+                borderColor: dragOverZone === 'common' ? 'primary.main' : 'divider',
+                borderRadius: 1,
+                py: 2,
+                px: 2,
+                textAlign: 'center',
+                bgcolor: dragOverZone === 'common' ? 'action.hover' : 'grey.50',
+                transition: 'border-color 0.2s, background-color 0.2s',
+                minHeight: 80,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0.5,
+                cursor: isProcessingFiles ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <UploadOutlined style={{ fontSize: 28, color: dragOverZone === 'common' ? 'var(--mui-palette-primary-main)' : undefined }} />
+              <Typography variant="body2" color={dragOverZone === 'common' ? 'primary.main' : 'text.secondary'} fontWeight={500}>
+                {dragOverZone === 'common' ? 'Solte os arquivos aqui' : 'Arraste e solte ou clique para selecionar'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                PDF, DOCX ou imagens (PNG, JPEG, WebP, GIF)
+              </Typography>
+            </Box>
           ) : (
             <Stack spacing={1}>
               {commonAttachments.map((a) => {
@@ -461,19 +530,24 @@ export default function StepAttachments() {
             const renderBox = (boxKey: 'claimant' | 'client', title: string) => {
               const items = group[boxKey] || [];
               const inputId = `att-${spec.id}-${boxKey}`;
+              const zoneId = dropZoneId(spec.id, boxKey);
+              const isDragOver = dragOverZone === zoneId;
               return (
-                <Paper variant="outlined" sx={{ p: 1.25, flex: 1, minWidth: 280 }}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.25,
+                    flex: 1,
+                    minWidth: 280,
+                    transition: 'border-color 0.2s, background-color 0.2s',
+                    ...(isDragOver ? { borderColor: 'primary.main', borderWidth: 2, bgcolor: 'action.hover' } : {})
+                  }}
+                  onDragOver={(e) => handleDragOver(e, zoneId)}
+                  onDragLeave={(e) => handleDragLeave(e, zoneId)}
+                  onDrop={(e) => handleDrop(e, zoneId)}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1}>
                     <Typography fontWeight={700} variant="body2">{title}</Typography>
-                    <Button
-                      size="small"
-                      startIcon={<UploadOutlined />}
-                      variant="outlined"
-                      onClick={() => document.getElementById(inputId)?.click()}
-                      disabled={isProcessingFiles}
-                    >
-                      Adicionar
-                    </Button>
                     <input
                       id={inputId}
                       type="file"
@@ -485,9 +559,33 @@ export default function StepAttachments() {
                   </Stack>
 
                   {!items.length ? (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                      Nenhum anexo nesta caixa.
-                    </Typography>
+                    <Box
+                      component="label"
+                      htmlFor={inputId}
+                      sx={{
+                        border: '2px dashed',
+                        borderColor: isDragOver ? 'primary.main' : 'divider',
+                        borderRadius: 1,
+                        py: 1.5,
+                        px: 1.5,
+                        mt: 1,
+                        textAlign: 'center',
+                        bgcolor: isDragOver ? 'action.hover' : 'grey.50',
+                        transition: 'border-color 0.2s, background-color 0.2s',
+                        minHeight: 72,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 0.25,
+                        cursor: isProcessingFiles ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <UploadOutlined style={{ fontSize: 22, color: isDragOver ? 'var(--mui-palette-primary-main)' : undefined }} />
+                      <Typography variant="caption" color={isDragOver ? 'primary.main' : 'text.secondary'} fontWeight={500}>
+                        {isDragOver ? 'Solte os arquivos aqui' : 'Arraste e solte ou clique para selecionar'}
+                      </Typography>
+                    </Box>
                   ) : (
                     <Stack spacing={1} sx={{ mt: 1 }}>
                       {items.map((a: any) => {

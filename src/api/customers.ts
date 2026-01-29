@@ -6,6 +6,8 @@ export type Customer = {
   id: string;
   displayName?: string;
   name?: string;
+  /** Código do cliente. string | null quando não preenchido. */
+  code?: string | null;
   // personId presente quando kind=PERSON (id da tabela customer_person)
   personId?: string;
   // SUGESTÃO: o backend passar esses campos quando includeHierarchy=true
@@ -28,6 +30,8 @@ export type ListCustomersParams = {
   kind?: 'ANY' | CustomerKind;         // ANY (padrão), PERSON, COMPANY
   branch?: 'any' | 'matrix' | 'branch';// só se kind=COMPANY: matrix (matriz), branch (filial)
   includeHierarchy?: boolean;          // pede isMatriz/isFilial/parentCustomerId no payload
+  orderBy?: 'code' | 'createdAt' | 'updatedAt' | 'displayName';
+  order?: 'asc' | 'desc';
 };
 
 export type LinkedPerson = {
@@ -52,7 +56,9 @@ export async function listCustomersAdvanced(params?: ListCustomersParams) {
     search: params?.search || undefined,
     kind: params?.kind && params.kind !== 'ANY' ? params.kind : undefined,
     branch: params?.branch && params.branch !== 'any' ? params.branch : undefined,
-    includeHierarchy: params?.includeHierarchy ? 1 : undefined
+    includeHierarchy: params?.includeHierarchy ? 1 : undefined,
+    orderBy: params?.orderBy,
+    order: params?.order
   };
   const { data } = await axios.get<CustomersListResponse>('/customers', { params: q });
   return data;
@@ -70,11 +76,19 @@ export function sortCustomersMatrizFilialPF(list: Customer[]) {
   });
 }
 
-export async function listCustomers(params?: { search?: string; page?: number; limit?: number }) {
+export async function listCustomers(params?: {
+  search?: string;
+  page?: number;
+  limit?: number;
+  orderBy?: 'code' | 'createdAt' | 'updatedAt' | 'displayName';
+  order?: 'asc' | 'desc';
+}) {
   const q = {
     page: params?.page ?? 1,
     limit: params?.limit ?? 20,
-    search: params?.search || undefined
+    search: params?.search || undefined,
+    orderBy: params?.orderBy,
+    order: params?.order
   };
   const { data } = await axios.get<CustomersListResponse>('/customers', { params: q });
   return data;

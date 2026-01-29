@@ -346,7 +346,7 @@ export default function CustomersList() {
             <Box sx={{ flex: 1 }}>
               <TextField
                 fullWidth
-                placeholder="Buscar por nome, CPF ou CNPJ..."
+                placeholder="Buscar por nome, CPF, CNPJ ou apelido..."
                 value={searchTerm}
                 onChange={handleSearch}
                 InputProps={{
@@ -390,6 +390,7 @@ export default function CustomersList() {
             <TableHead>
               <TableRow>
                 <TableCell>Tipo</TableCell>
+                <TableCell>Apelido</TableCell>
                 <TableCell>Nome</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Estrutura</TableCell>
@@ -402,13 +403,13 @@ export default function CustomersList() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={hasAnyPermission(['customers.read', 'customers.update', 'customers.delete']) ? 6 : 5} align="center">
+                  <TableCell colSpan={hasAnyPermission(['customers.read', 'customers.update', 'customers.delete']) ? 7 : 6} align="center">
                     <Typography>Carregando...</Typography>
                   </TableCell>
                 </TableRow>
               ) : customers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={hasAnyPermission(['customers.read', 'customers.update', 'customers.delete']) ? 6 : 5} align="center">
+                  <TableCell colSpan={hasAnyPermission(['customers.read', 'customers.update', 'customers.delete']) ? 7 : 6} align="center">
                     <Typography color="text.secondary">
                       Nenhum cliente encontrado
                     </Typography>
@@ -424,6 +425,11 @@ export default function CustomersList() {
                         color={getKindColor(customer.kind)}
                         size="small"
                       />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color={customer.code ? 'text.primary' : 'text.secondary'}>
+                        {customer.code ?? '—'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="subtitle2">

@@ -19,6 +19,8 @@ export type Customer = {
   id: string;
   kind: CustomerKind;
   displayName: string;
+  /** Código do cliente (opcional). string | null quando não preenchido. */
+  code?: string | null;
   isActive: boolean;
   createdAt: string; // ISO
   updatedAt: string; // ISO
@@ -99,6 +101,7 @@ export type CompanyPersonLink = {
 export type CreatePersonPayload = {
   kind: 'PERSON';
   displayName: string;
+  code?: string | null;
   person: {
     fullName: string;
     cpf: string;
@@ -113,6 +116,7 @@ export type CreatePersonPayload = {
 export type CreateCompanyPayload = {
   kind: 'COMPANY';
   displayName: string;
+  code?: string | null;
   company: {
     legalName: string;
     tradeName?: string;
@@ -157,6 +161,8 @@ export type CreateCustomerPayload = CreatePersonPayload | CreateCompanyPayload;
 // Tipos para atualização
 export type UpdateCustomerPayload = {
   displayName?: string;
+  /** Enviar null ou "" para limpar o código. */
+  code?: string | null;
   isActive?: boolean;
 };
 

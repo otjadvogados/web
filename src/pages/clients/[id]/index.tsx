@@ -371,6 +371,14 @@ export default function ClientDetailsPage() {
                       </Typography>
                       <Typography fontWeight={600}>{customer.displayName}</Typography>
                     </Box>
+                    {customer.code != null && customer.code !== '' && (
+                      <Box sx={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:2}}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Apelido
+                        </Typography>
+                        <Typography fontWeight={600}>{customer.code}</Typography>
+                      </Box>
+                    )}
                     <Box>
                       <Typography variant="subtitle2" color="text.secondary">
                         Status
