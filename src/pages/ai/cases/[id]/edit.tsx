@@ -638,6 +638,7 @@ export default function EditCasePage() {
                   Baixar PDF
                 </MenuItem>
               </Menu>
+            
             </>
             <Button
               variant="contained"
