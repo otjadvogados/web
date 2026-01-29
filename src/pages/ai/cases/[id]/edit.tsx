@@ -208,17 +208,17 @@ export default function EditCasePage() {
     try {
       setDownloading(true);
       setDownloadMenuAnchor(null);
+      const caseName = caseData?.name ?? caseData?.pieceName ?? caseData?.piece?.name;
+      const safeName = caseName ? caseName.replace(/[\\/:*?"<>|]/g, '_') : '';
       const { blob, filename } = await convertHtmlToDocx({
         html,
-        filename: caseData?.piece?.name 
-          ? `${caseData.piece.name.replace(/[\\/:*?"<>|]/g, '_')}.docx`
-          : 'documento.docx'
+        filename: safeName ? `${safeName}.docx` : 'documento.docx'
       });
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename || 'documento.docx';
+      a.download = filename || (safeName ? `${safeName}.docx` : 'documento.docx');
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -248,17 +248,17 @@ export default function EditCasePage() {
     try {
       setDownloadingPdf(true);
       setDownloadMenuAnchor(null);
+      const caseName = caseData?.name ?? caseData?.pieceName ?? caseData?.piece?.name;
+      const safeName = caseName ? caseName.replace(/[\\/:*?"<>|]/g, '_') : '';
       const { blob, filename } = await convertHtmlToPdf({
         html,
-        filename: caseData?.piece?.name 
-          ? `${caseData.piece.name.replace(/[\\/:*?"<>|]/g, '_')}.pdf`
-          : 'documento.pdf'
+        filename: safeName ? `${safeName}.pdf` : 'documento.pdf'
       });
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename || 'documento.pdf';
+      a.download = filename || (safeName ? `${safeName}.pdf` : 'documento.pdf');
       document.body.appendChild(a);
       a.click();
       a.remove();
