@@ -1,7 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import Stack from '@mui/material/Stack';
-import Autocomplete from '@mui/material/Autocomplete';
-import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
@@ -20,22 +18,108 @@ import LinkOutlined from '@ant-design/icons/LinkOutlined';
 import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
+import Select from '@mui/material/Select';
+import UploadOutlined from '@ant-design/icons/UploadOutlined';
+import MenuItem from '@mui/material/MenuItem';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
 import { listTopicSpecifics, AiTopicSpecific, getTopicSpecific } from 'api/aiTopicSpecifics';
+import { listPromptFolders, type Prompt } from 'api/prompts';
+import { CONTESTATION_CATEGORIES, type ContestationCategoryCode } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
 import { useCaseWizard } from '../CaseWizardContext';
-import Tooltip from 'components/@extended/Tooltip';
 import { useNavigate } from 'react-router-dom';
 
 export default function StepSpecs() {
-  const { topics, specs, setSpecs, specDetails, setSpecDetails, downloadSpecDocx, saveWizardState, step } = useCaseWizard();
+  const {
+    piece,
+    topics,
+    specs,
+    setSpecs,
+    specDetails,
+    setSpecDetails,
+    downloadSpecDocx,
+    saveWizardState,
+    step,
+    topicSpecificsByCategory,
+    setTopicSpecificsByCategory,
+    categoryPromptIds,
+    setCategoryPromptIds,
+    customers,
+    dept
+  } = useCaseWizard();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingPrompts, setLoadingPrompts] = useState(false);
   // lista completa de tópicos específicos dos tópicos selecionados
   const [allOpts, setAllOpts] = useState<AiTopicSpecific[]>([]);
   // --- drag & drop state (lista "selecionados") ---
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [showInfoDialog, setShowInfoDialog] = useState(false);
   const hasShownDialogRef = useRef(false);
+  /** Prompts da API /ai/prompts (folders) — usamos prompt.id como categoryPromptIds */
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [categoryDrag, setCategoryDrag] = useState<{ code: ContestationCategoryCode; index: number } | null>(null);
+  /** Zona de drop em hover (código da categoria) para highlight */
+  const [dragOverCategory, setDragOverCategory] = useState<ContestationCategoryCode | null>(null);
+  /** ID do tópico específico sendo arrastado (do pool) para feedback visual */
+  const [draggingSpecId, setDraggingSpecId] = useState<string | null>(null);
+
+  // Carrega prompts da API de prompts (folders); filtra por cliente/departamento do wizard
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoadingPrompts(true);
+        const customerId = customers.length > 0 ? customers[0].id : undefined;
+        const departmentId = dept?.id;
+        const folders = await listPromptFolders();
+        const allPrompts: Prompt[] = [];
+        folders.forEach((folder) => {
+          if (folder.items?.length) allPrompts.push(...folder.items);
+        });
+        const uniquePrompts = Array.from(new Map(allPrompts.map((p) => [p.id, p])).values());
+        const filtered =
+          customerId != null
+            ? uniquePrompts.filter((p) => !p.customerId || p.customerId === customerId)
+            : uniquePrompts.filter((p) => !p.customerId);
+        const byDept =
+          departmentId != null
+            ? filtered.filter((p) => !p.departmentId || p.departmentId === departmentId)
+            : filtered;
+        setPrompts(byDept);
+      } catch (err: any) {
+        console.error('Erro ao carregar prompts:', err);
+        openSnackbar({
+          open: true,
+          message: 'Erro ao carregar prompts disponíveis',
+          variant: 'alert',
+          alert: { color: 'error' }
+        } as any);
+        setPrompts([]);
+      } finally {
+        setLoadingPrompts(false);
+      }
+    })();
+  }, [customers.map((c) => c.id).join('|'), dept?.id]);
+
+  // Sincroniza specs com a ordem do documento (flatten por categoria)
+  useEffect(() => {
+    if (!topicSpecificsByCategory || !allOpts.length) return;
+    const hasAny = Object.values(topicSpecificsByCategory).some((arr) => arr && arr.length > 0);
+    if (!hasAny) {
+      setSpecs([]);
+      return;
+    }
+    const byId = new Map(allOpts.map((o) => [o.id, o]));
+    const ordered: AiTopicSpecific[] = [];
+    for (const { code } of CONTESTATION_CATEGORIES) {
+      const ids = topicSpecificsByCategory[code] || [];
+      for (const id of ids) {
+        const spec = byId.get(id);
+        if (spec) ordered.push(spec);
+      }
+    }
+    setSpecs(ordered);
+  }, [topicSpecificsByCategory, allOpts.map((o) => o.id).join('|')]);
 
   useEffect(() => {
     if (!topics.length) {
@@ -103,37 +187,6 @@ export default function StepSpecs() {
     }
   }, [allOpts.map(o => `${o.id}:${o.docxFileId ? 1 : 0}`).join('|'), specs.map(s => s.id).join('|'), setSpecs]);
 
-  // options filtradas por tópico + busca local
-  const optionsByTopic = useMemo(() => {
-    const base: Record<string, AiTopicSpecific[]> = {};
-    for (const t of topics) {
-      base[t.id] = allOpts.filter((o) => o.topicId === t.id);
-    }
-    return base;
-  }, [allOpts, topics]);
-
-  // helper: atualiza seleção global a partir da seleção daquele tópico
-  const handleChangeForTopic = (topicId: string, selectedForTopic: AiTopicSpecific[]) => {
-    const others = specs.filter((s) => s.topicId !== topicId);
-    // Detecta quais tópicos específicos tentaram ser selecionados mas não têm DOCX
-    const withoutDocx = selectedForTopic.filter((s) => !s.docxFileId);
-    
-    // Se tentou selecionar algum sem DOCX, exibe alerta
-    if (withoutDocx.length > 0) {
-      const names = withoutDocx.map(s => s.name).join(', ');
-      openSnackbar({
-        open: true,
-        message: `Não é possível selecionar tópicos específicos sem arquivo DOCX. Tópicos: ${names}. Faça upload do arquivo primeiro.`,
-        variant: 'alert',
-        alert: { color: 'error' }
-      } as any);
-    }
-    
-    // Só permite selecionar tópicos específicos com DOCX
-    const allowed = selectedForTopic.filter((s) => !!s.docxFileId);
-    setSpecs([...others, ...allowed]);
-  };
-
   // Identifica tópicos específicos selecionados que não têm DOCX
   // Verifica tanto specDetails (dados atualizados) quanto allOpts (lista carregada)
   const specsWithoutDocx = useMemo(() => {
@@ -149,27 +202,114 @@ export default function StepSpecs() {
     });
   }, [specs, specDetails, allOpts]);
 
-  // Remove um tópico específico da seleção
+  // Remove um tópico específico de todas as categorias (usado no alerta de specs sem DOCX)
   const removeSpec = (specId: string) => {
-    setSpecs(specs.filter(s => s.id !== specId));
+    setTopicSpecificsByCategory((prev) => {
+      const next = { ...prev };
+      for (const { code } of CONTESTATION_CATEGORIES) {
+        if (next[code]) next[code] = next[code]!.filter((id) => id !== specId);
+      }
+      return next;
+    });
   };
 
-  // --- DnD handlers para a lista de selecionados (abaixo) ---
-  const onDragStart = (idx: number) => () => setDragIndex(idx);
-  const onDragOver = (e: React.DragEvent) => {
-    // necessário para permitir o drop
-    e.preventDefault();
+  // --- IDs já em alguma categoria (para pool disponível) ---
+  const idsInCategories = useMemo(() => {
+    const set = new Set<string>();
+    Object.values(topicSpecificsByCategory || {}).forEach((arr) => arr?.forEach((id) => set.add(id)));
+    return set;
+  }, [topicSpecificsByCategory]);
+
+  const availableForCategories = useMemo(
+    () => allOpts.filter((o) => o.docxFileId && !idsInCategories.has(o.id)),
+    [allOpts, idsInCategories]
+  );
+
+  /** Tópicos disponíveis agrupados por tópico (para exibir por peça > tópico) */
+  const availableByTopic = useMemo(() => {
+    const map: Record<string, AiTopicSpecific[]> = {};
+    for (const s of availableForCategories) {
+      const tid = s.topicId || '';
+      if (!map[tid]) map[tid] = [];
+      map[tid].push(s);
+    }
+    return map;
+  }, [availableForCategories]);
+
+  const addToCategory = (code: ContestationCategoryCode, specId: string) => {
+    const byId = new Map(allOpts.map((o) => [o.id, o]));
+    const spec = byId.get(specId);
+    if (!spec?.docxFileId) return;
+    setTopicSpecificsByCategory((prev) => {
+      const next = { ...prev };
+      // Remove de outras categorias (um spec só em uma categoria)
+      for (const k of Object.keys(next) as ContestationCategoryCode[]) {
+        if (next[k]) next[k] = next[k]!.filter((id) => id !== specId);
+      }
+      next[code] = [...(next[code] || []), specId];
+      return next;
+    });
   };
-  const onDrop = (toIdx: number) => (e: React.DragEvent) => {
-    e.preventDefault();
-    if (dragIndex === null || dragIndex === toIdx) { setDragIndex(null); return; }
-    const next = specs.slice();
-    const [moved] = next.splice(dragIndex, 1);
-    next.splice(toIdx, 0, moved);
-    setSpecs(next);
-    setDragIndex(null);
+
+  const removeFromCategory = (code: ContestationCategoryCode, specId: string) => {
+    setTopicSpecificsByCategory((prev) => {
+      const next = { ...prev };
+      if (next[code]) next[code] = next[code]!.filter((id) => id !== specId);
+      return next;
+    });
   };
-  const onDragEnd = () => setDragIndex(null);
+
+  const reorderInCategory = (code: ContestationCategoryCode, fromIdx: number, toIdx: number) => {
+    setTopicSpecificsByCategory((prev) => {
+      const arr = [...(prev[code] || [])];
+      const [moved] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      return { ...prev, [code]: arr };
+    });
+  };
+
+  const setCategoryPrompt = (code: ContestationCategoryCode, promptId: string) => {
+    setCategoryPromptIds((prev) => {
+      const next = { ...prev };
+      if (promptId) next[code] = promptId;
+      else delete next[code];
+      return next;
+    });
+  };
+
+  const handleDragOverCategory = (e: React.DragEvent, code: ContestationCategoryCode) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('text/plain')) {
+      e.dataTransfer.dropEffect = 'move';
+      setDragOverCategory(code);
+    }
+  };
+
+  const handleDragLeaveCategory = (e: React.DragEvent, code: ContestationCategoryCode) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverCategory((prev) => (prev === code ? null : prev));
+  };
+
+  const handleDropOnCategory = (e: React.DragEvent, code: ContestationCategoryCode) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverCategory(null);
+    setDraggingSpecId(null);
+    const specId = e.dataTransfer.getData('text/plain');
+    if (specId) addToCategory(code, specId);
+  };
+
+  const handlePoolDragStart = (e: React.DragEvent, specId: string) => {
+    e.dataTransfer.setData('text/plain', specId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingSpecId(specId);
+  };
+
+  const handlePoolDragEnd = () => {
+    setDraggingSpecId(null);
+  };
 
   // Detecta tópicos específicos disponíveis sem DOCX (de todos os tópicos selecionados)
   const availableSpecsWithoutDocx = useMemo(() => {
@@ -332,176 +472,200 @@ export default function StepSpecs() {
         </Alert>
       )}
 
-      {/* Um campo de seleção/busca para CADA tópico selecionado */}
-      {topics.map((topic) => {
-        const topicId = topic.id;
-        const valueForTopic = specs.filter((s) => s.topicId === topicId);
-        const opts = optionsByTopic[topicId] || [];
-
-        return (
-          <Stack key={topicId} spacing={0.5} sx={{ mt: 1 }}>
-            <Typography variant="subtitle2">{topic.name}</Typography>
-            <Autocomplete<AiTopicSpecific, true, false, false>
-              multiple
-              options={opts}
-              loading={loading}
-              value={valueForTopic}
-              onChange={(_, v) => handleChangeForTopic(topicId, v)}
-              getOptionLabel={(o) => o?.name ?? ''}
-              getOptionDisabled={(option) => !option.docxFileId}
-              isOptionEqualToValue={(o, v) => o.id === v.id}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <Chip
-                    {...getTagProps({ index })}
-                    key={option.id}
-                    label={option.name}
-                    variant="outlined"
-                  />
-                ))
-              }
-              renderOption={(props, option) => {
-                const isDisabled = !option.docxFileId;
-                return (
-                  <Tooltip
-                    title={isDisabled ? 'Este tópico específico não possui DOCX (anexo) e não pode ser selecionado' : ''}
-                    arrow
-                    placement="top"
-                  >
-                    <li
-                      {...props}
-                      key={option.id}
-                      style={{
-                        ...props.style,
-                        opacity: isDisabled ? 0.5 : 1,
-                        cursor: isDisabled ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        sx={{ width: '100%', justifyContent: 'space-between' }}
-                      >
-                        <Stack sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
-                            variant="body2"
-                            noWrap
-                            title={option.name}
-                            sx={{ color: isDisabled ? 'text.disabled' : 'text.primary' }}
-                          >
-                            {option.name}
-                          </Typography>
-                          {isDisabled && (
-                            <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.25 }}>
-                              Sem DOCX disponível
-                            </Typography>
-                          )}
-                        </Stack>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          {/* aqui o chip com o nome do tópico é opcional, pois já estamos
-                              dentro do bloco daquele tópico – mas mantive por compat */}
-                          {option.topic && (
-                            <Chip
-                              size="small"
-                              label={option.topic.name}
-                              color="primary"
-                              variant="outlined"
-                            />
-                          )}
-                          {option.docxFileId && <Chip size="small" label="DOCX" />}
-                        </Stack>
-                      </Stack>
-                    </li>
-                  </Tooltip>
-                );
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  placeholder={`Pesquisar tópicos específicos de "${topic.name}"…`}
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loading ? <CircularProgress size={18} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    )
-                  }}
-                />
-              )}
-            />
-          </Stack>
-        );
-      })}
-      {!!specs.length && (
-        <Stack spacing={0.75} sx={{ mt: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.25 }}>
-            Arraste para ordenar (a ordem será enviada ao criar o caso)
+      {/* Pool de tópicos disponíveis por peça (e por tópico) + 5 categorias como zonas de drop */}
+      {topics.length > 0 && (
+        <Stack spacing={1.5} sx={{ mt: 2 }}>
+          <Typography variant="subtitle1" fontWeight={700}>
+            Tópicos específicos disponíveis
           </Typography>
-          {specs.map((s, idx) => {
-            const det = specDetails[s.id];
-            return (
-              <Paper
-                key={s.id}
-                variant="outlined"
-                sx={{
-                  p: 1,
-                  cursor: 'grab',
-                  borderColor: dragIndex === idx ? 'primary.main' : 'divider',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
-                }}
-                draggable
-                onDragStart={onDragStart(idx)}
-                onDragOver={onDragOver}
-                onDrop={onDrop(idx)}
-                onDragEnd={onDragEnd}
-                title="Arraste para reordenar"
-              >
-                {/* Grip + posição */}
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="center"
+          <Typography variant="body2" color="text.secondary">
+            Arraste um tópico da lista abaixo e solte em uma das categorias. Apenas tópicos com DOCX podem ser usados.
+          </Typography>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
+            {piece && (
+              <Typography variant="subtitle2" color="primary" fontWeight={600} sx={{ mb: 1.5 }}>
+                Peça: {piece.name}
+              </Typography>
+            )}
+            {availableForCategories.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                {idsInCategories.size > 0
+                  ? 'Todos os tópicos já foram distribuídos nas categorias.'
+                  : 'Selecione tópicos na etapa anterior para ver os tópicos específicos disponíveis.'}
+              </Typography>
+            ) : (
+              <Stack spacing={1.5}>
+                {topics.map((topic) => {
+                  const specsInTopic = availableByTopic[topic.id] || [];
+                  if (specsInTopic.length === 0) return null;
+                  return (
+                    <Stack key={topic.id} spacing={0.75}>
+                      <Typography variant="body2" fontWeight={600} color="text.secondary">
+                        Tópico: {topic.name}
+                      </Typography>
+                      <Stack direction="row" flexWrap="wrap" gap={1} useFlexGap>
+                        {specsInTopic.map((s) => (
+                          <Paper
+                            key={s.id}
+                            variant="outlined"
+                            sx={{
+                              px: 1.25,
+                              py: 0.75,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              cursor: 'grab',
+                              opacity: draggingSpecId === s.id ? 0.6 : 1,
+                              borderColor: draggingSpecId === s.id ? 'primary.main' : 'divider'
+                            }}
+                            draggable
+                            onDragStart={(e) => handlePoolDragStart(e, s.id)}
+                            onDragEnd={handlePoolDragEnd}
+                            title="Arraste para uma categoria abaixo"
+                          >
+                            <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                              {s.name}
+                            </Typography>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    </Stack>
+                  );
+                })}
+              </Stack>
+            )}
+          </Paper>
+
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 1 }}>
+            Categorias da contestação
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            Arraste os tópicos da lista acima para cada categoria. A ordem no documento é: Preliminares → Contrato → Mérito → Impugnação aos docs → Pedidos Finais.
+          </Typography>
+          <Stack spacing={2}>
+            {CONTESTATION_CATEGORIES.map(({ code, label }) => {
+              const idsInThis = topicSpecificsByCategory?.[code] || [];
+              const specsInThis = idsInThis
+                .map((id) => allOpts.find((o) => o.id === id))
+                .filter(Boolean) as AiTopicSpecific[];
+              const isDragOver = dragOverCategory === code;
+              return (
+                <Paper
+                  key={code}
+                  variant="outlined"
                   sx={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 0.75,
-                    border: '1px dashed',
-                    borderColor: 'divider',
-                    fontSize: 12,
-                    color: 'text.secondary',
-                    flexShrink: 0,
-                    userSelect: 'none'
+                    p: 1.5,
+                    transition: 'border-color 0.2s, background-color 0.2s',
+                    ...(isDragOver ? { borderColor: 'primary.main', borderWidth: 2, bgcolor: 'action.hover' } : {})
                   }}
+                  onDragOver={(e) => handleDragOverCategory(e, code)}
+                  onDragLeave={(e) => handleDragLeaveCategory(e, code)}
+                  onDrop={(e) => handleDropOnCategory(e, code)}
                 >
-                  {idx + 1}
-                </Stack>
-                <Stack sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography fontWeight={600} variant="body2" noWrap title={s.name}>
-                    {s.name}
-                  </Typography>
-                  {det?.instruction && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {det.instruction}
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
+                    <Typography fontWeight={700} variant="body2">
+                      {label}
                     </Typography>
+                    <FormControl size="small" sx={{ minWidth: 200 }} disabled={loadingPrompts}>
+                      <InputLabel id={`prompt-label-${code}`} shrink>
+                        Prompt da categoria
+                      </InputLabel>
+                      <Select
+                        labelId={`prompt-label-${code}`}
+                        value={categoryPromptIds?.[code] || ''}
+                        label="Prompt da categoria"
+                        onChange={(e) => setCategoryPrompt(code, e.target.value as string)}
+                        displayEmpty
+                        renderValue={(v) =>
+                          loadingPrompts && !v
+                            ? 'Carregando…'
+                            : v
+                              ? prompts.find((p) => p.id === v)?.name ?? v
+                              : 'Nenhum'
+                        }
+                      >
+                        <MenuItem value="">Nenhum</MenuItem>
+                        {prompts.map((p) => (
+                          <MenuItem key={p.id} value={p.id}>
+                            {p.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Stack>
+                  <Box
+                    sx={{
+                      border: '2px dashed',
+                      borderColor: isDragOver ? 'primary.main' : 'divider',
+                      borderRadius: 1,
+                      py: 2,
+                      px: 2,
+                      textAlign: 'center',
+                      bgcolor: isDragOver ? 'action.hover' : 'grey.50',
+                      transition: 'border-color 0.2s, background-color 0.2s',
+                      minHeight: 72,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 0.5
+                    }}
+                  >
+                    <UploadOutlined style={{ fontSize: 24, color: isDragOver ? 'var(--mui-palette-primary-main)' : undefined }} />
+                    <Typography variant="body2" color={isDragOver ? 'primary.main' : 'text.secondary'} fontWeight={500}>
+                      {isDragOver ? 'Solte o tópico aqui' : 'Arraste o tópico específico para esta categoria'}
+                    </Typography>
+                  </Box>
+                  {specsInThis.length > 0 && (
+                    <Stack spacing={0.75} sx={{ mt: 1.5 }}>
+                      {specsInThis.map((s, idx) => (
+                        <Paper
+                          key={s.id}
+                          variant="outlined"
+                          sx={{
+                            px: 1,
+                            py: 0.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            cursor: 'grab',
+                            borderColor: categoryDrag?.code === code && categoryDrag?.index === idx ? 'primary.main' : 'divider'
+                          }}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', s.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            setCategoryDrag({ code, index: idx });
+                          }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => {
+                            if (categoryDrag?.code === code && categoryDrag?.index !== idx) {
+                              reorderInCategory(code, categoryDrag.index, idx);
+                            }
+                            setCategoryDrag(null);
+                          }}
+                          onDragEnd={() => setCategoryDrag(null)}
+                          title="Arraste para reordenar nesta categoria ou solte em outra categoria"
+                        >
+                          <Typography variant="body2" noWrap sx={{ flex: 1, maxWidth: 240 }}>
+                            {s.name}
+                          </Typography>
+                          <IconButton
+                            size="small"
+                            onClick={() => removeFromCategory(code, s.id)}
+                            sx={{ p: 0.25 }}
+                            title="Remover da categoria"
+                          >
+                            <CloseCircleOutlined style={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Paper>
+                      ))}
+                    </Stack>
                   )}
-                </Stack>
-                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
-                  {det?.docxFileId ? (
-                    <Button size="small" variant="text" startIcon={<DownloadOutlined />} onClick={() => downloadSpecDocx(s.id)}>
-                      Baixar DOCX
-                    </Button>
-                  ) : (
-                    <Typography variant="caption" color="text.secondary">Sem DOCX</Typography>
-                  )}
-                </Stack>
-              </Paper>
-            );
-          })}
+                </Paper>
+              );
+            })}
+          </Stack>
         </Stack>
       )}
 
@@ -521,10 +685,10 @@ export default function StepSpecs() {
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              <strong>Atenção:</strong> Se o tópico específico que você procura não estiver na lista, utilize o campo de pesquisa acima para encontrá-lo.
+              <strong>Categorias da contestação:</strong> Arraste os tópicos específicos da lista &quot;Tópicos específicos disponíveis&quot; para cada categoria (Preliminares, Contrato, Mérito, Impugnação aos docs, Pedidos Finais). Você também pode arrastar um tópico que já está em uma categoria e soltar em outra para movê-lo.
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
-              Digite parte do nome do tópico específico no campo de busca para filtrar os resultados disponíveis.
+              A ordem dentro de cada categoria será a ordem no documento. Apenas tópicos com arquivo DOCX aparecem na lista. Para adicionar DOCX a um tópico, acesse a página de Tópicos Específicos.
             </Typography>
           </Alert>
         </DialogContent>

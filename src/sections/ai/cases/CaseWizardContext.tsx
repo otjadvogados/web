@@ -6,7 +6,13 @@ import { AiTopic, getTopic } from 'api/aiTopics';
 import { AiTopicSpecific, fetchTopicSpecificDocx, getTopicSpecific } from 'api/aiTopicSpecifics';
 import { openSnackbar } from 'api/snackbar';
 import { saveWorkspaceState, getWorkspaceState } from 'api/workspace';
-import type { CaseContextFields, AttachmentBox, CaseAttachmentMeta, CaseCommonAttachmentMeta } from 'api/aiCases';
+import type {
+  CaseContextFields,
+  AttachmentBox,
+  CaseAttachmentMeta,
+  CaseCommonAttachmentMeta,
+  ContestationCategoryCode
+} from 'api/aiCases';
 
 export type OptionDept = Pick<Department, 'id'|'name'>;
 export type OptionCust = Pick<Customer, 'id'|'displayName'|'name'|'kind'|'isMatriz'|'isFilial'|'parentCustomerId'>;
@@ -37,6 +43,10 @@ type WizardState = {
   pieceId: string | null;
   topicIds: string[];
   specIds: string[];
+  /** Mapa categoria → IDs de tópicos específicos (quando usa categorias da contestação) */
+  topicSpecificsByCategory?: Partial<Record<ContestationCategoryCode, string[]>>;
+  /** Mapa categoria → promptId (quando usa prompts por categoria) */
+  categoryPromptIds?: Partial<Record<ContestationCategoryCode, string>>;
   instruction: string;
   timestamp: number;
 };
@@ -53,6 +63,12 @@ type Ctx = {
   /** NOVO: múltiplos tópicos selecionados */
   topics: OptionTopic[]; setTopics: (v: OptionTopic[]) => void;
   specs: OptionSpec[]; setSpecs: (v: OptionSpec[]) => void;
+  /** Categorias da contestação: mapa categoria → lista ordenada de IDs de tópicos específicos */
+  topicSpecificsByCategory: Partial<Record<ContestationCategoryCode, string[]>>;
+  setTopicSpecificsByCategory: (v: Partial<Record<ContestationCategoryCode, string[]>>) => void;
+  /** Prompts por categoria: mapa categoria → promptId */
+  categoryPromptIds: Partial<Record<ContestationCategoryCode, string>>;
+  setCategoryPromptIds: (v: Partial<Record<ContestationCategoryCode, string>>) => void;
   // save/restore state
   saveWizardState: () => void;
   restoreWizardState: () => Promise<void>;
@@ -95,6 +111,8 @@ type Ctx = {
       topicId: string | null;
       topicIds: string[];
       topicSpecificIds: string[];
+      topicSpecificsByCategory?: Partial<Record<ContestationCategoryCode, string[]>>;
+      categoryPromptIds?: Partial<Record<ContestationCategoryCode, string>>;
       instruction: string | null;
       attachmentsMeta?: CaseAttachmentMeta[];
       commonAttachmentsMeta?: CaseCommonAttachmentMeta[];
@@ -121,7 +139,13 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const [topic, setTopic] = useState<OptionTopic | null>(null); // principal (primeiro)
   const [topics, setTopics] = useState<OptionTopic[]>([]);      // NOVO: múltiplos
   const [specs, setSpecs] = useState<OptionSpec[]>([]);
-  
+  const [topicSpecificsByCategory, setTopicSpecificsByCategory] = useState<
+    Partial<Record<ContestationCategoryCode, string[]>>
+  >({});
+  const [categoryPromptIds, setCategoryPromptIds] = useState<
+    Partial<Record<ContestationCategoryCode, string>>
+  >({});
+
   // Flag para desabilitar resets automáticos durante restauração
   const isRestoringRef = useRef(false);
   // Flag para evitar múltiplas chamadas simultâneas de saveWizardState
@@ -196,9 +220,11 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     if (isRestoringRef.current) return;
     setTopic(null); setTopics([]); setSpecs([]); 
   }, [piece?.id]);
-  useEffect(() => { 
+  useEffect(() => {
     if (isRestoringRef.current) return;
-    setSpecs([]); 
+    setSpecs([]);
+    setTopicSpecificsByCategory({});
+    setCategoryPromptIds({});
   }, [topic?.id]);
   // NOVO: se a lista de tópicos mudar (mesmo que o primeiro permaneça igual), manter apenas specs dos tópicos que permaneceram
   useEffect(() => { 
@@ -375,8 +401,18 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       fields.topicIds = topics.map(t => t.id);
     }
 
-    const ts = specs.map((s) => s.id);
-    if (ts.length) fields.topicSpecificIds = ts;
+    // Categorias da contestação: quando há topicSpecificsByCategory com pelo menos uma categoria não vazia, envia e não envia topicSpecificIds
+    const hasCategoryData = Object.values(topicSpecificsByCategory || {}).some((arr) => arr?.length);
+    if (hasCategoryData && topicSpecificsByCategory) {
+      fields.topicSpecificsByCategory = topicSpecificsByCategory;
+      const promptIds = Object.fromEntries(
+        Object.entries(categoryPromptIds || {}).filter(([, id]) => !!id)
+      ) as Partial<Record<ContestationCategoryCode, string>>;
+      if (Object.keys(promptIds).length) fields.categoryPromptIds = promptIds;
+    } else {
+      const ts = specs.map((s) => s.id);
+      if (ts.length) fields.topicSpecificIds = ts;
+    }
     if (instruction.trim()) fields.instruction = instruction.trim();
 
     // --- NOVO: meta dos anexos por spec + caixa ---
@@ -423,6 +459,10 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       topicId: topic?.id ?? null,
       topicIds: topics.map(t => t.id),
       topicSpecificIds: specs.map(s => s.id),
+      topicSpecificsByCategory: Object.keys(topicSpecificsByCategory || {}).length
+        ? topicSpecificsByCategory
+        : undefined,
+      categoryPromptIds: Object.keys(categoryPromptIds || {}).length ? categoryPromptIds : undefined,
       instruction: instruction.trim() || null,
       attachmentsMeta: attachments.map((a, index) => ({
         index,
@@ -452,7 +492,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       type: a.file.type,
       size: a.file.size
     }))
-  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, topics.map(t=>t.id).join('|'), specs.map(s=>s.id).join('|'), instruction, attachments.map(a=>a.id).join('|'), commonAttachments.map(a=>a.id).join('|')]);
+  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, topics.map(t=>t.id).join('|'), specs.map(s=>s.id).join('|'), topicSpecificsByCategory, categoryPromptIds, instruction, attachments.map(a=>a.id).join('|'), commonAttachments.map(a=>a.id).join('|')]);
 
   const downloading = useRef(false);
   const downloadPieceDocx = async () => {
@@ -504,6 +544,10 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
         pieceId: piece?.id ?? null,
         topicIds: topics.map(t => t.id),
         specIds: specs.map(s => s.id),
+        topicSpecificsByCategory: Object.keys(topicSpecificsByCategory || {}).length
+          ? topicSpecificsByCategory
+          : undefined,
+        categoryPromptIds: Object.keys(categoryPromptIds || {}).length ? categoryPromptIds : undefined,
         instruction,
         timestamp: Date.now()
       };
@@ -530,7 +574,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     } finally {
       isSavingRef.current = false;
     }
-  }, [step, dept?.id, customers, piece?.id, topics, specs, instruction]);
+  }, [step, dept?.id, customers, piece?.id, topics, specs, topicSpecificsByCategory, categoryPromptIds, instruction]);
 
   // Salva automaticamente o estado no Redis quando os tópicos específicos ou tópicos mudarem
   useEffect(() => {
@@ -644,6 +688,13 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
         }
       }
 
+      if (state.topicSpecificsByCategory && Object.keys(state.topicSpecificsByCategory).length > 0) {
+        setTopicSpecificsByCategory(state.topicSpecificsByCategory);
+      }
+      if (state.categoryPromptIds && Object.keys(state.categoryPromptIds).length > 0) {
+        setCategoryPromptIds(state.categoryPromptIds);
+      }
+
       // Restaura instrução
       if (state.instruction) {
         setInstruction(state.instruction);
@@ -677,6 +728,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       topic, setTopic,
       topics, setTopics,
       specs, setSpecs,
+      topicSpecificsByCategory, setTopicSpecificsByCategory,
+      categoryPromptIds, setCategoryPromptIds,
       pieceDetail, setPieceDetail,
       topicDetail, setTopicDetail,
       specDetails, setSpecDetails,

@@ -21,6 +21,23 @@ export type CaseCommonAttachmentMeta = {
   isCommon: true; // marca como arquivo comum
 };
 
+/** Códigos de categoria da contestação (ordem usada na montagem do documento e na UI) */
+export type ContestationCategoryCode =
+  | 'PRELIMINARES'
+  | 'CONTRATO'
+  | 'MERITO'
+  | 'IMPUGNACAO_DOCS'
+  | 'PEDIDOS_FINAIS';
+
+/** Categorias fixas: ordem, código (API) e rótulo para UI */
+export const CONTESTATION_CATEGORIES: { order: number; code: ContestationCategoryCode; label: string }[] = [
+  { order: 1, code: 'PRELIMINARES', label: 'Preliminares / Prejudiciais' },
+  { order: 2, code: 'CONTRATO', label: 'Contrato' },
+  { order: 3, code: 'MERITO', label: 'Mérito' },
+  { order: 4, code: 'IMPUGNACAO_DOCS', label: 'Impugnação aos docs' },
+  { order: 5, code: 'PEDIDOS_FINAIS', label: 'Pedidos Finais' }
+];
+
 export type CaseContextFields = {
   departmentId: string;
   customerIds?: string[]; // múltiplos clientes
@@ -29,7 +46,19 @@ export type CaseContextFields = {
   topicId?: string | null;
   /** NOVO: múltiplos tópicos */
   topicIds?: string[];
+  /** Lista plana de IDs (usado quando topicSpecificsByCategory não é enviado) */
   topicSpecificIds?: string[];
+  /**
+   * Mapa categoria → lista ordenada de IDs de tópicos específicos.
+   * Quando enviado, o backend usa esta ordem no documento; caso contrário usa topicSpecificIds.
+   * Categorias vazias podem ser omitidas ou enviadas como array vazio.
+   */
+  topicSpecificsByCategory?: Partial<Record<ContestationCategoryCode, string[]>>;
+  /**
+   * Mapa categoria → promptId (UUID) do prompt da categoria (tabela ai_prompt).
+   * Enviar apenas as categorias para as quais existe um prompt configurado.
+   */
+  categoryPromptIds?: Partial<Record<ContestationCategoryCode, string>>;
   instruction?: string | null;
 
   /** NOVO: metadados dos anexos por tópico específico e por caixa */
@@ -38,6 +67,22 @@ export type CaseContextFields = {
   commonAttachmentsMeta?: CaseCommonAttachmentMeta[];
   /** NOVO: dados do checklist inicial (para salvar no Redis) */
   initialChecklist?: Record<string, boolean>;
+};
+
+/** Item de infos.topicSpecifics na resposta (pode vir com categoryCode quando montado por categorias) */
+export type CaseTopicSpecificInfo = {
+  id: string;
+  topicId?: string;
+  topicName?: string;
+  name: string;
+  instruction?: string | null;
+  allowAiEdit?: boolean;
+  promptId?: string | null;
+  htmlLight?: string | null;
+  writingStyleGuide?: string | null;
+  /** Preenchido quando o caso foi montado com topicSpecificsByCategory */
+  categoryCode?: ContestationCategoryCode;
+  [key: string]: unknown;
 };
 
 export type CaseContextResponse = {

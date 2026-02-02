@@ -23,7 +23,7 @@ import AIIcon from 'components/icons/AIIcon';
 import { CaseWizardProvider, useCaseWizard } from 'sections/ai/cases/CaseWizardContext';
 import StepDepartment from 'sections/ai/cases/steps/StepDepartment';
 import { openSnackbar } from 'api/snackbar';
-import { postCaseContext, type CaseContextResponse } from 'api/aiCases';
+import { postCaseContext, type CaseContextResponse, CONTESTATION_CATEGORIES, type CaseTopicSpecificInfo } from 'api/aiCases';
 import StepCustomer from 'sections/ai/cases/steps/StepCustomer';
 import StepPiece from 'sections/ai/cases/steps/StepPiece';
 import StepTopic from 'sections/ai/cases/steps/StepTopic';
@@ -193,11 +193,11 @@ function CreateCaseWizardInner() {
   const onNext = () => { if (step < maxStep && canNext(step)) setStep(step + 1); };
   const onBack = () => { if (step > 0) setStep(step - 1); };
 
-  // Encontra o tópico específico atual para visualização
-  const currentTopicSpecific = useMemo(() => {
+  // Encontra o tópico específico atual para visualização (pode incluir categoryCode)
+  const currentTopicSpecific = useMemo((): CaseTopicSpecificInfo | null => {
     if (!openTopicSpecificHtml || !result?.data?._infos?.phase07?.topicSpecifics) return null;
-    const topicSpecifics = result.data._infos.phase07.topicSpecifics as any[];
-    return topicSpecifics.find((ts: any) => (ts.id || ts.name) === openTopicSpecificHtml) || null;
+    const topicSpecifics = result.data._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[];
+    return topicSpecifics.find((ts) => (ts.id || ts.name) === openTopicSpecificHtml) || null;
   }, [openTopicSpecificHtml, result?.data?._infos?.phase07?.topicSpecifics]);
 
   return (
@@ -353,15 +353,18 @@ function CreateCaseWizardInner() {
                 </Stack>
               </Stack>
               
-              {/* Botões para HTMLs dos tópicos específicos da phase07 */}
+              {/* Botões para HTMLs dos tópicos específicos da phase07 (com categoryCode quando vier da API) */}
               {result?.data?._infos?.phase07?.topicSpecifics && Array.isArray(result.data._infos.phase07.topicSpecifics) && (
                 <Stack spacing={1}>
                   <Typography variant="subtitle2" fontWeight={600}>
                     HTMLs dos Tópicos Específicos:
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    {result.data._infos.phase07.topicSpecifics.map((ts: any) => {
+                    {(result.data._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[]).map((ts) => {
                       if (!ts?.html || !ts?.name) return null;
+                      const categoryLabel = ts.categoryCode
+                        ? CONTESTATION_CATEGORIES.find((c) => c.code === ts.categoryCode)?.label
+                        : null;
                       return (
                         <Button
                           key={ts.id || ts.name}
@@ -369,9 +372,9 @@ function CreateCaseWizardInner() {
                           variant="outlined"
                           startIcon={<EyeOutlined />}
                           onClick={() => setOpenTopicSpecificHtml(ts.id || ts.name)}
-                          title={`Visualizar HTML: ${ts.name}`}
+                          title={categoryLabel ? `[${categoryLabel}] ${ts.name}` : `Visualizar HTML: ${ts.name}`}
                         >
-                          {ts.name}
+                          {categoryLabel ? `${categoryLabel}: ${ts.name}` : ts.name}
                         </Button>
                       );
                     })}
