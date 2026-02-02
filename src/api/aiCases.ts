@@ -34,7 +34,7 @@ export const CONTESTATION_CATEGORIES: { order: number; code: ContestationCategor
   { order: 1, code: 'PRELIMINARES', label: 'Preliminares / Prejudiciais' },
   { order: 2, code: 'CONTRATO', label: 'Contrato' },
   { order: 3, code: 'MERITO', label: 'Mérito' },
-  { order: 4, code: 'IMPUGNACAO_DOCS', label: 'Impugnação aos docs' },
+  { order: 4, code: 'IMPUGNACAO_DOCS', label: 'Impugnação aos Documentos' },
   { order: 5, code: 'PEDIDOS_FINAIS', label: 'Pedidos Finais' }
 ];
 

@@ -22,6 +22,7 @@ import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
 import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
 import { openSnackbar } from 'api/snackbar';
+import { CONTESTATION_CATEGORIES } from 'api/aiCases';
 import { BRAND_GOLD } from 'config';
 import { useCaseWizard } from '../CaseWizardContext';
 import { testOcr, type OcrTestResponse } from 'api/aiDocs';
@@ -29,7 +30,7 @@ import { listPromptFolders, type Prompt } from 'api/prompts';
 import useDebounced from 'utils/useDebounced';
 
 export default function StepAttachments() {
-  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment, updateAttachmentOcr, updateCommonAttachmentOcr, hasOcrErrors, dept, customers } = useCaseWizard();
+  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment, updateAttachmentOcr, updateCommonAttachmentOcr, hasOcrErrors, dept, customers, topicSpecificsByCategory } = useCaseWizard();
   const [verifyingOcr, setVerifyingOcr] = useState<Set<string>>(new Set());
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [ocrMessageDialog, setOcrMessageDialog] = useState<{ open: boolean; message: string; fileName: string }>({ open: false, message: '', fileName: '' });
@@ -284,6 +285,30 @@ export default function StepAttachments() {
   /** ID da zona de drop para tópico: specId::claimant ou specId::client */
   const dropZoneId = (topicSpecificId: string, box: 'claimant' | 'client') => `${topicSpecificId}::${box}`;
 
+  /** Agrupa os tópicos específicos pelas mesmas categorias definidas em Tópicos Específicos (cada categoria vira uma seção com título) */
+  const specsByCategory = useMemo(() => {
+    const hasCategories = topicSpecificsByCategory && Object.values(topicSpecificsByCategory).some((arr) => arr && arr.length > 0);
+    const byId = new Map(specs.map((s) => [s.id, s]));
+    const result: { label: string; specs: typeof specs }[] = [];
+    if (hasCategories) {
+      for (const { code, label } of CONTESTATION_CATEGORIES) {
+        const ids = topicSpecificsByCategory[code] || [];
+        const categorySpecs = ids.map((id) => byId.get(id)).filter(Boolean) as typeof specs;
+        if (categorySpecs.length > 0) {
+          result.push({ label, specs: categorySpecs });
+        }
+      }
+      const inCategory = new Set(result.flatMap((r) => r.specs.map((s) => s.id)));
+      const others = specs.filter((s) => !inCategory.has(s.id));
+      if (others.length > 0) {
+        result.push({ label: 'Outros', specs: others });
+      }
+    } else if (specs.length > 0) {
+      result.push({ label: '', specs });
+    }
+    return result;
+  }, [specs, topicSpecificsByCategory]);
+
   const bySpec = useMemo(() => {
     const map: Record<string, { claimant: any[]; client: any[] }> = {};
     for (const s of specs) map[s.id] = { claimant: [], client: [] };
@@ -522,10 +547,29 @@ export default function StepAttachments() {
         </Paper>
       ) : (
         <Stack spacing={2}>
-          {specs.map((spec) => {
-            const group = bySpec[spec.id] || { claimant: [], client: [] };
+          {specsByCategory.map(({ label, specs: categorySpecs }) => {
+            const categoryHasMissing = categorySpecs.some((spec) => validation.missingSpecs.includes(spec.name));
+            return (
+            <Paper
+              key={label || 'uncategorized'}
+              variant="outlined"
+              sx={{
+                p: 1.5,
+                ...(categoryHasMissing
+                  ? { borderColor: 'warning.main', borderWidth: 2, borderStyle: 'solid' }
+                  : {})
+              }}
+            >
+              <Stack spacing={1.5}>
+                {label && (
+                  <Typography variant="subtitle1" fontWeight={700} color="primary" sx={{ pt: 0.5 }}>
+                    {label}
+                  </Typography>
+                )}
+                {categorySpecs.map((spec) => {
+                const group = bySpec[spec.id] || { claimant: [], client: [] };
 
-            const renderBox = (boxKey: 'claimant' | 'client', title: string) => {
+                const renderBox = (boxKey: 'claimant' | 'client', title: string) => {
               const items = group[boxKey] || [];
               const inputId = `att-${spec.id}-${boxKey}`;
               const zoneId = dropZoneId(spec.id, boxKey);
@@ -652,14 +696,7 @@ export default function StepAttachments() {
               <Paper 
                 key={spec.id} 
                 variant="outlined" 
-                sx={{ 
-                  p: 1.5,
-                  ...(specMissing ? {
-                    borderColor: 'warning.main',
-                    borderWidth: 2,
-                    borderStyle: 'solid'
-                  } : {})
-                }}
+                sx={{ p: 1.5 }}
               >
                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                   <Typography fontWeight={700} component="span">
@@ -686,6 +723,10 @@ export default function StepAttachments() {
                 </Stack>
               </Paper>
             );
+          })}
+              </Stack>
+            </Paper>
+          );
           })}
         </Stack>
       )}

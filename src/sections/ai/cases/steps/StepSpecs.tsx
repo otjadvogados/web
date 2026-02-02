@@ -64,6 +64,46 @@ export default function StepSpecs() {
   /** ID do tópico específico sendo arrastado (do pool) para feedback visual */
   const [draggingSpecId, setDraggingSpecId] = useState<string | null>(null);
 
+  /** Rolagem automática ao arrastar perto do topo/base da janela */
+  const scrollZonePx = 100;
+  const scrollStepPx = 10;
+  const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastScrollDirRef = useRef<number>(0);
+  useEffect(() => {
+    const isDragging = !!draggingSpecId || !!categoryDrag;
+    if (!isDragging) {
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
+      }
+      lastScrollDirRef.current = 0;
+      return;
+    }
+    const onDocDragOver = (e: DragEvent) => {
+      const y = e.clientY;
+      const dir = y < scrollZonePx ? -1 : y > window.innerHeight - scrollZonePx ? 1 : 0;
+      lastScrollDirRef.current = dir;
+      if (dir !== 0 && !scrollIntervalRef.current) {
+        scrollIntervalRef.current = setInterval(() => {
+          if (lastScrollDirRef.current !== 0) {
+            window.scrollBy(0, lastScrollDirRef.current * scrollStepPx);
+          }
+        }, 50);
+      } else if (dir === 0 && scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
+      }
+    };
+    document.addEventListener('dragover', onDocDragOver, { passive: true });
+    return () => {
+      document.removeEventListener('dragover', onDocDragOver);
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
+      }
+    };
+  }, [draggingSpecId, categoryDrag]);
+
   // Carrega prompts da API de prompts (folders); filtra por cliente/departamento do wizard
   useEffect(() => {
     (async () => {
@@ -540,7 +580,7 @@ export default function StepSpecs() {
             Categorias da contestação
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Arraste os tópicos da lista acima para cada categoria. A ordem no documento é: Preliminares → Contrato → Mérito → Impugnação aos docs → Pedidos Finais.
+            Arraste os tópicos da lista acima para cada categoria. A ordem no documento é: Preliminares → Contrato → Mérito → Impugnação aos Documentos → Pedidos Finais.
           </Typography>
           <Stack spacing={2}>
             {CONTESTATION_CATEGORIES.map(({ code, label }) => {
@@ -685,7 +725,7 @@ export default function StepSpecs() {
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              <strong>Categorias da contestação:</strong> Arraste os tópicos específicos da lista &quot;Tópicos específicos disponíveis&quot; para cada categoria (Preliminares, Contrato, Mérito, Impugnação aos docs, Pedidos Finais). Você também pode arrastar um tópico que já está em uma categoria e soltar em outra para movê-lo.
+              <strong>Categorias da contestação:</strong> Arraste os tópicos específicos da lista &quot;Tópicos específicos disponíveis&quot; para cada categoria (Preliminares, Contrato, Mérito, Impugnação aos Documentos, Pedidos Finais). Você também pode arrastar um tópico que já está em uma categoria e soltar em outra para movê-lo.
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
               A ordem dentro de cada categoria será a ordem no documento. Apenas tópicos com arquivo DOCX aparecem na lista. Para adicionar DOCX a um tópico, acesse a página de Tópicos Específicos.
