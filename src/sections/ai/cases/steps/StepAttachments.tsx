@@ -429,45 +429,43 @@ export default function StepAttachments() {
               onChange={handlePickCommon}
             />
           </Stack>
-          {!commonAttachments.length ? (
-            <Box
-              component="label"
-              htmlFor="common-attachments-input"
-              sx={{
-                border: '2px dashed',
-                borderColor: dragOverZone === 'common' ? 'primary.main' : 'divider',
-                borderRadius: 1,
-                py: 2,
-                px: 2,
-                textAlign: 'center',
-                bgcolor: dragOverZone === 'common' ? 'action.hover' : 'grey.50',
-                transition: 'border-color 0.2s, background-color 0.2s',
-                minHeight: 80,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 0.5,
-                cursor: isProcessingFiles ? 'not-allowed' : 'pointer'
-              }}
-            >
-              <UploadOutlined style={{ fontSize: 28, color: dragOverZone === 'common' ? 'var(--mui-palette-primary-main)' : undefined }} />
-              <Typography variant="body2" color={dragOverZone === 'common' ? 'primary.main' : 'text.secondary'} fontWeight={500}>
-                {dragOverZone === 'common' ? 'Solte os arquivos aqui' : 'Arraste e solte ou clique para selecionar'}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                PDF, DOCX ou imagens (PNG, JPEG, WebP, GIF)
-              </Typography>
-            </Box>
-          ) : (
-            <Stack spacing={1}>
+          <Box
+            component="label"
+            htmlFor="common-attachments-input"
+            sx={{
+              border: '2px dashed',
+              borderColor: dragOverZone === 'common' ? 'primary.main' : 'divider',
+              borderRadius: 1,
+              py: 2,
+              px: 2,
+              textAlign: 'center',
+              bgcolor: dragOverZone === 'common' ? 'action.hover' : 'grey.50',
+              transition: 'border-color 0.2s, background-color 0.2s',
+              minHeight: 80,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 0.5,
+              cursor: isProcessingFiles ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <UploadOutlined style={{ fontSize: 28, color: dragOverZone === 'common' ? 'var(--mui-palette-primary-main)' : undefined }} />
+            <Typography variant="body2" color={dragOverZone === 'common' ? 'primary.main' : 'text.secondary'} fontWeight={500}>
+              {dragOverZone === 'common' ? 'Solte os arquivos aqui' : 'Arraste e solte ou clique para selecionar'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              PDF, DOCX ou imagens (PNG, JPEG, WebP, GIF)
+            </Typography>
+          </Box>
+          {commonAttachments.length > 0 && (
+            <Stack spacing={1} sx={{ mt: 1.5 }}>
               {commonAttachments.map((a) => {
                 const f = a.file as File;
                 const isImg = /^image\//i.test(f.type);
                 const isPdf = /^application\/pdf$/i.test(f.type);
                 const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
                 const url = URL.createObjectURL(f);
-                // Usa apenas attachmentId como chave para garantir unicidade por anexo
                 const isUploading = uploadingFiles.has(a.id);
                 const isVerifying = verifyingOcr.has(a.id);
                 const isLoading = isUploading || isVerifying;
@@ -558,43 +556,41 @@ export default function StepAttachments() {
                     />
                   </Stack>
 
-                  {!items.length ? (
-                    <Box
-                      component="label"
-                      htmlFor={inputId}
-                      sx={{
-                        border: '2px dashed',
-                        borderColor: isDragOver ? 'primary.main' : 'divider',
-                        borderRadius: 1,
-                        py: 1.5,
-                        px: 1.5,
-                        mt: 1,
-                        textAlign: 'center',
-                        bgcolor: isDragOver ? 'action.hover' : 'grey.50',
-                        transition: 'border-color 0.2s, background-color 0.2s',
-                        minHeight: 72,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 0.25,
-                        cursor: isProcessingFiles ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      <UploadOutlined style={{ fontSize: 22, color: isDragOver ? 'var(--mui-palette-primary-main)' : undefined }} />
-                      <Typography variant="caption" color={isDragOver ? 'primary.main' : 'text.secondary'} fontWeight={500}>
-                        {isDragOver ? 'Solte os arquivos aqui' : 'Arraste e solte ou clique para selecionar'}
-                      </Typography>
-                    </Box>
-                  ) : (
+                  <Box
+                    component="label"
+                    htmlFor={inputId}
+                    sx={{
+                      border: '2px dashed',
+                      borderColor: isDragOver ? 'primary.main' : 'divider',
+                      borderRadius: 1,
+                      py: 1.5,
+                      px: 1.5,
+                      mt: 1,
+                      textAlign: 'center',
+                      bgcolor: isDragOver ? 'action.hover' : 'grey.50',
+                      transition: 'border-color 0.2s, background-color 0.2s',
+                      minHeight: 72,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 0.25,
+                      cursor: isProcessingFiles ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    <UploadOutlined style={{ fontSize: 22, color: isDragOver ? 'var(--mui-palette-primary-main)' : undefined }} />
+                    <Typography variant="caption" color={isDragOver ? 'primary.main' : 'text.secondary'} fontWeight={500}>
+                      {isDragOver ? 'Solte os arquivos aqui' : 'Arraste e solte ou clique para selecionar'}
+                    </Typography>
+                  </Box>
+                  {items.length > 0 && (
                     <Stack spacing={1} sx={{ mt: 1 }}>
                       {items.map((a: any) => {
                         const f = a.file as File;
                         const isImg = /^image\//i.test(f.type);
                         const isPdf = /^application\/pdf$/i.test(f.type);
-                        const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
+                        const isDocx = /^application\/vnd\.openxmlformats-officedocument.wordprocessingml\.document$/i.test(f.type);
                         const url = URL.createObjectURL(f);
-                        // Usa apenas attachmentId como chave para garantir unicidade por anexo
                         const isUploading = uploadingFiles.has(a.id);
                         const isVerifying = verifyingOcr.has(a.id);
                         const isLoading = isUploading || isVerifying;
