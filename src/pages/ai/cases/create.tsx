@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -354,13 +354,16 @@ function CreateCaseWizardInner() {
               </Stack>
               
               {/* Botões para HTMLs dos tópicos específicos da phase07 (com categoryCode quando vier da API) */}
-              {result?.data?._infos?.phase07?.topicSpecifics && Array.isArray(result.data._infos.phase07.topicSpecifics) && (
+              {((): React.ReactNode => {
+                const topicSpecifics = (result as { data?: { _infos?: { phase07?: { topicSpecifics?: unknown } } } } | null)?.data?._infos?.phase07?.topicSpecifics;
+                if (!Array.isArray(topicSpecifics)) return null;
+                return (
                 <Stack spacing={1}>
                   <Typography variant="subtitle2" fontWeight={600}>
                     HTMLs dos Tópicos Específicos:
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    {(result.data._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[]).map((ts) => {
+                    {(topicSpecifics as CaseTopicSpecificInfo[]).map((ts) => {
                       if (!ts?.html || !ts?.name) return null;
                       const categoryLabel = ts.categoryCode
                         ? CONTESTATION_CATEGORIES.find((c) => c.code === ts.categoryCode)?.label
@@ -380,7 +383,8 @@ function CreateCaseWizardInner() {
                     })}
                   </Stack>
                 </Stack>
-              )}
+                );
+              })()}
               {!result ? (
                 <Paper variant="outlined" sx={{ p: 2, color: 'text.secondary' }}>
                   Nenhum resultado para exibir.

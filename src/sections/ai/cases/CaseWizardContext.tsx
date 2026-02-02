@@ -65,10 +65,10 @@ type Ctx = {
   specs: OptionSpec[]; setSpecs: (v: OptionSpec[]) => void;
   /** Categorias da contestação: mapa categoria → lista ordenada de IDs de tópicos específicos */
   topicSpecificsByCategory: Partial<Record<ContestationCategoryCode, string[]>>;
-  setTopicSpecificsByCategory: (v: Partial<Record<ContestationCategoryCode, string[]>>) => void;
+  setTopicSpecificsByCategory: React.Dispatch<React.SetStateAction<Partial<Record<ContestationCategoryCode, string[]>>>>;
   /** Prompts por categoria: mapa categoria → promptId */
   categoryPromptIds: Partial<Record<ContestationCategoryCode, string>>;
-  setCategoryPromptIds: (v: Partial<Record<ContestationCategoryCode, string>>) => void;
+  setCategoryPromptIds: React.Dispatch<React.SetStateAction<Partial<Record<ContestationCategoryCode, string>>>>;
   // save/restore state
   saveWizardState: () => void;
   restoreWizardState: () => Promise<void>;

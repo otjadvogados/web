@@ -35,6 +35,10 @@ interface UseWorkspaceAutosaveOptions {
    * Se deve salvar antes de desmontar o componente (padrão: true)
    */
   saveOnUnmount?: boolean;
+  /**
+   * Se o autosave está habilitado (padrão: true)
+   */
+  enabled?: boolean;
 }
 
 /**
@@ -71,7 +75,8 @@ export function useWorkspaceAutosave({
   getMetadata,
   onError,
   saveOnMount = true,
-  saveOnUnmount = true
+  saveOnUnmount = true,
+  enabled = true
 }: UseWorkspaceAutosaveOptions) {
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isUnmountingRef = useRef(false);
@@ -103,6 +108,8 @@ export function useWorkspaceAutosave({
   }, [context, resourceId, getState, getMetadata, onError]);
 
   useEffect(() => {
+    if (!enabled) return;
+
     // Salva imediatamente ao montar se configurado
     if (saveOnMount) {
       saveState();
@@ -126,7 +133,7 @@ export function useWorkspaceAutosave({
         saveState();
       }
     };
-  }, [saveState, interval, saveOnMount, saveOnUnmount]);
+  }, [saveState, interval, saveOnMount, saveOnUnmount, enabled]);
 
   // Retorna função para salvar manualmente
   return { saveState };
