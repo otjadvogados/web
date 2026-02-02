@@ -23,7 +23,7 @@ import AIIcon from 'components/icons/AIIcon';
 import { CaseWizardProvider, useCaseWizard } from 'sections/ai/cases/CaseWizardContext';
 import StepDepartment from 'sections/ai/cases/steps/StepDepartment';
 import { openSnackbar } from 'api/snackbar';
-import { postCaseContext, type CaseContextResponse, CONTESTATION_CATEGORIES, type CaseTopicSpecificInfo } from 'api/aiCases';
+import { postCaseContext, type CaseContextResponseData, CONTESTATION_CATEGORIES, type CaseTopicSpecificInfo } from 'api/aiCases';
 import StepCustomer from 'sections/ai/cases/steps/StepCustomer';
 import StepPiece from 'sections/ai/cases/steps/StepPiece';
 import StepTopic from 'sections/ai/cases/steps/StepTopic';
@@ -70,7 +70,7 @@ function CreateCaseWizardInner() {
   const [openHtml, setOpenHtml] = useState(false);
   const [openTopicSpecificHtml, setOpenTopicSpecificHtml] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<CaseContextResponse | null>(null);
+  const [result, setResult] = useState<CaseContextResponseData | null>(null);
   const [rtRunId, setRtRunId] = useState<string | null>(null);
   const [rtOpen, setRtOpen] = useState(false);
   
@@ -195,10 +195,10 @@ function CreateCaseWizardInner() {
 
   // Encontra o tópico específico atual para visualização (pode incluir categoryCode)
   const currentTopicSpecific = useMemo((): CaseTopicSpecificInfo | null => {
-    if (!openTopicSpecificHtml || !result?.data?._infos?.phase07?.topicSpecifics) return null;
-    const topicSpecifics = result.data._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[];
+    if (!openTopicSpecificHtml || !result?._infos?.phase07?.topicSpecifics) return null;
+    const topicSpecifics = result._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[];
     return topicSpecifics.find((ts) => (ts.id || ts.name) === openTopicSpecificHtml) || null;
-  }, [openTopicSpecificHtml, result?.data?._infos?.phase07?.topicSpecifics]);
+  }, [openTopicSpecificHtml, result?._infos?.phase07?.topicSpecifics]);
 
   return (
     <Grid container spacing={3}>
@@ -342,8 +342,8 @@ function CreateCaseWizardInner() {
                     variant="outlined"
                     startIcon={<EyeOutlined />}
                     onClick={() => setOpenHtml(true)}
-                    disabled={!result?.data?.html}
-                    title={result?.data?.html ? 'Visualizar HTML' : 'Sem HTML'}
+                    disabled={!result?.html}
+                    title={result?.html ? 'Visualizar HTML' : 'Sem HTML'}
                   >
                     Ver HTML
                   </Button>
@@ -354,10 +354,7 @@ function CreateCaseWizardInner() {
               </Stack>
               
               {/* Botões para HTMLs dos tópicos específicos da phase07 (com categoryCode quando vier da API) */}
-              {((): React.ReactNode => {
-                const topicSpecifics = (result as { data?: { _infos?: { phase07?: { topicSpecifics?: unknown } } } } | null)?.data?._infos?.phase07?.topicSpecifics;
-                if (!Array.isArray(topicSpecifics)) return null;
-                return (
+              {Array.isArray(result?._infos?.phase07?.topicSpecifics) ? (
                 <Stack spacing={1}>
                   <Typography variant="subtitle2" fontWeight={600}>
                     HTMLs dos Tópicos Específicos:

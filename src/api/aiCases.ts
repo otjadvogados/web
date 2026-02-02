@@ -87,23 +87,26 @@ export type CaseTopicSpecificInfo = {
 
 export type CaseContextResponse = {
   message: string;
-  data: {
-    /** id de correlação do processamento, para casar com os eventos WS */
-    runId?: string | null;
-    /** NOVO: id do resultado persistido em ai_case_results */
-    caseResultId?: string | null;
-    _infos: Record<string, any>;
-    pieceId: string | null;
-    docxOriginalName: string | null;
-    /** HTML já com os placeholders preenchidos (fase 2) */
-    html: string;
-    /** Placeholders detectados na fase 1 (útil para QA) */
-    placeholders: string[];
-    /** Chaves efetivamente substituídas (útil para QA) */
-    replacedKeys?: string[];
-    /** Chaves que ficaram faltando (útil para QA) */
-    missingKeys?: string[];
-  };
+  data: CaseContextResponseData;
+};
+
+/** Dados retornados por postCaseContext (objeto data da resposta) */
+export type CaseContextResponseData = {
+  /** id de correlação do processamento, para casar com os eventos WS */
+  runId?: string | null;
+  /** NOVO: id do resultado persistido em ai_case_results */
+  caseResultId?: string | null;
+  _infos: Record<string, any>;
+  pieceId: string | null;
+  docxOriginalName: string | null;
+  /** HTML já com os placeholders preenchidos (fase 2) */
+  html: string;
+  /** Placeholders detectados na fase 1 (útil para QA) */
+  placeholders: string[];
+  /** Chaves efetivamente substituídas (útil para QA) */
+  replacedKeys?: string[];
+  /** Chaves que ficaram faltando (útil para QA) */
+  missingKeys?: string[];
 };
 
 /**
