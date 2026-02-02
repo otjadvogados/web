@@ -193,6 +193,58 @@ function CreateCaseWizardInner() {
   const onNext = () => { if (step < maxStep && canNext(step)) setStep(step + 1); };
   const onBack = () => { if (step > 0) setStep(step - 1); };
 
+  // Conteúdo do Drawer de resultado (tipado explicitamente para evitar erro de unknown)
+  const resultDrawerContent: React.ReactNode = (
+    <Stack spacing={1.5} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Typography variant="h6" fontWeight={700}>Resposta (JSON)</Typography>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<EyeOutlined />}
+            onClick={() => setOpenHtml(true)}
+            disabled={!result?.html}
+            title={result?.html ? 'Visualizar HTML' : 'Sem HTML'}
+          >
+            Ver HTML
+          </Button>
+          <IconButton onClick={() => setOpenResult(false)}>
+            <CloseOutlined />
+          </IconButton>
+        </Stack>
+      </Stack>
+      {Array.isArray(result?._infos?.phase07?.topicSpecifics) ? (
+        <Stack spacing={1}>
+          <Typography variant="subtitle2" fontWeight={600}>HTMLs dos Tópicos Específicos:</Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {(result!._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[]).map((ts: CaseTopicSpecificInfo) => (
+              ts?.html && ts?.name ? (
+                <Button
+                  key={ts.id || ts.name}
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EyeOutlined />}
+                  onClick={() => setOpenTopicSpecificHtml(ts.id || ts.name)}
+                  title={ts.categoryCode ? `[${CONTESTATION_CATEGORIES.find((c) => c.code === ts.categoryCode)?.label}] ${ts.name}` : `Visualizar HTML: ${ts.name}`}
+                >
+                  {ts.categoryCode ? `${CONTESTATION_CATEGORIES.find((c) => c.code === ts.categoryCode)?.label}: ${ts.name}` : ts.name}
+                </Button>
+              ) : null
+            ))}
+          </Stack>
+        </Stack>
+      ) : null}
+      {!result ? (
+        <Paper variant="outlined" sx={{ p: 2, color: 'text.secondary' }}>Nenhum resultado para exibir.</Paper>
+      ) : (
+        <Paper variant="outlined" sx={{ p: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12, whiteSpace: 'pre-wrap' }}>
+          {JSON.stringify(result, null, 2)}
+        </Paper>
+      )}
+    </Stack>
+  );
+
   // Encontra o tópico específico atual para visualização (pode incluir categoryCode)
   const currentTopicSpecific = useMemo((): CaseTopicSpecificInfo | null => {
     if (!openTopicSpecificHtml || !result?._infos?.phase07?.topicSpecifics) return null;
@@ -327,75 +379,14 @@ function CreateCaseWizardInner() {
           </Drawer>
 
           {/* Drawer de resultado (JSON retornado do backend) */}
+          {/* @ts-expect-error - MUI Drawer em contexto de filhos do MainCard pode inferir unknown */}
           <Drawer
             anchor="right"
             open={openResult}
             onClose={() => setOpenResult(false)}
             PaperProps={{ sx: { width: { xs: '100%', sm: 520, md: 640 } } }}
           >
-            <Stack spacing={1.5} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Typography variant="h6" fontWeight={700}>Resposta (JSON)</Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<EyeOutlined />}
-                    onClick={() => setOpenHtml(true)}
-                    disabled={!result?.html}
-                    title={result?.html ? 'Visualizar HTML' : 'Sem HTML'}
-                  >
-                    Ver HTML
-                  </Button>
-                  <IconButton onClick={() => setOpenResult(false)}>
-                    <CloseOutlined />
-                  </IconButton>
-                </Stack>
-              </Stack>
-              
-              {/* Botões para HTMLs dos tópicos específicos da phase07 (com categoryCode quando vier da API) */}
-              {(Array.isArray(result?._infos?.phase07?.topicSpecifics)
-                ? (
-                <Stack spacing={1}>
-                  <Typography variant="subtitle2" fontWeight={600}>
-                    HTMLs dos Tópicos Específicos:
-                  </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    {(result!._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[]).map((ts: CaseTopicSpecificInfo) => {
-                      if (!ts?.html || !ts?.name) return null;
-                      const categoryLabel = ts.categoryCode
-                        ? CONTESTATION_CATEGORIES.find((c) => c.code === ts.categoryCode)?.label
-                        : null;
-                      return (
-                        <Button
-                          key={ts.id || ts.name}
-                          size="small"
-                          variant="outlined"
-                          startIcon={<EyeOutlined />}
-                          onClick={() => setOpenTopicSpecificHtml(ts.id || ts.name)}
-                          title={categoryLabel ? `[${categoryLabel}] ${ts.name}` : `Visualizar HTML: ${ts.name}`}
-                        >
-                          {categoryLabel ? `${categoryLabel}: ${ts.name}` : ts.name}
-                        </Button>
-                      );
-                    })}
-                  </Stack>
-                </Stack>
-                )
-                : null) as React.ReactNode}
-              {!result ? (
-                <Paper variant="outlined" sx={{ p: 2, color: 'text.secondary' }}>
-                  Nenhum resultado para exibir.
-                </Paper>
-              ) : (
-                <Paper
-                  variant="outlined"
-                  sx={{ p: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12, whiteSpace: 'pre-wrap' }}
-                >
-                  {JSON.stringify(result, null, 2)}
-                </Paper>
-              )}
-            </Stack>
+            {resultDrawerContent}
           </Drawer>
 
           {/* Drawer de visualização do HTML retornado */}

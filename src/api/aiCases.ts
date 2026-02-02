@@ -118,14 +118,14 @@ export type CaseContextResponseData = {
  *  - commonAttachments: múltiplos arquivos (pdf/imagem) - arquivos em comum
  */
 export async function postCaseContext(form: FormData): Promise<CaseContextResponseData> {
-  const { data } = await axios.post<CaseContextResponse>(
+  const { data: response } = await axios.post<CaseContextResponse>(
     '/ai/cases/context',
     form,
     {
       headers: { 'Content-Type': 'multipart/form-data' }
     }
   );
-  return data;
+  return response.data;
 }
 
 // ==============================|| CASE RESULTS APIs ||============================== //
