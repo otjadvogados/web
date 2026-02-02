@@ -142,11 +142,11 @@ function CreateCaseWizardInner() {
       
       const res = await postCaseContext(fd);
       setResult(res);
-      if (res?.data?.runId) setRtRunId(res.data.runId || null);
+      if (res?.runId) setRtRunId(res.runId || null);
       setOpenResult(true);
       // Se o backend retornou o id do resultado, já navega para a página de edição
-      if (res?.data?.caseResultId) {
-        navigate(`/ai/cases/${res.data.caseResultId}/edit`);
+      if (res?.caseResultId) {
+        navigate(`/ai/cases/${res.caseResultId}/edit`);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Falha ao criar caso';
@@ -354,13 +354,14 @@ function CreateCaseWizardInner() {
               </Stack>
               
               {/* Botões para HTMLs dos tópicos específicos da phase07 (com categoryCode quando vier da API) */}
-              {Array.isArray(result?._infos?.phase07?.topicSpecifics) ? (
+              {(Array.isArray(result?._infos?.phase07?.topicSpecifics)
+                ? (
                 <Stack spacing={1}>
                   <Typography variant="subtitle2" fontWeight={600}>
                     HTMLs dos Tópicos Específicos:
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    {(topicSpecifics as CaseTopicSpecificInfo[]).map((ts) => {
+                    {(result!._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[]).map((ts: CaseTopicSpecificInfo) => {
                       if (!ts?.html || !ts?.name) return null;
                       const categoryLabel = ts.categoryCode
                         ? CONTESTATION_CATEGORIES.find((c) => c.code === ts.categoryCode)?.label
@@ -380,8 +381,8 @@ function CreateCaseWizardInner() {
                     })}
                   </Stack>
                 </Stack>
-                );
-              })()}
+                )
+                : null) as React.ReactNode}
               {!result ? (
                 <Paper variant="outlined" sx={{ p: 2, color: 'text.secondary' }}>
                   Nenhum resultado para exibir.
@@ -414,7 +415,7 @@ function CreateCaseWizardInner() {
                     size="small"
                     variant="outlined"
                     onClick={() => {
-                      if (!result?.data?.html) return;
+                      if (!result?.html) return;
                       const src = `<!doctype html><html><head><meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Preview</title>
@@ -425,13 +426,13 @@ function CreateCaseWizardInner() {
     p{margin:.5em 0}
     ul,ol{padding-left:1.25em}
   </style>
-</head><body>${result.data.html}</body></html>`;
+</head><body>${result.html}</body></html>`;
                       const blob = new Blob([src], { type: 'text/html;charset=utf-8' });
                       const url = URL.createObjectURL(blob);
                       window.open(url, '_blank', 'noopener,noreferrer');
                       // não revoga imediatamente para não quebrar a aba; navegador cuidará depois
                     }}
-                    disabled={!result?.data?.html}
+                    disabled={!result?.html}
                   >
                     Abrir em nova aba
                   </Button>
@@ -441,7 +442,7 @@ function CreateCaseWizardInner() {
                 </Stack>
               </Stack>
               <Box sx={{ flex: 1, minHeight: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                {result?.data?.html ? (
+                {result?.html ? (
                   <iframe
                     title="HTML Preview"
                     style={{ width: '100%', height: '100%', border: 'none' }}
@@ -456,7 +457,7 @@ function CreateCaseWizardInner() {
     p{margin:.5em 0}
     ul,ol{padding-left:1.25em}
   </style>
-</head><body>${result.data.html}</body></html>`}
+</head><body>${result.html}</body></html>`}
                   />
                 ) : (
                   <Stack sx={{ p: 2, color: 'text.secondary' }}>Sem HTML para visualizar.</Stack>
