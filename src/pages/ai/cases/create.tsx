@@ -143,11 +143,13 @@ function CreateCaseWizardInner() {
       const res = await postCaseContext(fd);
       setResult(res);
       if (res?.runId) setRtRunId(res.runId || null);
-      setOpenResult(true);
-      // Se o backend retornou o id do resultado, já navega para a página de edição
+      // Ao receber 200 OK com caseResultId, vai direto para a tela de editar (sem abrir drawer de resultado)
       if (res?.caseResultId) {
+        setRtOpen(false);
         navigate(`/ai/cases/${res.caseResultId}/edit`);
+        return;
       }
+      setOpenResult(true);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Falha ao criar caso';
       openSnackbar({ open: true, message: msg, variant: 'alert', alert: { color: 'error' } } as any);
