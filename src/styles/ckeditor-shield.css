@@ -87,3 +87,51 @@
 .otj-ckeditor .ck-content th {
   display: table-cell !important;
 }
+
+/* ===== Imagens centralizadas por padrão ===== */
+.otj-ckeditor .ck-content figure.image,
+.otj-ckeditor .ck-content figure.image-style-block,
+.otj-ckeditor .ck-content figure.image-style-align-center {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center !important;
+}
+
+.otj-ckeditor .ck-content figure.image img {
+  display: block !important;
+  margin: 0 auto !important;
+}
+
+/* Centraliza TODAS as imagens, mesmo sem figure */
+.otj-ckeditor .ck-content img {
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Garante que parágrafos com imagens também centralizem */
+.otj-ckeditor .ck-content p img {
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Remove text-indent de parágrafos que contêm imagens */
+.otj-ckeditor .ck-content p:has(img),
+.otj-ckeditor .ck-content p:has(.image-inline),
+.otj-ckeditor .ck-content p:has(figure.image) {
+  text-indent: 0 !important;
+}
+
+/* ===== Tabela de assinatura sem bordas ===== */
+.otj-ckeditor .signature-table,
+.otj-ckeditor .signature-table td,
+.otj-ckeditor .signature-table tr {
+  border: none !important;
+}
+
+.signature-table,
+.signature-table td,
+.signature-table tr {
+  border: none !important;
+}

@@ -73,7 +73,7 @@ function CreateCaseWizardInner() {
   const [result, setResult] = useState<CaseContextResponseData | null>(null);
   const [rtRunId, setRtRunId] = useState<string | null>(null);
   const [rtOpen, setRtOpen] = useState(false);
-  
+
   // Estados dos checklists
   const [showInitialChecklist, setShowInitialChecklist] = useState(false);
   const [initialChecklistCompleted, setInitialChecklistCompleted] = useState(false);
@@ -128,7 +128,7 @@ function CreateCaseWizardInner() {
       // tenta conectar ANTES do POST para não perder eventos iniciais
       await ensureRealtimeConnected(2500);
       const fd = buildCaseContextFormData();
-      
+
       // Adiciona os dados do checklist inicial ao FormData para salvar no Redis
       if (initialChecklistData && Object.keys(initialChecklistData).length > 0) {
         // Recupera o fields atual do FormData e adiciona o checklist
@@ -139,7 +139,7 @@ function CreateCaseWizardInner() {
           fd.set('fields', JSON.stringify(fields));
         }
       }
-      
+
       const res = await postCaseContext(fd);
       setResult(res);
       if (res?.runId) setRtRunId(res.runId || null);
@@ -195,8 +195,59 @@ function CreateCaseWizardInner() {
   const onNext = () => { if (step < maxStep && canNext(step)) setStep(step + 1); };
   const onBack = () => { if (step > 0) setStep(step - 1); };
 
-  // Conteúdo do Drawer de resultado (tipado explicitamente para evitar erro de unknown)
-  const resultDrawerContent: React.ReactNode = (
+  // Componente para renderizar o conteúdo do Drawer de preview
+  const PreviewDrawerContent = () => (
+    <Stack spacing={1.25} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Typography variant="h6" fontWeight={700}>Preview</Typography>
+        <IconButton onClick={() => setOpenPreview(false)}>
+          <CloseOutlined />
+        </IconButton>
+      </Stack>
+
+      <Paper variant="outlined" sx={{ p: 1.5 }}>
+        <Stack spacing={1}>
+          <StepRow active={step === 0} label="Departamento" value={dept?.name} />
+          <StepRow active={step === 1} label="Clientes" value={labelCustomers(customers)} secondary="opcional" />
+          <StepRow active={step === 2} label="Peça" value={piece?.name} />
+          {pieceDetail?.instruction && (
+            <Minor label="Instrução da peça" value={pieceDetail.instruction} />
+          )}
+          {!!pieceDetail?.docxFileId && (
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Chip size="small" label="DOCX da peça" />
+              <Button size="small" variant="text" startIcon={<DownloadOutlined />} onClick={downloadPieceDocx}>
+                Baixar
+              </Button>
+            </Stack>
+          )}
+          <Divider />
+          <StepRow active={step === 3} label="Tópicos" value={labelTopics(topics)} />
+          {topicDetail?.description && (
+            <Minor label="Descrição do tópico" value={topicDetail.description} />
+          )}
+          <Divider />
+          <Typography variant="subtitle2">Tópicos específicos - {specs.length}</Typography>
+          {!specs.length && <Typography variant="body2" color="text.secondary">—</Typography>}
+          {!!specs.length && (
+            <Stack spacing={0.5}>
+              {specs.map((s, idx) => (
+                <Chip key={s.id} size="small" variant="outlined" label={`${idx + 1}. ${s.name}`} />
+              ))}
+            </Stack>
+          )}
+        </Stack>
+      </Paper>
+
+      <Typography fontWeight={700}>FormData (preview)</Typography>
+      <Paper variant="outlined" sx={{ p: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12, whiteSpace: 'pre-wrap' }}>
+        {JSON.stringify(formPreview, null, 2)}
+      </Paper>
+    </Stack>
+  );
+
+  // Componente para renderizar o conteúdo do Drawer de resultado
+  const ResultDrawerContent = () => (
     <Stack spacing={1.5} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Typography variant="h6" fontWeight={700}>Resposta (JSON)</Typography>
@@ -219,7 +270,7 @@ function CreateCaseWizardInner() {
       {Array.isArray(result?._infos?.phase07?.topicSpecifics) ? (
         <Stack spacing={1}>
           <Typography variant="subtitle2" fontWeight={600}>HTMLs dos Tópicos Específicos:</Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
             {(result!._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[]).map((ts: CaseTopicSpecificInfo) => (
               ts?.html && ts?.name ? (
                 <Button
@@ -247,6 +298,67 @@ function CreateCaseWizardInner() {
     </Stack>
   );
 
+  // Componente para renderizar o conteúdo do Drawer de visualização HTML
+  const HtmlPreviewDrawerContent = () => (
+    <Stack spacing={1} sx={{ p: 2, height: '100%' }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Typography variant="h6" fontWeight={700}>
+          Visualizar HTML da Peça
+        </Typography>
+        <Stack direction="row" spacing={1}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              if (!result?.html) return;
+              const src = `<!doctype html><html><head><meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Preview</title>
+  <style>
+    html,body{margin:0;padding:0}
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
+    h1,h2,h3{margin:1em 0 .5em}
+    p{margin:.5em 0}
+    ul,ol{padding-left:1.25em}
+  </style>
+</head><body>${result.html}</body></html>`;
+              const blob = new Blob([src], { type: 'text/html;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }}
+            disabled={!result?.html}
+          >
+            Abrir em nova aba
+          </Button>
+          <IconButton onClick={() => setOpenHtml(false)}>
+            <CloseOutlined />
+          </IconButton>
+        </Stack>
+      </Stack>
+      <Box sx={{ flex: 1, minHeight: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+        {result?.html ? (
+          <iframe
+            title="HTML Preview"
+            style={{ width: '100%', height: '100%', border: 'none' }}
+            sandbox=""
+            srcDoc={`<!doctype html><html><head><meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html,body{margin:0;padding:0}
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
+    h1,h2,h3{margin:1em 0 .5em}
+    p{margin:.5em 0}
+    ul,ol{padding-left:1.25em}
+  </style>
+</head><body>${result.html}</body></html>`}
+          />
+        ) : (
+          <Stack sx={{ p: 2, color: 'text.secondary' }}>Sem HTML para visualizar.</Stack>
+        )}
+      </Box>
+    </Stack>
+  );
+
   // Encontra o tópico específico atual para visualização (pode incluir categoryCode)
   const currentTopicSpecific = useMemo((): CaseTopicSpecificInfo | null => {
     if (!openTopicSpecificHtml || !result?._infos?.phase07?.topicSpecifics) return null;
@@ -254,14 +366,106 @@ function CreateCaseWizardInner() {
     return topicSpecifics.find((ts) => (ts.id || ts.name) === openTopicSpecificHtml) || null;
   }, [openTopicSpecificHtml, result?._infos?.phase07?.topicSpecifics]);
 
+  // Cria os Drawers como elementos para poder aplicar workaround de tipo
+  const previewDrawer = (
+    <Drawer
+      anchor="right"
+      open={openPreview}
+      onClose={() => setOpenPreview(false)}
+      PaperProps={{ sx: { width: { xs: '100%', sm: 420, md: 480 } } }}
+    >
+      <PreviewDrawerContent />
+    </Drawer>
+  ) as any;
+
+  const resultDrawer = (
+    <Drawer
+      anchor="right"
+      open={openResult}
+      onClose={() => setOpenResult(false)}
+      PaperProps={{ sx: { width: { xs: '100%', sm: 520, md: 640 } } }}
+    >
+      <ResultDrawerContent />
+    </Drawer>
+  ) as any;
+
+  const htmlPreviewDrawer = (
+    <Drawer
+      anchor="right"
+      open={openHtml}
+      onClose={() => setOpenHtml(false)}
+      PaperProps={{ sx: { width: { xs: '100%', sm: 720, md: 900 } } }}
+    >
+      <HtmlPreviewDrawerContent />
+    </Drawer>
+  ) as any;
+
+  // Componente para renderizar o conteúdo do Drawer de tópico específico
+  const TopicSpecificHtmlDrawerContent = () => {
+    if (!currentTopicSpecific) return null;
+    return (
+      <Stack spacing={1} sx={{ p: 2, height: '100%' }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="h6" fontWeight={700}>
+            Visualizar HTML: {currentTopicSpecific.name || 'Tópico Específico'}
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                const src = `<!doctype html><html><head><meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Preview - ${currentTopicSpecific.name || 'Tópico Específico'}</title>
+  <style>
+    html,body{margin:0;padding:0}
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
+    h1,h2,h3{margin:1em 0 .5em}
+    p{margin:.5em 0}
+    ul,ol{padding-left:1.25em}
+  </style>
+</head><body>${currentTopicSpecific.html}</body></html>`;
+                const blob = new Blob([src], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              Abrir em nova aba
+            </Button>
+            <IconButton onClick={() => setOpenTopicSpecificHtml(null)}>
+              <CloseOutlined />
+            </IconButton>
+          </Stack>
+        </Stack>
+        <Box sx={{ flex: 1, minHeight: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+          <iframe
+            title={`HTML Preview - ${currentTopicSpecific.name || 'Tópico Específico'}`}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+            sandbox=""
+            srcDoc={`<!doctype html><html><head><meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html,body{margin:0;padding:0}
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
+    h1,h2,h3{margin:1em 0 .5em}
+    p{margin:.5em 0}
+    ul,ol{padding-left:1.25em}
+  </style>
+</head><body>${currentTopicSpecific.html}</body></html>`}
+          />
+        </Box>
+      </Stack>
+    );
+  };
+
   return (
     <Grid container spacing={3}>
       <Grid size={12}>
         <MainCard
           title={
             <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-            <Stack direction="row" spacing={1} alignItems="center">
-              <AIIcon />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <AIIcon />
                 <Typography variant="h6" fontWeight={700}>Criar Caso</Typography>
               </Stack>
               <Button
@@ -325,142 +529,16 @@ function CreateCaseWizardInner() {
           )}
 
           {/* Drawer de linha do tempo / preview */}
-          <Drawer
-            anchor="right"
-            open={openPreview}
-            onClose={() => setOpenPreview(false)}
-            PaperProps={{ sx: { width: { xs: '100%', sm: 420, md: 480 } } }}
-          >
-            <Stack spacing={1.25} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Typography variant="h6" fontWeight={700}>Preview</Typography>
-                <IconButton onClick={() => setOpenPreview(false)}>
-                  <CloseOutlined />
-                </IconButton>
-              </Stack>
-
-                <Paper variant="outlined" sx={{ p: 1.5 }}>
-                  <Stack spacing={1}>
-                  <StepRow active={step===0} label="Departamento" value={dept?.name} />
-                  <StepRow active={step===1} label="Clientes" value={labelCustomers(customers)} secondary="opcional" />
-                  <StepRow active={step===2} label="Peça" value={piece?.name} />
-                    {pieceDetail?.instruction && (
-                      <Minor label="Instrução da peça" value={pieceDetail.instruction} />
-                    )}
-                    {!!pieceDetail?.docxFileId && (
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <Chip size="small" label="DOCX da peça" />
-                      <Button size="small" variant="text" startIcon={<DownloadOutlined />} onClick={downloadPieceDocx}>
-                        Baixar
-                      </Button>
-                      </Stack>
-                    )}
-                    <Divider />
-                  <StepRow active={step===3} label="Tópicos" value={labelTopics(topics)} />
-                    {topicDetail?.description && (
-                      <Minor label="Descrição do tópico" value={topicDetail.description} />
-                    )}
-                    <Divider />
-                  <Typography variant="subtitle2">Tópicos específicos - {specs.length}</Typography>
-                    {!specs.length && <Typography variant="body2" color="text.secondary">—</Typography>}
-                    {!!specs.length && (
-                    <Stack spacing={0.5}>
-                      {specs.map((s, idx) => (
-                        <Chip key={s.id} size="small" variant="outlined" label={`${idx + 1}. ${s.name}`} />
-                      ))}
-                      </Stack>
-                    )}
-                  </Stack>
-                </Paper>
-
-              <Typography fontWeight={700}>FormData (preview)</Typography>
-              <Paper variant="outlined" sx={{ p: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12, whiteSpace: 'pre-wrap' }}>
-                {JSON.stringify(formPreview, null, 2)}
-              </Paper>
-              </Stack>
-          </Drawer>
+          {previewDrawer}
 
           {/* Drawer de resultado (JSON retornado do backend) */}
-          {/* @ts-expect-error - MUI Drawer em contexto de filhos do MainCard pode inferir unknown */}
-          <Drawer
-            anchor="right"
-            open={openResult}
-            onClose={() => setOpenResult(false)}
-            PaperProps={{ sx: { width: { xs: '100%', sm: 520, md: 640 } } }}
-          >
-            {resultDrawerContent}
-          </Drawer>
+          {resultDrawer}
 
           {/* Drawer de visualização do HTML retornado */}
-          <Drawer
-            anchor="right"
-            open={openHtml}
-            onClose={() => setOpenHtml(false)}
-            PaperProps={{ sx: { width: { xs: '100%', sm: 720, md: 900 } } }}
-          >
-            <Stack spacing={1} sx={{ p: 2, height: '100%' }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Typography variant="h6" fontWeight={700}>
-                  Visualizar HTML da Peça
-                </Typography>
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => {
-                      if (!result?.html) return;
-                      const src = `<!doctype html><html><head><meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Preview</title>
-  <style>
-    html,body{margin:0;padding:0}
-    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
-    h1,h2,h3{margin:1em 0 .5em}
-    p{margin:.5em 0}
-    ul,ol{padding-left:1.25em}
-  </style>
-</head><body>${result.html}</body></html>`;
-                      const blob = new Blob([src], { type: 'text/html;charset=utf-8' });
-                      const url = URL.createObjectURL(blob);
-                      window.open(url, '_blank', 'noopener,noreferrer');
-                      // não revoga imediatamente para não quebrar a aba; navegador cuidará depois
-                    }}
-                    disabled={!result?.html}
-                  >
-                    Abrir em nova aba
-                  </Button>
-                  <IconButton onClick={() => setOpenHtml(false)}>
-                    <CloseOutlined />
-                  </IconButton>
-                </Stack>
-              </Stack>
-              <Box sx={{ flex: 1, minHeight: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                {result?.html ? (
-                  <iframe
-                    title="HTML Preview"
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                    // sandbox vazio = sem JS/mesmo-origem; srcDoc = conteúdo isolado
-                    sandbox=""
-                    srcDoc={`<!doctype html><html><head><meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    html,body{margin:0;padding:0}
-    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
-    h1,h2,h3{margin:1em 0 .5em}
-    p{margin:.5em 0}
-    ul,ol{padding-left:1.25em}
-  </style>
-</head><body>${result.html}</body></html>`}
-                  />
-                ) : (
-                  <Stack sx={{ p: 2, color: 'text.secondary' }}>Sem HTML para visualizar.</Stack>
-                )}
-              </Box>
-            </Stack>
-          </Drawer>
+          {htmlPreviewDrawer}
 
           {/* Drawer de visualização do HTML de tópico específico */}
-          {openTopicSpecificHtml && currentTopicSpecific?.html && (
+          {(openTopicSpecificHtml && currentTopicSpecific?.html && (
             <Drawer
               key={openTopicSpecificHtml}
               anchor="right"
@@ -468,59 +546,9 @@ function CreateCaseWizardInner() {
               onClose={() => setOpenTopicSpecificHtml(null)}
               PaperProps={{ sx: { width: { xs: '100%', sm: 720, md: 900 } } }}
             >
-              <Stack spacing={1} sx={{ p: 2, height: '100%' }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Typography variant="h6" fontWeight={700}>
-                    Visualizar HTML: {currentTopicSpecific.name || 'Tópico Específico'}
-                  </Typography>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => {
-                        const src = `<!doctype html><html><head><meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Preview - ${currentTopicSpecific.name || 'Tópico Específico'}</title>
-  <style>
-    html,body{margin:0;padding:0}
-    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
-    h1,h2,h3{margin:1em 0 .5em}
-    p{margin:.5em 0}
-    ul,ol{padding-left:1.25em}
-  </style>
-</head><body>${currentTopicSpecific.html}</body></html>`;
-                        const blob = new Blob([src], { type: 'text/html;charset=utf-8' });
-                        const url = URL.createObjectURL(blob);
-                        window.open(url, '_blank', 'noopener,noreferrer');
-                      }}
-                    >
-                      Abrir em nova aba
-                    </Button>
-                    <IconButton onClick={() => setOpenTopicSpecificHtml(null)}>
-                      <CloseOutlined />
-                    </IconButton>
-                  </Stack>
-                </Stack>
-                <Box sx={{ flex: 1, minHeight: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                  <iframe
-                    title={`HTML Preview - ${currentTopicSpecific.name || 'Tópico Específico'}`}
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                    sandbox=""
-                    srcDoc={`<!doctype html><html><head><meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    html,body{margin:0;padding:0}
-    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height:1.5; padding:24px;}
-    h1,h2,h3{margin:1em 0 .5em}
-    p{margin:.5em 0}
-    ul,ol{padding-left:1.25em}
-  </style>
-</head><body>${currentTopicSpecific.html}</body></html>`}
-                  />
-                </Box>
-              </Stack>
+              <TopicSpecificHtmlDrawerContent />
             </Drawer>
-          )}
+          )) as any}
         </MainCard>
 
         {/* Overlay de progresso em tempo real */}

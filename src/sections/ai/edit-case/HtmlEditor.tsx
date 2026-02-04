@@ -44,6 +44,7 @@ import {
   // Base64UploadAdapter
 } from 'ckeditor5';
 import useConfig from 'hooks/useConfig';
+import ExportToPdfPlugin from './ExportToPdfPlugin';
 
 // Observação: o CKEditor 5 não injeta CSS automaticamente em apps React.
 // Sem o import acima, a toolbar tende a ficar "torta" e herdar estilos globais.
@@ -151,6 +152,58 @@ function convertFontSizePxToPt(html: string): string {
 }
 
 /**
+ * Remove text-indent de parágrafos que contêm imagens no HTML
+ */
+function removeTextIndentFromImageParagraphsInHtml(html: string): string {
+  if (!html) return html;
+  
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Processa todos os parágrafos
+    const paragraphs = doc.querySelectorAll('p');
+    let removedCount = 0;
+    
+    paragraphs.forEach(p => {
+      // Verifica se o parágrafo contém uma imagem
+      const hasImage = p.querySelector('img, .image-inline, figure.image, span.image-inline');
+      
+      if (hasImage) {
+        const currentStyle = p.getAttribute('style') || '';
+        
+        // Remove text-indent do style
+        if (currentStyle.includes('text-indent')) {
+          const newStyle = currentStyle
+            .split(';')
+            .map(s => s.trim())
+            .filter(s => s && !s.toLowerCase().startsWith('text-indent'))
+            .join('; ');
+          
+          if (newStyle) {
+            p.setAttribute('style', newStyle);
+          } else {
+            p.removeAttribute('style');
+          }
+          
+          removedCount++;
+        }
+      }
+    });
+    
+    if (removedCount > 0) {
+      console.log(`✅ Removido text-indent de ${removedCount} parágrafos com imagens no HTML inicial`);
+    }
+    
+    // Retorna o HTML processado
+    return doc.body.innerHTML;
+  } catch (err) {
+    console.warn('Erro ao remover text-indent do HTML:', err);
+    return html;
+  }
+}
+
+/**
  * Processa HTML para garantir que frases específicas de fechamento sejam centralizadas
  */
 function ensureClosingPhrasesCentered(html: string): string {
@@ -205,8 +258,10 @@ function ensureClosingPhrasesCentered(html: string): string {
 function buildArticle(parts: ArticleParts, newInner: string) {
   // Converte font-size de px para pt primeiro
   const convertedInner = convertFontSizePxToPt(newInner);
+  // Remove text-indent de parágrafos com imagens
+  const withoutIndent = removeTextIndentFromImageParagraphsInHtml(convertedInner);
   // Processa o conteúdo para garantir centralização das frases de fechamento
-  const processedInner = ensureClosingPhrasesCentered(convertedInner);
+  const processedInner = ensureClosingPhrasesCentered(withoutIndent);
   
   // Sempre devolve um <article> para manter compatibilidade com o backend
   let out = '<article';
@@ -243,7 +298,8 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
   const [editorData, setEditorData] = useState(() => {
     const initialContent = parts.innerContent ?? '';
     const convertedContent = convertFontSizePxToPt(initialContent);
-    return ensureClosingPhrasesCentered(convertedContent);
+    const withoutIndent = removeTextIndentFromImageParagraphsInHtml(convertedContent);
+    return ensureClosingPhrasesCentered(withoutIndent);
   });
 
   // Sincroniza o estado interno quando o html prop mudar externamente
@@ -260,7 +316,8 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
       lastHtmlRef.current = html;
       const parsed = parseArticleParts(html);
       const convertedContent = convertFontSizePxToPt(parsed.innerContent ?? '');
-      const newContent = ensureClosingPhrasesCentered(convertedContent);
+      const withoutIndent = removeTextIndentFromImageParagraphsInHtml(convertedContent);
+      const newContent = ensureClosingPhrasesCentered(withoutIndent);
       // Só atualiza se o conteúdo realmente mudou
       setEditorData(prev => {
         if (prev !== newContent) {
@@ -271,7 +328,7 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
 
       // Processa imagens após atualizar o conteúdo do editor
       if (editorRef.current) {
-        setTimeout(() => {
+        const centerImages = () => {
           const editableElement = editorRef.current?.editing.view.domRoots.get('main') as HTMLElement;
           if (editableElement) {
             processImagesInElement(editableElement);
@@ -282,7 +339,82 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
               processImagesInElement(fallbackElement);
             }
           }
-        }, 100);
+          
+          // Centraliza usando comando nativo do CKEditor
+          if (editorRef.current) {
+            try {
+              const model = editorRef.current.model;
+              const root = model.document.getRoot();
+              
+              if (!root) return;
+
+              const imageElements: any[] = [];
+
+              model.change(() => {
+                for (const item of root.getChildren()) {
+                  findImagesRecursive(item, imageElements);
+                }
+
+                imageElements.forEach((imageElement) => {
+                  if (imageElement.is('element', 'imageBlock') || imageElement.is('element', 'imageInline')) {
+                    model.change((writer: any) => {
+                      writer.setAttribute('imageStyle', 'alignCenter', imageElement);
+                    });
+                  }
+                });
+              });
+
+              function findImagesRecursive(item: any, images: any[]) {
+                if (item.is('element', 'imageBlock') || item.is('element', 'imageInline')) {
+                  images.push(item);
+                }
+                if (item.is('element') && item.childCount > 0) {
+                  for (const child of item.getChildren()) {
+                    findImagesRecursive(child, images);
+                  }
+                }
+              }
+              
+              // Remove text-indent de parágrafos com imagens
+              setTimeout(() => {
+                const editableEl = editorRef.current?.editing.view.domRoots.get('main') as HTMLElement;
+                if (editableEl) {
+                  const paragraphs = editableEl.querySelectorAll('p');
+                  paragraphs.forEach((p) => {
+                    const hasImage = p.querySelector('img, .image-inline, figure.image');
+                    if (hasImage) {
+                      const pElement = p as HTMLElement;
+                      const currentStyle = pElement.getAttribute('style') || '';
+                      if (currentStyle.includes('text-indent')) {
+                        const newStyle = currentStyle
+                          .split(';')
+                          .map(s => s.trim())
+                          .filter(s => s && !s.toLowerCase().startsWith('text-indent'))
+                          .join('; ');
+                        if (newStyle) {
+                          pElement.setAttribute('style', newStyle);
+                        } else {
+                          pElement.removeAttribute('style');
+                        }
+                      }
+                      if (pElement.style.textIndent) {
+                        pElement.style.removeProperty('text-indent');
+                      }
+                    }
+                  });
+                }
+              }, 100);
+              
+            } catch (error) {
+              console.warn('Erro ao centralizar imagens após atualização:', error);
+            }
+          }
+        };
+        
+        // Executa múltiplas vezes para garantir
+        setTimeout(centerImages, 100);
+        setTimeout(centerImages, 300);
+        setTimeout(centerImages, 500);
       }
     }
   }, [html]);
@@ -360,7 +492,8 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
       ImageStyle,
       ImageResize,
       ImageUpload,
-      SimpleUploadAdapter
+      SimpleUploadAdapter,
+      ExportToPdfPlugin
       // Opção alternativa (Base64 - não recomendado para produção):
       // Base64UploadAdapter
     ],
@@ -395,7 +528,9 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
         'uploadImage',
         'horizontalLine',
         '|',
-        'removeFormat'
+        'removeFormat',
+        '|',
+        'exportToPdf'
       ],
       // ✅ Como no demo: permite agrupar e usar overflow corretamente
       shouldNotGroupWhenFull: false
@@ -699,10 +834,143 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
                 }
               }, 200);
 
+              // Função para remover text-indent de parágrafos com imagens
+              const removeTextIndentFromImageParagraphs = () => {
+                try {
+                  const editableElement = editor.editing.view.domRoots.get('main') as HTMLElement;
+                  if (!editableElement) return;
+
+                  // Encontra todos os parágrafos que contêm imagens
+                  const paragraphs = editableElement.querySelectorAll('p');
+                  let removedCount = 0;
+
+                  paragraphs.forEach((p) => {
+                    // Verifica se o parágrafo contém uma imagem
+                    const hasImage = p.querySelector('img, .image-inline, figure.image');
+                    
+                    if (hasImage) {
+                      const pElement = p as HTMLElement;
+                      const currentStyle = pElement.getAttribute('style') || '';
+                      
+                      // Remove text-indent do style
+                      if (currentStyle.includes('text-indent')) {
+                        // Remove text-indent mantendo outros estilos
+                        const newStyle = currentStyle
+                          .split(';')
+                          .map(s => s.trim())
+                          .filter(s => s && !s.toLowerCase().startsWith('text-indent'))
+                          .join('; ');
+                        
+                        if (newStyle) {
+                          pElement.setAttribute('style', newStyle);
+                        } else {
+                          pElement.removeAttribute('style');
+                        }
+                        
+                        removedCount++;
+                      }
+                      
+                      // Também remove via JavaScript caso esteja aplicado
+                      if (pElement.style.textIndent) {
+                        pElement.style.removeProperty('text-indent');
+                        removedCount++;
+                      }
+                    }
+                  });
+
+                  if (removedCount > 0) {
+                    console.log(`✅ Removido text-indent de ${removedCount} parágrafos com imagens`);
+                  }
+                } catch (error) {
+                  console.warn('Erro ao remover text-indent de parágrafos:', error);
+                }
+              };
+
+              // Função para centralizar todas as imagens usando comandos nativos do CKEditor
+              const centerAllImagesWithCommand = () => {
+                try {
+                  // Obtém o modelo do editor
+                  const model = editor.model;
+                  const root = model.document.getRoot();
+                  
+                  if (!root) return;
+
+                  // Array para armazenar todas as imagens encontradas
+                  const imageElements: any[] = [];
+
+                  // Percorre o documento para encontrar todos os elementos de imagem
+                  model.change(() => {
+                    for (const item of root.getChildren()) {
+                      // Procura recursivamente por imagens
+                      findImages(item, imageElements);
+                    }
+
+                    // Para cada imagem encontrada, aplica o estilo de centralização
+                    imageElements.forEach((imageElement) => {
+                      if (imageElement.is('element', 'imageBlock') || imageElement.is('element', 'imageInline')) {
+                        // Define o atributo de estilo para centralizado
+                        model.change((writer: any) => {
+                          writer.setAttribute('imageStyle', 'alignCenter', imageElement);
+                        });
+                      }
+                    });
+                  });
+
+                  // Função auxiliar para encontrar imagens recursivamente
+                  function findImages(item: any, images: any[]) {
+                    if (item.is('element', 'imageBlock') || item.is('element', 'imageInline')) {
+                      images.push(item);
+                    }
+                    
+                    // Se o item tem filhos, procura recursivamente
+                    if (item.is('element') && item.childCount > 0) {
+                      for (const child of item.getChildren()) {
+                        findImages(child, images);
+                      }
+                    }
+                  }
+
+                  console.log(`✅ ${imageElements.length} imagens centralizadas usando comando nativo do CKEditor`);
+                  
+                  // Remove text-indent de parágrafos com imagens
+                  setTimeout(() => {
+                    removeTextIndentFromImageParagraphs();
+                  }, 50);
+                  
+                } catch (error) {
+                  console.warn('Erro ao centralizar imagens com comando nativo:', error);
+                  
+                  // Fallback: aplica CSS/classes diretamente
+                  const editableElement = editor.editing.view.domRoots.get('main') as HTMLElement;
+                  if (editableElement) {
+                    const figures = editableElement.querySelectorAll('figure.image');
+                    figures.forEach((figure) => {
+                      if (!figure.classList.contains('image-style-align-center') && 
+                          !figure.classList.contains('image-style-block')) {
+                        figure.classList.add('image-style-align-center');
+                      }
+                    });
+
+                    const images = editableElement.querySelectorAll('img');
+                    images.forEach((img) => {
+                      const parentFigure = img.closest('figure.image');
+                      if (!parentFigure) {
+                        const imgElement = img as HTMLElement;
+                        imgElement.style.display = 'block';
+                        imgElement.style.marginLeft = 'auto';
+                        imgElement.style.marginRight = 'auto';
+                      }
+                    });
+                    
+                    // Remove text-indent também no fallback
+                    removeTextIndentFromImageParagraphs();
+                  }
+                }
+              };
+
               // Processa imagens existentes no conteúdo inicial
-              // Usa um timeout para garantir que o DOM está pronto
-              setTimeout(() => {
-                // Tenta encontrar o elemento editável do CKEditor
+              // Usa múltiplos timeouts para garantir que o DOM está pronto e o conteúdo carregado
+              const processImagesWithDelay = () => {
                 const editableElement = editor.editing.view.domRoots.get('main') as HTMLElement;
                 if (editableElement) {
                   processImagesInElement(editableElement);
@@ -723,7 +991,16 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
                     observerRef.current = createImageObserver(fallbackElement);
                   }
                 }
-              }, 100);
+                
+                // Centraliza usando comando nativo do CKEditor
+                centerAllImagesWithCommand();
+              };
+
+              // Executa múltiplas vezes para garantir que captura o conteúdo
+              setTimeout(processImagesWithDelay, 100);
+              setTimeout(processImagesWithDelay, 300);
+              setTimeout(processImagesWithDelay, 500);
+              setTimeout(processImagesWithDelay, 1000);
 
               // FIX COLOR PICKER - Força background nos tiles via JavaScript (ABORDAGEM AGRESSIVA)
               const fixColorPickerTiles = () => {
@@ -889,6 +1166,20 @@ export default function HtmlEditor({ html, onChange, editable = true }: Props) {
               // Traduz inicialmente
               setTimeout(translateRemoveColorButton, 200);
               setTimeout(translateRemoveColorButton, 500);
+
+              // Listener para centralizar imagens e remover text-indent sempre que o conteúdo mudar
+              const centerImagesOnChange = () => {
+                setTimeout(() => {
+                  centerAllImagesWithCommand();
+                  // Remove text-indent adicional após qualquer mudança
+                  setTimeout(() => {
+                    removeTextIndentFromImageParagraphs();
+                  }, 100);
+                }, 50);
+              };
+
+              // Adiciona listener de mudanças no modelo
+              editor.model.document.on('change:data', centerImagesOnChange);
 
               // Limpa quando o editor for destruído
               editor.on('destroy', () => {
