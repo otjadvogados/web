@@ -23,6 +23,7 @@ import UploadOutlined from '@ant-design/icons/UploadOutlined';
 import MenuItem from '@mui/material/MenuItem';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
+import Checkbox from '@mui/material/Checkbox';
 import { listTopicSpecifics, AiTopicSpecific, getTopicSpecific } from 'api/aiTopicSpecifics';
 import { listPromptFolders, type Prompt } from 'api/prompts';
 import { CONTESTATION_CATEGORIES, type ContestationCategoryCode } from 'api/aiCases';
@@ -63,46 +64,10 @@ export default function StepSpecs() {
   const [dragOverCategory, setDragOverCategory] = useState<ContestationCategoryCode | null>(null);
   /** ID do tópico específico sendo arrastado (do pool) para feedback visual */
   const [draggingSpecId, setDraggingSpecId] = useState<string | null>(null);
-
-  /** Rolagem automática ao arrastar perto do topo/base da janela */
-  const scrollZonePx = 100;
-  const scrollStepPx = 10;
-  const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastScrollDirRef = useRef<number>(0);
-  useEffect(() => {
-    const isDragging = !!draggingSpecId || !!categoryDrag;
-    if (!isDragging) {
-      if (scrollIntervalRef.current) {
-        clearInterval(scrollIntervalRef.current);
-        scrollIntervalRef.current = null;
-      }
-      lastScrollDirRef.current = 0;
-      return;
-    }
-    const onDocDragOver = (e: DragEvent) => {
-      const y = e.clientY;
-      const dir = y < scrollZonePx ? -1 : y > window.innerHeight - scrollZonePx ? 1 : 0;
-      lastScrollDirRef.current = dir;
-      if (dir !== 0 && !scrollIntervalRef.current) {
-        scrollIntervalRef.current = setInterval(() => {
-          if (lastScrollDirRef.current !== 0) {
-            window.scrollBy(0, lastScrollDirRef.current * scrollStepPx);
-          }
-        }, 50);
-      } else if (dir === 0 && scrollIntervalRef.current) {
-        clearInterval(scrollIntervalRef.current);
-        scrollIntervalRef.current = null;
-      }
-    };
-    document.addEventListener('dragover', onDocDragOver, { passive: true });
-    return () => {
-      document.removeEventListener('dragover', onDocDragOver);
-      if (scrollIntervalRef.current) {
-        clearInterval(scrollIntervalRef.current);
-        scrollIntervalRef.current = null;
-      }
-    };
-  }, [draggingSpecId, categoryDrag]);
+  /** IDs selecionados no pool (para adicionar à categoria em lote) */
+  const [selectedAvailableIds, setSelectedAvailableIds] = useState<Set<string>>(new Set());
+  /** Categoria escolhida para adicionar os selecionados */
+  const [addToCategoryCode, setAddToCategoryCode] = useState<ContestationCategoryCode | ''>('');
 
   // Carrega prompts da API de prompts (folders); filtra por cliente/departamento do wizard
   useEffect(() => {
@@ -297,6 +262,22 @@ export default function StepSpecs() {
       if (next[code]) next[code] = next[code]!.filter((id) => id !== specId);
       return next;
     });
+  };
+
+  const toggleAvailableSelection = (specId: string) => {
+    setSelectedAvailableIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(specId)) next.delete(specId);
+      else next.add(specId);
+      return next;
+    });
+  };
+
+  const addSelectedToCategory = () => {
+    if (!addToCategoryCode || selectedAvailableIds.size === 0) return;
+    const code = addToCategoryCode as ContestationCategoryCode;
+    selectedAvailableIds.forEach((specId) => addToCategory(code, specId));
+    setSelectedAvailableIds(new Set());
   };
 
   const reorderInCategory = (code: ContestationCategoryCode, fromIdx: number, toIdx: number) => {
@@ -519,8 +500,40 @@ export default function StepSpecs() {
             Tópicos específicos disponíveis
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Arraste um tópico da lista abaixo e solte em uma das categorias. Apenas tópicos com DOCX podem ser usados.
+            Selecione os tópicos (checkbox) e use &quot;Adicionar à categoria&quot; abaixo, ou arraste um tópico e solte na categoria. Apenas tópicos com DOCX podem ser usados.
           </Typography>
+          {availableForCategories.length > 0 && selectedAvailableIds.size > 0 && (
+            <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'action.hover' }}>
+              <Stack direction="row" alignItems="center" flexWrap="wrap" gap={1.5}>
+                <Typography variant="body2" fontWeight={600}>
+                  {selectedAvailableIds.size} tópico(s) selecionado(s) — adicionar à categoria:
+                </Typography>
+                <FormControl size="small" sx={{ minWidth: 220 }}>
+                  <InputLabel id="add-to-category-label">Categoria</InputLabel>
+                  <Select
+                    labelId="add-to-category-label"
+                    value={addToCategoryCode}
+                    label="Categoria"
+                    onChange={(e) => setAddToCategoryCode(e.target.value as ContestationCategoryCode | '')}
+                  >
+                    {CONTESTATION_CATEGORIES.map(({ code, label }) => (
+                      <MenuItem key={code} value={code}>
+                        {label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Button
+                  size="small"
+                  variant="contained"
+                  disabled={!addToCategoryCode}
+                  onClick={addSelectedToCategory}
+                >
+                  Adicionar
+                </Button>
+              </Stack>
+            </Paper>
+          )}
           <Paper variant="outlined" sx={{ p: 1.5 }}>
             {piece && (
               <Typography variant="subtitle2" color="primary" fontWeight={600} sx={{ mb: 1.5 }}>
@@ -549,20 +562,30 @@ export default function StepSpecs() {
                             key={s.id}
                             variant="outlined"
                             sx={{
-                              px: 1.25,
-                              py: 0.75,
+                              px: 1,
+                              py: 0.5,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 0.5,
                               cursor: 'grab',
                               opacity: draggingSpecId === s.id ? 0.6 : 1,
-                              borderColor: draggingSpecId === s.id ? 'primary.main' : 'divider'
+                              borderColor: draggingSpecId === s.id ? 'primary.main' : selectedAvailableIds.has(s.id) ? 'primary.main' : 'divider',
+                              borderWidth: selectedAvailableIds.has(s.id) ? 2 : 1,
+                              bgcolor: selectedAvailableIds.has(s.id) ? 'primary.lighter' : undefined
                             }}
                             draggable
                             onDragStart={(e) => handlePoolDragStart(e, s.id)}
                             onDragEnd={handlePoolDragEnd}
-                            title="Arraste para uma categoria abaixo"
+                            title="Marque para selecionar ou arraste para uma categoria"
                           >
+                            <Checkbox
+                              size="small"
+                              checked={selectedAvailableIds.has(s.id)}
+                              onChange={() => toggleAvailableSelection(s.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              sx={{ p: 0.25 }}
+                              title="Selecionar para adicionar à categoria"
+                            />
                             <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
                               {s.name}
                             </Typography>
@@ -580,7 +603,7 @@ export default function StepSpecs() {
             Categorias da contestação
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Arraste os tópicos da lista acima para cada categoria. A ordem no documento é: Preliminares → Contrato → Mérito → Impugnação aos Documentos → Pedidos Finais.
+            Arraste os tópicos da lista acima para cada categoria. A ordem no documento é: Preliminares → Contrato → Mérito → Impugnação aos docs → Pedidos Finais.
           </Typography>
           <Stack spacing={2}>
             {CONTESTATION_CATEGORIES.map(({ code, label }) => {
@@ -725,7 +748,7 @@ export default function StepSpecs() {
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              <strong>Categorias da contestação:</strong> Arraste os tópicos específicos da lista &quot;Tópicos específicos disponíveis&quot; para cada categoria (Preliminares, Contrato, Mérito, Impugnação aos Documentos, Pedidos Finais). Você também pode arrastar um tópico que já está em uma categoria e soltar em outra para movê-lo.
+              <strong>Categorias da contestação:</strong> Selecione os tópicos com o checkbox e use &quot;Adicionar à categoria&quot; para enviar vários de uma vez, ou arraste um tópico e solte na categoria (Preliminares, Contrato, Mérito, etc.). Para mover um tópico entre categorias, arraste-o de uma e solte em outra.
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
               A ordem dentro de cada categoria será a ordem no documento. Apenas tópicos com arquivo DOCX aparecem na lista. Para adicionar DOCX a um tópico, acesse a página de Tópicos Específicos.
