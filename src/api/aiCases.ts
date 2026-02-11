@@ -21,21 +21,33 @@ export type CaseCommonAttachmentMeta = {
   isCommon: true; // marca como arquivo comum
 };
 
-/** Códigos de categoria da contestação (ordem usada na montagem do documento e na UI) */
+/** Códigos de categoria da contestação (ordem oficial: Preliminares → Prejudiciais → Mérito e demais) */
 export type ContestationCategoryCode =
   | 'PRELIMINARES'
+  | 'PREJUDICIAIS'
   | 'CONTRATO'
   | 'MERITO'
   | 'IMPUGNACAO_DOCS'
   | 'PEDIDOS_FINAIS';
 
-/** Categorias fixas: ordem, código (API) e rótulo para UI */
+/** Rótulos para UI (selects, filtros, cabeçalhos) */
+export const CONTESTATION_CATEGORY_LABELS: Record<ContestationCategoryCode, string> = {
+  PRELIMINARES: 'Preliminares',
+  PREJUDICIAIS: 'Prejudiciais',
+  CONTRATO: 'Contrato',
+  MERITO: 'Mérito',
+  IMPUGNACAO_DOCS: 'Impugnação aos Documentos',
+  PEDIDOS_FINAIS: 'Pedidos Finais',
+};
+
+/** Categorias fixas: ordem oficial, código (API) e rótulo para UI (uso em listagens e montagem do documento) */
 export const CONTESTATION_CATEGORIES: { order: number; code: ContestationCategoryCode; label: string }[] = [
-  { order: 1, code: 'PRELIMINARES', label: 'Preliminares / Prejudiciais' },
-  { order: 2, code: 'CONTRATO', label: 'Contrato' },
-  { order: 3, code: 'MERITO', label: 'Mérito' },
-  { order: 4, code: 'IMPUGNACAO_DOCS', label: 'Impugnação aos Documentos' },
-  { order: 5, code: 'PEDIDOS_FINAIS', label: 'Pedidos Finais' }
+  { order: 1, code: 'PRELIMINARES', label: CONTESTATION_CATEGORY_LABELS.PRELIMINARES },
+  { order: 2, code: 'PREJUDICIAIS', label: CONTESTATION_CATEGORY_LABELS.PREJUDICIAIS },
+  { order: 3, code: 'CONTRATO', label: CONTESTATION_CATEGORY_LABELS.CONTRATO },
+  { order: 4, code: 'MERITO', label: CONTESTATION_CATEGORY_LABELS.MERITO },
+  { order: 5, code: 'IMPUGNACAO_DOCS', label: CONTESTATION_CATEGORY_LABELS.IMPUGNACAO_DOCS },
+  { order: 6, code: 'PEDIDOS_FINAIS', label: CONTESTATION_CATEGORY_LABELS.PEDIDOS_FINAIS },
 ];
 
 export type CaseContextFields = {
