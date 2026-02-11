@@ -276,8 +276,8 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
                     label="Permitir IA editar o texto"
                   />
                   <FormControlLabel
-                    control={<Switch checked={!!values.writeWithoutSummary} onChange={(e) => setFieldValue('writeWithoutSummary', e.target.checked)} />}
-                    label="Redigir sem Resumo"
+                    control={<Switch checked={!values.writeWithoutSummary} onChange={(e) => setFieldValue('writeWithoutSummary', !e.target.checked)} />}
+                    label="Redigir Resumo"
                   />
                 </Stack>
               </Stack>
