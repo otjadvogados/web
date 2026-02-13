@@ -14,6 +14,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TableBody from '@mui/material/TableBody';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
+import Pagination from '@mui/material/Pagination';
 import Chip from '@mui/material/Chip';
 import Avatar from 'components/@extended/Avatar';
 import useAvatarUrl from 'hooks/useAvatarUrl';
@@ -324,6 +325,32 @@ function StatusCell({
   );
 }
 
+function TablePaginationActions({
+  count,
+  page,
+  rowsPerPage,
+  onPageChange
+}: {
+  count: number;
+  page: number;
+  rowsPerPage: number;
+  onPageChange: (event: React.MouseEvent<HTMLButtonElement> | null, page: number) => void;
+}) {
+  const totalPages = Math.ceil(count / rowsPerPage) || 1;
+  return (
+    <Pagination
+      count={totalPages}
+      page={page + 1}
+      onChange={(_, p) => onPageChange(null, p - 1)}
+      color="primary"
+      showFirstButton
+      showLastButton
+      siblingCount={1}
+      boundaryCount={1}
+    />
+  );
+}
+
 export default function ListCasesPage() {
   const navigate = useNavigate();
   const { hasAnyPermission } = usePermissions();
@@ -334,7 +361,7 @@ export default function ListCasesPage() {
   const [items, setItems] = useState<CaseResult[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(false);
 
   // Filtros
@@ -358,12 +385,13 @@ export default function ListCasesPage() {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewCaseId, setViewCaseId] = useState<string | null>(null);
 
-  async function load() {
+  async function load(overridePage?: number) {
+    const currentPage = overridePage !== undefined ? overridePage : page;
     try {
       setLoading(true);
       const res = await listCaseResults({
-        page: page + 1,
-        pageSize: limit,
+        page: currentPage + 1,
+        pageSize: Math.min(limit, 20),
         search: search.trim() || undefined,
         departmentId: deptId || undefined,
         pieceId: pieceId || undefined,
@@ -371,7 +399,7 @@ export default function ListCasesPage() {
         createdFrom: createdFrom || undefined,
         createdTo: createdTo || undefined
       });
-      const resultItems = res.data || res.items || [];
+      const resultItems = res.items || res.data || [];
       setItems(Array.isArray(resultItems) ? resultItems : []);
       setTotal(res.total || 0);
     } catch (err: any) {
@@ -415,7 +443,7 @@ export default function ListCasesPage() {
   const onSearch = () => {
     setPage(0);
     setSelected([]);
-    load();
+    load(0);
   };
 
   const onClearFilters = () => {
@@ -427,7 +455,7 @@ export default function ListCasesPage() {
     setCreatedTo('');
     setPage(0);
     setSelected([]);
-    load();
+    load(0);
   };
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -853,10 +881,17 @@ export default function ListCasesPage() {
 
             <Divider />
 
-            <Stack direction="row" justifyContent="center" sx={{ p: isMobile ? 1 : 2 }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              alignItems="center"
+              justifyContent="space-between"
+              flexWrap="wrap"
+              gap={2}
+              sx={{ p: isMobile ? 1 : 2 }}
+            >
               <TablePagination
                 component="div"
-                rowsPerPageOptions={isMobile ? [5, 10] : [5, 10, 20, 50]}
+                rowsPerPageOptions={isMobile ? [10, 20] : [10, 20]}
                 count={total}
                 rowsPerPage={limit}
                 page={page}
@@ -867,6 +902,8 @@ export default function ListCasesPage() {
                 }}
                 labelRowsPerPage={isMobile ? 'Por página' : 'Linhas por página'}
                 labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`}
+                ActionsComponent={TablePaginationActions}
+                sx={{ border: 0 }}
               />
             </Stack>
           </Stack>

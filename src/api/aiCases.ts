@@ -323,8 +323,9 @@ export type CaseResultsListResponse = {
   page: number;
   pageSize: number;
   total: number;
-  data?: CaseResult[]; // Backend retorna 'data'
-  items?: CaseResult[]; // Mantido para compatibilidade
+  /** Array de casos da página atual (API retorna `items`). */
+  items?: CaseResult[];
+  data?: CaseResult[]; // Compatibilidade
 };
 
 export type ListCaseResultsQuery = {
@@ -348,9 +349,10 @@ export type ListCaseResultsQuery = {
  * GET /ai/cases/results - Listar resultados de casos
  */
 export async function listCaseResults(q: ListCaseResultsQuery = {}) {
+  const rawPageSize = q.pageSize ?? 20;
   const params: Record<string, any> = {
     page: q.page ?? 1,
-    pageSize: q.pageSize ?? 10,
+    pageSize: Math.min(rawPageSize, 20),
     search: q.search || undefined,
     departmentId: q.departmentId || undefined,
     pieceId: q.pieceId || undefined,

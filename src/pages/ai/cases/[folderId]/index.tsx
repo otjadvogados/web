@@ -46,6 +46,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import Pagination from '@mui/material/Pagination';
 
 function AuthorCell({ requesterId, userName, userRoleName, userAvatarFileId }: { 
   requesterId?: string; 
@@ -340,8 +341,11 @@ export default function CasesFolderPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   
-  // Lista de casos
+  // Lista de casos (paginada)
   const [items, setItems] = useState<CaseResult[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
   const [loadingCases, setLoadingCases] = useState(false);
 
   // Dialogs
@@ -371,28 +375,28 @@ export default function CasesFolderPage() {
     }
   };
 
-  const loadCases = async () => {
+  const loadCases = async (overridePage?: number) => {
     if (!folderId) return;
     if (!folder) return; // espera a pasta estar carregada para saber se é geral
 
+    const currentPage = overridePage !== undefined ? overridePage : page;
     try {
       setLoadingCases(true);
       const isGeneral = isGeneralFolder(folder);
-      // Pasta geral: não filtrar por folderId e pedir noCustomer para incluir casos com folder/cliente null
       const res = await listCaseResults({
-        page: 1,
-        pageSize: 1000,
+        page: currentPage + 1,
+        pageSize,
         folderId: isGeneral ? undefined : folderId,
         noCustomer: isGeneral ? true : undefined
       });
-      let resultItems = res.data || res.items || [];
+      let resultItems = res.items || res.data || [];
       if (isGeneral) {
-        // Garante que só aparecem casos sem cliente (fallback se o backend não suportar noCustomer)
         resultItems = resultItems.filter(
           (c) => !c.customers || (Array.isArray(c.customers) && c.customers.length === 0)
         );
       }
       setItems(Array.isArray(resultItems) ? resultItems : []);
+      setTotal(res.total || 0);
     } catch (err: any) {
       openSnackbar({
         open: true,
@@ -416,7 +420,7 @@ export default function CasesFolderPage() {
       loadCases();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [folderId, folder]);
+  }, [folderId, folder, page]);
 
   const applySearchFilter = (cases: CaseResult[], q: string) => {
     const term = q.trim();
@@ -556,7 +560,7 @@ export default function CasesFolderPage() {
                           {folderDisplayName}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {filteredCases.length} {filteredCases.length === 1 ? 'caso' : 'casos'}
+                          {total} {total === 1 ? 'caso' : 'casos'}
                         </Typography>
                       </Stack>
 
@@ -698,6 +702,21 @@ export default function CasesFolderPage() {
                           </Box>
                         ))}
                       </Box>
+
+                      {total > pageSize && (
+                        <Stack direction="row" justifyContent="center" sx={{ py: 2 }}>
+                          <Pagination
+                            count={Math.ceil(total / pageSize) || 1}
+                            page={page + 1}
+                            onChange={(_, p) => setPage(p - 1)}
+                            color="primary"
+                            showFirstButton
+                            showLastButton
+                            siblingCount={1}
+                            boundaryCount={1}
+                          />
+                        </Stack>
+                      )}
                     </>
                   )}
                 </Permission>
