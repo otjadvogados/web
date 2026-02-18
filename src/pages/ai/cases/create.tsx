@@ -141,6 +141,7 @@ function CreateCaseWizardInner() {
     if (!draftData?.draft) return;
     try {
       await applyDraft(draftData.draft);
+      setStep(5); // Volta na etapa Instruções & anexos
       const hadAttachmentFiles = (draftData.draft.attachmentsMeta?.some((m) => m.fileId) ?? false) ||
         (draftData.draft.commonAttachmentsMeta?.some((m) => m.fileId) ?? false);
       setDraftData(null);

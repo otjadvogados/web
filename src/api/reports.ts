@@ -212,10 +212,15 @@ export async function getReports(customerId: string): Promise<CustomerReport[]> 
 }
 
 /**
- * Busca relatório específico completo com HTML
+ * Busca relatório específico completo com HTML.
+ * Pasta geral: GET /reports/:reportId; relatório de cliente: GET /customers/:customerId/reports/:reportId.
  */
 export async function getReport(customerId: string, reportId: string): Promise<CustomerReport> {
-  const { data } = await axios.get<CustomerReport>(`/customers/${customerId}/reports/${reportId}`);
+  const url =
+    customerId === 'general'
+      ? `/reports/${reportId}`
+      : `/customers/${customerId}/reports/${reportId}`;
+  const { data } = await axios.get<CustomerReport>(url);
   return data;
 }
 
@@ -339,14 +344,19 @@ export async function generateReports(
 }
 
 /**
- * Atualiza o HTML de um relatório
+ * Atualiza o HTML de um relatório (auto-save).
+ * Pasta geral: PATCH /reports/:reportId; relatório de cliente: PATCH /customers/:customerId/reports/:reportId.
  */
 export async function updateReport(
   customerId: string,
   reportId: string,
   request: UpdateReportRequest
 ): Promise<CustomerReport> {
-  const { data } = await axios.patch<CustomerReport>(`/customers/${customerId}/reports/${reportId}`, request);
+  const url =
+    customerId === 'general'
+      ? `/reports/${reportId}`
+      : `/customers/${customerId}/reports/${reportId}`;
+  const { data } = await axios.patch<CustomerReport>(url, request);
   return data;
 }
 

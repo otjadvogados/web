@@ -50,8 +50,6 @@ export default function EditReportPage() {
   const initialLoadDoneRef = useRef(false);
 
   useEffect(() => {
-    console.log('EditReportPage - useEffect - location.state:', location.state, 'customerId:', customerId, 'reportId:', reportId);
-    
     if (!customerId || !reportId) {
       navigate('/ai/reports');
       return;

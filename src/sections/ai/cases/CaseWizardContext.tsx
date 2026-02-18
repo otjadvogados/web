@@ -683,21 +683,21 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       const currentPayload = draftPayloadRef.current;
       const currentAttachments = attachmentsRef.current;
       const currentCommon = commonAttachmentsRef.current;
-      const hasAttachments = currentAttachments.length > 0 || currentCommon.length > 0;
+      const hasNewFiles =
+        currentAttachments.some((a) => !a.fileId) || currentCommon.some((a) => !a.fileId);
+      const hasAnyAttachment = currentAttachments.length > 0 || currentCommon.length > 0;
 
       try {
-        if (hasAttachments) {
-          // PUT /ai/cases/draft/with-files: payload (JSON) + arquivos na ordem attachmentsMeta, depois commonAttachmentsMeta. Total = attachmentsMeta.length + commonAttachmentsMeta.length.
-          const expectedCount = (currentPayload.attachmentsMeta?.length ?? 0) + (currentPayload.commonAttachmentsMeta?.length ?? 0);
-          const actualCount = currentAttachments.length + currentCommon.length;
-          if (expectedCount !== actualCount) {
-            console.warn(`Rascunho with-files: quantidade de arquivos (${actualCount}) não confere com metas (${expectedCount}).`);
-          }
+        if (hasAnyAttachment && hasNewFiles) {
+          // PUT /ai/cases/draft/with-files: payload (JSON) + apenas arquivos NOVOS (sem fileId), na ordem: attachmentsMeta, depois commonAttachmentsMeta.
           const fd = new FormData();
           fd.append('payload', JSON.stringify(currentPayload));
-          currentAttachments.forEach((a) => fd.append('file', a.file, a.file.name));
-          currentCommon.forEach((a) => fd.append('file', a.file, a.file.name));
+          currentAttachments.filter((a) => !a.fileId).forEach((a) => fd.append('file', a.file, a.file.name));
+          currentCommon.filter((a) => !a.fileId).forEach((a) => fd.append('file', a.file, a.file.name));
           await putCaseDraftWithFiles(fd);
+        } else if (hasAnyAttachment && !hasNewFiles) {
+          // Todos os anexos já têm fileId (restaurados do rascunho): salva só o payload (JSON).
+          await putCaseDraft(currentPayload);
         } else {
           await putCaseDraft(currentPayload);
         }
