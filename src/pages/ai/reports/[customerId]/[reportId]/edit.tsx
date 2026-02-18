@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -43,6 +43,11 @@ export default function EditReportPage() {
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [emailsCount, setEmailsCount] = useState<number | null>(null);
   const [loadingEmails, setLoadingEmails] = useState(false);
+  /** Auto-save: 'idle' | 'saving' | 'saved' */
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedHtmlRef = useRef<string>('');
+  const initialLoadDoneRef = useRef(false);
 
   useEffect(() => {
     console.log('EditReportPage - useEffect - location.state:', location.state, 'customerId:', customerId, 'reportId:', reportId);
@@ -78,7 +83,10 @@ export default function EditReportPage() {
       const customerIdToUse = customerId || 'general';
       const data = await getReport(customerIdToUse, reportId);
       setReportData(data);
-      setHtml(data.htmlContent || '');
+      const content = data.htmlContent || '';
+      setHtml(content);
+      lastSavedHtmlRef.current = content;
+      initialLoadDoneRef.current = true;
     } catch (err: any) {
       openSnackbar({
         open: true,
@@ -89,6 +97,43 @@ export default function EditReportPage() {
       throw err;
     }
   };
+
+  // Auto-save: debounce 3s após parar de digitar; só envia se htmlContent tiver pelo menos 1 caractere
+  useEffect(() => {
+    if (!reportId || !reportData || reportData.isFinalized || !initialLoadDoneRef.current) return;
+    if (html.trim().length < 1) return;
+    if (html === lastSavedHtmlRef.current) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      autoSaveTimerRef.current = null;
+      const customerIdToUse = reportData.customerId || customerId || 'general';
+      const htmlToSave = html;
+      try {
+        setAutoSaveStatus('saving');
+        await updateReport(customerIdToUse, reportId, { htmlContent: htmlToSave });
+        lastSavedHtmlRef.current = htmlToSave;
+        setReportData(prev => prev ? { ...prev, htmlContent: htmlToSave } : null);
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus('idle'), 2000);
+      } catch (err: any) {
+        setAutoSaveStatus('idle');
+        openSnackbar({
+          open: true,
+          message: err?.response?.data?.message || 'Falha ao salvar automaticamente',
+          variant: 'alert',
+          alert: { color: 'error' }
+        } as any);
+      }
+    }, 3000);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [html, reportId, reportData, customerId]);
 
   const handleSave = async () => {
     if (!reportId) return;
@@ -289,6 +334,11 @@ export default function EditReportPage() {
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
+              {!reportData.isFinalized && autoSaveStatus !== 'idle' && (
+                <Typography variant="caption" color={autoSaveStatus === 'saving' ? 'text.secondary' : 'success.main'}>
+                  {autoSaveStatus === 'saving' ? 'Salvando…' : 'Salvo'}
+                </Typography>
+              )}
               {reportData.isFinalized && (
                 <Chip
                   label="Finalizado"

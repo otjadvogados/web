@@ -10,6 +10,8 @@ export type CaseAttachmentMeta = {
   name: string;
   type: string;
   size: number;
+  /** preenchido após upload no rascunho (POST /ai/cases/draft/attachments) */
+  fileId?: string;
 };
 
 export type CaseCommonAttachmentMeta = {
@@ -19,6 +21,8 @@ export type CaseCommonAttachmentMeta = {
   type: string;
   size: number;
   isCommon: true; // marca como arquivo comum
+  /** preenchido após upload no rascunho (POST /ai/cases/draft/attachments) */
+  fileId?: string;
 };
 
 /** Códigos de categoria da contestação (ordem oficial: Preliminares → Prejudiciais → Mérito e demais) */
@@ -138,6 +142,86 @@ export async function postCaseContext(form: FormData): Promise<CaseContextRespon
     }
   );
   return response.data;
+}
+
+// ==============================|| CASE DRAFT (auto-save) ||============================== //
+
+/** Payload do rascunho: mesmo formato do formulário de contexto, todos os campos opcionais (apenas metadados; sem arquivos) */
+export type CaseDraftPayload = Partial<Omit<CaseContextFields, 'initialChecklist'>>;
+
+export type CaseDraftResponse = {
+  draft: CaseDraftPayload | null;
+  updatedAt: string | null;
+};
+
+export type CaseDraftPutResponse = {
+  updatedAt: string;
+};
+
+/**
+ * GET /ai/cases/draft - Buscar rascunho (expirado após 24h)
+ */
+export async function getCaseDraft(): Promise<CaseDraftResponse> {
+  const { data } = await axios.get<CaseDraftResponse>('/ai/cases/draft');
+  return data;
+}
+
+/**
+ * PUT /ai/cases/draft - Salvar rascunho (JSON, sem arquivos)
+ */
+export async function putCaseDraft(payload: CaseDraftPayload): Promise<CaseDraftPutResponse> {
+  const { data } = await axios.put<CaseDraftPutResponse>('/ai/cases/draft', payload);
+  return data;
+}
+
+/**
+ * PUT /ai/cases/draft/with-files - Salvar rascunho com arquivos (multipart).
+ * - payload: string JSON do rascunho (inclui attachmentsMeta e commonAttachmentsMeta com metadados; fileId opcional).
+ * - Arquivos na ordem: primeiro os de attachmentsMeta (por index), depois os de commonAttachmentsMeta.
+ * - Campo dos arquivos: "file" (múltiplas ocorrências). Total = attachmentsMeta.length + commonAttachmentsMeta.length.
+ * O backend faz upload no storage, associa fileId e persiste o rascunho (ex.: user.case_draft_payload).
+ */
+export async function putCaseDraftWithFiles(form: FormData): Promise<CaseDraftPutResponse> {
+  const { data } = await axios.put<CaseDraftPutResponse>('/ai/cases/draft/with-files', form, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return data;
+}
+
+/**
+ * DELETE /ai/cases/draft - Remover rascunho (opcional; backend já limpa após gerar caso)
+ */
+export async function deleteCaseDraft(): Promise<void> {
+  await axios.delete('/ai/cases/draft');
+}
+
+export type CaseDraftAttachmentsResponse = {
+  attachmentsMeta: CaseAttachmentMeta[];
+  commonAttachmentsMeta: CaseCommonAttachmentMeta[];
+};
+
+/**
+ * POST /ai/cases/draft/attachments - Upload de anexos do rascunho (multipart).
+ * - fields: string JSON com { attachmentsMeta: [...], commonAttachmentsMeta: [...] } sem fileId.
+ * - Arquivos na ordem: primeiro os de attachmentsMeta (por index), depois os de commonAttachmentsMeta.
+ * Resposta devolve as mesmas metas com fileId preenchido.
+ */
+export async function postCaseDraftAttachments(form: FormData): Promise<CaseDraftAttachmentsResponse> {
+  const { data } = await axios.post<CaseDraftAttachmentsResponse>('/ai/cases/draft/attachments', form, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return data;
+}
+
+/**
+ * GET /ai/cases/draft/attachments/:fileId - Stream do anexo do rascunho (exibir/baixar).
+ * Retorna o blob do arquivo (404 se não pertencer ao rascunho do usuário ou expirado).
+ */
+export async function getCaseDraftAttachment(fileId: string): Promise<Blob> {
+  const { data } = await axios.get<Blob>(`/ai/cases/draft/attachments/${fileId}`, {
+    responseType: 'blob'
+  });
+  return data;
 }
 
 // ==============================|| CASE RESULTS APIs ||============================== //
@@ -426,10 +510,11 @@ export async function getCaseApprovalFlow(id: string) {
 }
 
 /**
- * PATCH /ai/cases/results/:id/html - Editar HTML
+ * PATCH /ai/cases/results/:id/html - Editar HTML (e opcionalmente name/tags)
  */
 export async function updateCaseResultHtml(id: string, payload: {
   html: string;
+  name?: string;
   tags?: Record<string, any>;
   replaceTags?: boolean;
 }) {

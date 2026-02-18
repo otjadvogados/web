@@ -11,8 +11,10 @@ import type {
   AttachmentBox,
   CaseAttachmentMeta,
   CaseCommonAttachmentMeta,
-  ContestationCategoryCode
+  ContestationCategoryCode,
+  CaseDraftPayload
 } from 'api/aiCases';
+import { putCaseDraft, putCaseDraftWithFiles, getCaseDraftAttachment } from 'api/aiCases';
 
 export type OptionDept = Pick<Department, 'id'|'name'>;
 export type OptionCust = Pick<Customer, 'id'|'displayName'|'name'|'kind'|'isMatriz'|'isFilial'|'parentCustomerId'>;
@@ -27,12 +29,16 @@ export type CaseAttachmentItem = {
   topicSpecificId: string;
   box: AttachmentBox;
   file: File;
+  /** preenchido após upload no rascunho (POST draft/attachments) */
+  fileId?: string;
   ocrResult?: OcrTestResponse;
 };
 
 export type CaseCommonAttachmentItem = {
   id: string;
   file: File;
+  /** preenchido após upload no rascunho (POST draft/attachments) */
+  fileId?: string;
   ocrResult?: OcrTestResponse;
 };
 
@@ -72,6 +78,9 @@ type Ctx = {
   // save/restore state
   saveWizardState: () => void;
   restoreWizardState: () => Promise<void>;
+  // rascunho (auto-save 24h)
+  buildDraftPayload: () => CaseDraftPayload;
+  applyDraft: (draft: CaseDraftPayload) => Promise<void>;
   // details (preview)
   pieceDetail: OptionPiece | null; setPieceDetail: (v: OptionPiece|null) => void;
   topicDetail: OptionTopic | null; setTopicDetail: (v: OptionTopic|null) => void;
@@ -150,6 +159,12 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const isRestoringRef = useRef(false);
   // Flag para evitar múltiplas chamadas simultâneas de saveWizardState
   const isSavingRef = useRef(false);
+  // Timer do auto-save de rascunho (PUT /ai/cases/draft)
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftPayloadRef = useRef<CaseDraftPayload>({});
+  const attachmentsRef = useRef<CaseAttachmentItem[]>([]);
+  const commonAttachmentsRef = useRef<CaseCommonAttachmentItem[]>([]);
+  const saveWizardStateRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const [pieceDetail, setPieceDetail] = useState<OptionPiece | null>(null);
   const [topicDetail, setTopicDetail] = useState<OptionTopic | null>(null);
@@ -449,6 +464,267 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     return fd;
   };
 
+  /**
+   * Monta o payload do rascunho (PUT /ai/cases/draft): mesmo formato do formulário, apenas metadados (sem arquivos).
+   */
+  const buildDraftPayload = useCallback((): CaseDraftPayload => {
+    const payload: CaseDraftPayload = {};
+    if (dept?.id) payload.departmentId = dept.id;
+    if (customers.length) payload.customerIds = customers.map(c => c.id);
+    if (piece?.id) payload.pieceId = piece.id;
+    if (topic?.id) payload.topicId = topic.id;
+    if (topics.length) payload.topicIds = topics.map(t => t.id);
+    const hasCategoryData = Object.values(topicSpecificsByCategory || {}).some((arr) => arr?.length);
+    if (hasCategoryData && topicSpecificsByCategory) {
+      payload.topicSpecificsByCategory = topicSpecificsByCategory;
+      const promptIds = Object.fromEntries(
+        Object.entries(categoryPromptIds || {}).filter(([, id]) => !!id)
+      ) as Partial<Record<ContestationCategoryCode, string>>;
+      if (Object.keys(promptIds).length) payload.categoryPromptIds = promptIds;
+    } else if (specs.length) {
+      payload.topicSpecificIds = specs.map(s => s.id);
+    }
+    if (instruction.trim()) payload.instruction = instruction.trim();
+    const attachmentsMeta: CaseAttachmentMeta[] = attachments.map((a, index) => ({
+      index,
+      topicSpecificId: a.topicSpecificId,
+      box: a.box,
+      name: a.file.name,
+      type: a.file.type,
+      size: a.file.size,
+      ...(a.fileId ? { fileId: a.fileId } : {})
+    }));
+    if (attachmentsMeta.length) payload.attachmentsMeta = attachmentsMeta;
+    const commonAttachmentsMeta: CaseCommonAttachmentMeta[] = commonAttachments.map((a, index) => ({
+      index,
+      name: a.file.name,
+      type: a.file.type,
+      size: a.file.size,
+      isCommon: true as const,
+      ...(a.fileId ? { fileId: a.fileId } : {})
+    }));
+    if (commonAttachmentsMeta.length) payload.commonAttachmentsMeta = commonAttachmentsMeta;
+    return payload;
+  }, [dept?.id, customers, piece?.id, topic?.id, topics, specs, topicSpecificsByCategory, categoryPromptIds, instruction, attachments, commonAttachments]);
+
+  /**
+   * Aplica um rascunho ao formulário (após GET /ai/cases/draft).
+   * Se o rascunho tiver attachmentsMeta/commonAttachmentsMeta com fileId, busca cada arquivo via GET draft/attachments/:fileId e restaura como File nos itens.
+   */
+  const applyDraft = useCallback(async (draft: CaseDraftPayload) => {
+    isRestoringRef.current = true;
+    try {
+      if (draft.departmentId) {
+        const deptData = await getDepartment(draft.departmentId);
+        setDept({ id: deptData.id, name: deptData.name });
+      }
+      if (draft.customerIds?.length) {
+        const customersData = await Promise.all(draft.customerIds.map(id => getCustomer(id)));
+        setCustomers(customersData.map(c => ({
+          id: c.id,
+          displayName: c.displayName,
+          name: c.name,
+          kind: c.kind,
+          isMatriz: c.isMatriz,
+          isFilial: c.isFilial,
+          parentCustomerId: c.parentCustomerId
+        })));
+      }
+      if (draft.pieceId) {
+        try {
+          const pieceData = await getPiece(draft.pieceId);
+          setPiece(pieceData);
+        } catch (err) {
+          console.error('Erro ao restaurar peça do rascunho:', err);
+        }
+      }
+      if (draft.topicIds?.length) {
+        try {
+          const topicsData = await Promise.all(draft.topicIds.map(id => getTopic(id)));
+          setTopics(topicsData);
+        } catch (err) {
+          console.error('Erro ao restaurar tópicos do rascunho:', err);
+        }
+      }
+      const specIdsToRestore = draft.topicSpecificIds?.length
+        ? draft.topicSpecificIds
+        : (draft.topicSpecificsByCategory && Object.keys(draft.topicSpecificsByCategory).length > 0)
+          ? Array.from(new Set(Object.values(draft.topicSpecificsByCategory).flat()))
+          : [];
+      if (specIdsToRestore.length) {
+        try {
+          const specsData = await Promise.all(specIdsToRestore.map(id => getTopicSpecific(id)));
+          const restoredTopicIds = new Set(draft.topicIds || []);
+          const validSpecs = specsData.filter(spec => restoredTopicIds.has(spec.topicId));
+          setSpecs(validSpecs);
+        } catch (err) {
+          console.error('Erro ao restaurar tópicos específicos do rascunho:', err);
+        }
+      }
+      if (draft.topicSpecificsByCategory && Object.keys(draft.topicSpecificsByCategory).length > 0) {
+        setTopicSpecificsByCategory(draft.topicSpecificsByCategory);
+      }
+      if (draft.categoryPromptIds && Object.keys(draft.categoryPromptIds).length > 0) {
+        setCategoryPromptIds(draft.categoryPromptIds);
+      }
+      if (draft.instruction) setInstruction(draft.instruction);
+
+      const restoredSpecIds = new Set(specIdsToRestore);
+
+      if (draft.attachmentsMeta?.length && draft.attachmentsMeta.some((m) => m.fileId)) {
+        const items: CaseAttachmentItem[] = [];
+        for (let i = 0; i < draft.attachmentsMeta.length; i++) {
+          const meta = draft.attachmentsMeta[i];
+          if (!meta.fileId || !restoredSpecIds.has(meta.topicSpecificId)) continue;
+          try {
+            const blob = await getCaseDraftAttachment(meta.fileId);
+            const file = new File([blob], meta.name, { type: meta.type || 'application/octet-stream' });
+            items.push({
+              id: genId(),
+              topicSpecificId: meta.topicSpecificId,
+              box: meta.box,
+              file,
+              fileId: meta.fileId
+            });
+          } catch (err) {
+            console.warn('Erro ao baixar anexo do rascunho:', meta.name, err);
+          }
+        }
+        setAttachments(items);
+      } else {
+        setAttachments([]);
+      }
+
+      if (draft.commonAttachmentsMeta?.length && draft.commonAttachmentsMeta.some((m) => m.fileId)) {
+        const items: CaseCommonAttachmentItem[] = [];
+        for (let i = 0; i < draft.commonAttachmentsMeta.length; i++) {
+          const meta = draft.commonAttachmentsMeta[i];
+          if (!meta.fileId) continue;
+          try {
+            const blob = await getCaseDraftAttachment(meta.fileId);
+            const file = new File([blob], meta.name, { type: meta.type || 'application/octet-stream' });
+            items.push({ id: genId(), file, fileId: meta.fileId });
+          } catch (err) {
+            console.warn('Erro ao baixar anexo comum do rascunho:', meta.name, err);
+          }
+        }
+        setCommonAttachments(items);
+      } else {
+        setCommonAttachments([]);
+      }
+
+      await new Promise(r => setTimeout(r, 300));
+    } finally {
+      isRestoringRef.current = false;
+    }
+  }, []);
+
+  // Salva o estado completo do wizard no Redis (workspace) e sessionStorage (fallback). Declarado antes do useEffect de draft para evitar "before initialization".
+  const saveWizardState = useCallback(async () => {
+    if (isSavingRef.current) return; // Evita múltiplas chamadas simultâneas
+    if (isRestoringRef.current) return; // Não salva durante restauração
+
+    try {
+      isSavingRef.current = true;
+      const state: WizardState = {
+        step,
+        deptId: dept?.id ?? null,
+        customerIds: customers.map(c => c.id),
+        pieceId: piece?.id ?? null,
+        topicIds: topics.map(t => t.id),
+        specIds: specs.map(s => s.id),
+        topicSpecificsByCategory: Object.keys(topicSpecificsByCategory || {}).length
+          ? topicSpecificsByCategory
+          : undefined,
+        categoryPromptIds: Object.keys(categoryPromptIds || {}).length ? categoryPromptIds : undefined,
+        instruction,
+        timestamp: Date.now()
+      };
+
+      // Salva no Redis via workspace API
+      try {
+        await saveWorkspaceState({
+          context: 'case-wizard',
+          resourceId: null,
+          state: state as any,
+          metadata: {
+            url: window.location.pathname,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (redisErr) {
+        console.warn('Erro ao salvar estado no Redis, usando sessionStorage como fallback:', redisErr);
+      }
+
+      // Mantém sessionStorage como fallback
+      sessionStorage.setItem('wizard_return_state', JSON.stringify(state));
+    } catch (err) {
+      console.error('Erro ao salvar estado do wizard:', err);
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [step, dept?.id, customers, piece?.id, topics, specs, topicSpecificsByCategory, categoryPromptIds, instruction]);
+
+  // Auto-save do rascunho: debounce 45s após última alteração; salva também ao trocar de etapa. Com anexos: PUT /ai/cases/draft/with-files (payload + arquivos); sem anexos: PUT /ai/cases/draft (JSON).
+  const prevStepRef = useRef(step);
+  useEffect(() => {
+    if (isRestoringRef.current) return;
+    saveWizardStateRef.current = saveWizardState;
+    const payload = buildDraftPayload();
+    draftPayloadRef.current = payload;
+    attachmentsRef.current = attachments;
+    commonAttachmentsRef.current = commonAttachments;
+    if (Object.keys(payload).length === 0) return;
+
+    const stepChanged = prevStepRef.current !== step;
+    prevStepRef.current = step;
+
+    const doSave = async () => {
+      const currentPayload = draftPayloadRef.current;
+      const currentAttachments = attachmentsRef.current;
+      const currentCommon = commonAttachmentsRef.current;
+      const hasAttachments = currentAttachments.length > 0 || currentCommon.length > 0;
+
+      try {
+        if (hasAttachments) {
+          // PUT /ai/cases/draft/with-files: payload (JSON) + arquivos na ordem attachmentsMeta, depois commonAttachmentsMeta. Total = attachmentsMeta.length + commonAttachmentsMeta.length.
+          const expectedCount = (currentPayload.attachmentsMeta?.length ?? 0) + (currentPayload.commonAttachmentsMeta?.length ?? 0);
+          const actualCount = currentAttachments.length + currentCommon.length;
+          if (expectedCount !== actualCount) {
+            console.warn(`Rascunho with-files: quantidade de arquivos (${actualCount}) não confere com metas (${expectedCount}).`);
+          }
+          const fd = new FormData();
+          fd.append('payload', JSON.stringify(currentPayload));
+          currentAttachments.forEach((a) => fd.append('file', a.file, a.file.name));
+          currentCommon.forEach((a) => fd.append('file', a.file, a.file.name));
+          await putCaseDraftWithFiles(fd);
+        } else {
+          await putCaseDraft(currentPayload);
+        }
+        // Atualiza o Redis (workspace) após salvar o rascunho para manter estado em sync
+        saveWizardStateRef.current().catch((err) => console.warn('Erro ao salvar estado do wizard no Redis:', err));
+      } catch (err) {
+        console.warn('Falha ao salvar rascunho automaticamente:', err);
+      }
+    };
+
+    if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+    if (stepChanged) {
+      doSave();
+    }
+    draftSaveTimerRef.current = setTimeout(() => {
+      draftSaveTimerRef.current = null;
+      doSave();
+    }, 45000);
+
+    return () => {
+      if (draftSaveTimerRef.current) {
+        clearTimeout(draftSaveTimerRef.current);
+        draftSaveTimerRef.current = null;
+      }
+    };
+  }, [step, dept?.id, customers.map(c => c.id).join('|'), piece?.id, topics.map(t => t.id).join('|'), specs.map(s => s.id).join('|'), topicSpecificsByCategory, categoryPromptIds, instruction, attachments, commonAttachments, buildDraftPayload, saveWizardState]);
+
   // Pré-visualização amigável para o Drawer
   const formPreview = useMemo(() => ({
     contentType: 'multipart/form-data' as const,
@@ -529,52 +805,6 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       downloading.current = false;
     }
   };
-
-  // Salva o estado completo do wizard no Redis (workspace) e sessionStorage (fallback)
-  const saveWizardState = useCallback(async () => {
-    if (isSavingRef.current) return; // Evita múltiplas chamadas simultâneas
-    if (isRestoringRef.current) return; // Não salva durante restauração
-    
-    try {
-      isSavingRef.current = true;
-      const state: WizardState = {
-        step,
-        deptId: dept?.id ?? null,
-        customerIds: customers.map(c => c.id),
-        pieceId: piece?.id ?? null,
-        topicIds: topics.map(t => t.id),
-        specIds: specs.map(s => s.id),
-        topicSpecificsByCategory: Object.keys(topicSpecificsByCategory || {}).length
-          ? topicSpecificsByCategory
-          : undefined,
-        categoryPromptIds: Object.keys(categoryPromptIds || {}).length ? categoryPromptIds : undefined,
-        instruction,
-        timestamp: Date.now()
-      };
-      
-      // Salva no Redis via workspace API
-      try {
-        await saveWorkspaceState({
-          context: 'case-wizard',
-          resourceId: null,
-          state: state as any,
-          metadata: {
-            url: window.location.pathname,
-            timestamp: new Date().toISOString()
-          }
-        });
-      } catch (redisErr) {
-        console.warn('Erro ao salvar estado no Redis, usando sessionStorage como fallback:', redisErr);
-      }
-      
-      // Mantém sessionStorage como fallback
-      sessionStorage.setItem('wizard_return_state', JSON.stringify(state));
-    } catch (err) {
-      console.error('Erro ao salvar estado do wizard:', err);
-    } finally {
-      isSavingRef.current = false;
-    }
-  }, [step, dept?.id, customers, piece?.id, topics, specs, topicSpecificsByCategory, categoryPromptIds, instruction]);
 
   // Salva automaticamente o estado no Redis quando os tópicos específicos ou tópicos mudarem
   useEffect(() => {
@@ -740,7 +970,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       canNext, maxStep, payloadPreview, validateAttachments, hasOcrErrors,
       downloadPieceDocx, downloadSpecDocx,
       buildFormData, buildCaseContextFormData, formPreview,
-      saveWizardState, restoreWizardState
+      saveWizardState, restoreWizardState,
+      buildDraftPayload, applyDraft
     }}>
       {children}
     </CaseWizardContext.Provider>

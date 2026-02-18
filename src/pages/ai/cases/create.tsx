@@ -15,6 +15,10 @@ import Stepper from '@mui/material/Stepper';
 import Step from '@mui/material/Step';
 import StepLabel from '@mui/material/StepLabel';
 import Drawer from '@mui/material/Drawer';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
 import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
@@ -23,7 +27,7 @@ import AIIcon from 'components/icons/AIIcon';
 import { CaseWizardProvider, useCaseWizard } from 'sections/ai/cases/CaseWizardContext';
 import StepDepartment from 'sections/ai/cases/steps/StepDepartment';
 import { openSnackbar } from 'api/snackbar';
-import { postCaseContext, type CaseContextResponseData, CONTESTATION_CATEGORIES, type CaseTopicSpecificInfo } from 'api/aiCases';
+import { postCaseContext, getCaseDraft, deleteCaseDraft, type CaseContextResponseData, type CaseDraftPayload, CONTESTATION_CATEGORIES, type CaseTopicSpecificInfo } from 'api/aiCases';
 import StepCustomer from 'sections/ai/cases/steps/StepCustomer';
 import StepPiece from 'sections/ai/cases/steps/StepPiece';
 import StepTopic from 'sections/ai/cases/steps/StepTopic';
@@ -60,7 +64,7 @@ function CreateCaseWizardInner() {
     dept, customers, piece, topic, topics, specs,
     pieceDetail, topicDetail, payloadPreview,
     downloadPieceDocx, buildFormData, buildCaseContextFormData, formPreview,
-    validateAttachments, hasOcrErrors, restoreWizardState
+    validateAttachments, hasOcrErrors, restoreWizardState, applyDraft
   } = useCaseWizard();
 
   const navigate = useNavigate();
@@ -79,15 +83,30 @@ function CreateCaseWizardInner() {
   const [initialChecklistCompleted, setInitialChecklistCompleted] = useState(false);
   const [initialChecklistData, setInitialChecklistData] = useState<Record<string, boolean> | null>(null);
 
-  // Restaura o estado completo do wizard se houver estado salvo
-  // O checklist inicial é sempre exibido ao entrar em criar caso
+  // Rascunho (GET ao abrir; continuar ou descartar)
+  const [draftDialogOpen, setDraftDialogOpen] = useState(false);
+  const [draftData, setDraftData] = useState<{ draft: CaseDraftPayload; updatedAt: string } | null>(null);
+
+  const DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+  // Ao abrir "Novo caso": GET rascunho; se existir e < 24h, oferta continuar/descartar. Senão, restaura sessionStorage se houver.
   useEffect(() => {
     (async () => {
       try {
+        const draftRes = await getCaseDraft();
+        if (draftRes.draft && draftRes.updatedAt) {
+          const updatedAt = new Date(draftRes.updatedAt).getTime();
+          if (Date.now() - updatedAt < DRAFT_EXPIRY_MS) {
+            setDraftData({ draft: draftRes.draft, updatedAt: draftRes.updatedAt });
+            setDraftDialogOpen(true);
+            setShowInitialChecklist(false);
+            return;
+          }
+        }
+        // Sem rascunho válido: restaura estado do sessionStorage (retorno) se houver
         const saved = sessionStorage.getItem('wizard_return_state');
         if (saved) {
           const parsed = JSON.parse(saved);
-          // Verifica se o estado não é muito antigo (mais de 2 horas)
           const twoHours = 2 * 60 * 60 * 1000;
           if (Date.now() - parsed.timestamp < twoHours && parsed.step !== undefined) {
             await restoreWizardState();
@@ -97,7 +116,6 @@ function CreateCaseWizardInner() {
               variant: 'alert',
               alert: { color: 'success' }
             } as any);
-            // Restaura dados do checklist para pré-preencher o dialog (se houver)
             const savedChecklist = sessionStorage.getItem('case_initial_checklist_data');
             if (savedChecklist) {
               try {
@@ -110,15 +128,52 @@ function CreateCaseWizardInner() {
             sessionStorage.removeItem('wizard_return_state');
           }
         }
-        // Checklist inicial: sempre exibir ao entrar em criar caso
         setShowInitialChecklist(true);
       } catch (err) {
-        console.error('Erro ao restaurar estado do wizard:', err);
+        console.error('Erro ao carregar rascunho ou restaurar estado:', err);
         setShowInitialChecklist(true);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Array vazio garante que só executa na montagem do componente
+  }, []);
+
+  const handleDraftContinue = async () => {
+    if (!draftData?.draft) return;
+    try {
+      await applyDraft(draftData.draft);
+      const hadAttachmentFiles = (draftData.draft.attachmentsMeta?.some((m) => m.fileId) ?? false) ||
+        (draftData.draft.commonAttachmentsMeta?.some((m) => m.fileId) ?? false);
+      setDraftData(null);
+      setDraftDialogOpen(false);
+      setInitialChecklistCompleted(true);
+      openSnackbar({
+        open: true,
+        message: hadAttachmentFiles
+          ? 'Rascunho restaurado (incluindo anexos).'
+          : 'Rascunho restaurado. Os anexos precisam ser adicionados novamente.',
+        variant: 'alert',
+        alert: { color: 'info' }
+      } as any);
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || 'Erro ao restaurar rascunho',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    }
+  };
+
+  const handleDraftDiscard = async () => {
+    try {
+      await deleteCaseDraft();
+    } catch (_) {
+      // ignora erro
+    }
+    setDraftData(null);
+    setDraftDialogOpen(false);
+    setShowInitialChecklist(true);
+  };
 
   const doSubmit = async () => {
     try {
@@ -146,6 +201,7 @@ function CreateCaseWizardInner() {
       // Ao receber 200 OK com caseResultId, vai direto para a tela de editar (sem abrir drawer de resultado)
       if (res?.caseResultId) {
         setRtOpen(false);
+        deleteCaseDraft().catch(() => {});
         navigate(`/ai/cases/${res.caseResultId}/edit`);
         return;
       }
@@ -576,9 +632,42 @@ function CreateCaseWizardInner() {
           onSkip={handleInitialChecklistSkip}
         />
 
+        {/* Dialog: rascunho encontrado (salvo em dd/mm às HH:mm). Continuar ou Descartar */}
+        <Dialog open={draftDialogOpen} onClose={() => {}} maxWidth="sm" fullWidth>
+          <DialogTitle>Rascunho encontrado</DialogTitle>
+          <DialogContent>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              {draftData?.updatedAt
+                ? `Seu rascunho foi salvo em ${formatDraftDate(draftData.updatedAt)}. Deseja continuar de onde parou?`
+                : 'Deseja continuar de onde parou?'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Se o rascunho incluir anexos, eles serão restaurados. Caso contrário, será necessário adicioná-los novamente.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDraftDiscard} color="inherit">
+              Descartar
+            </Button>
+            <Button onClick={handleDraftContinue} variant="contained">
+              Continuar
+            </Button>
+          </DialogActions>
+        </Dialog>
+
       </Grid>
     </Grid>
   );
+}
+
+function formatDraftDate(iso: string): string {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy} às ${hh}:${min}`;
 }
 
 function labelCustomers(arr: Array<{ displayName?: string; name?: string }> = []) {

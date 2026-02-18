@@ -59,6 +59,11 @@ export default function EditCasePage() {
   const [currentTab, setCurrentTab] = useState(0);
   const caseDataRef = useRef<CaseResult | null>(null);
   const hasRestoredStateRef = useRef(false);
+  /** Auto-save: 'idle' | 'saving' | 'saved' */
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedHtmlRef = useRef<string>('');
+  const initialLoadDoneRef = useRef(false);
 
   // Restaura estado do workspace ao carregar
   const { workspaceState } = useWorkspaceRestore({
@@ -128,7 +133,9 @@ export default function EditCasePage() {
         '';
       
       setHtml(htmlContent);
-      
+      lastSavedHtmlRef.current = htmlContent;
+      initialLoadDoneRef.current = true;
+
       // A restauração do checklist será feita automaticamente pelo useEffect que monitora caseData?.tags?.validationChecklist
     } catch (err: any) {
       openSnackbar({
@@ -158,6 +165,51 @@ export default function EditCasePage() {
     })();
   }, [id, navigate, loadCaseData]);
 
+  // Auto-save do HTML: debounce 3s após parar de digitar; html obrigatório (mín. 1 caractere)
+  useEffect(() => {
+    if (!id || !caseData || !initialLoadDoneRef.current) return;
+    if (html.trim().length < 1) return;
+    if (html === lastSavedHtmlRef.current) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      autoSaveTimerRef.current = null;
+      const htmlToSave = html;
+      try {
+        setAutoSaveStatus('saving');
+        const tags = {
+          ...(caseData?.tags || {}),
+          validationChecklist: checkedItems
+        };
+        await updateCaseResultHtml(id, {
+          html: htmlToSave,
+          tags,
+          replaceTags: false
+        });
+        lastSavedHtmlRef.current = htmlToSave;
+        setCaseData(prev => prev ? { ...prev, tags } : null);
+        caseDataRef.current = caseData ? { ...caseData, tags } : null;
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus('idle'), 2000);
+      } catch (err: any) {
+        setAutoSaveStatus('idle');
+        openSnackbar({
+          open: true,
+          message: err?.response?.data?.message || 'Falha ao salvar automaticamente',
+          variant: 'alert',
+          alert: { color: 'error' }
+        } as any);
+      }
+    }, 3000);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [html, id, caseData, checkedItems]);
+
   const handleSave = async () => {
     if (!id) return;
 
@@ -179,6 +231,7 @@ export default function EditCasePage() {
       const updatedCaseData = caseData ? { ...caseData, tags } : null;
       setCaseData(updatedCaseData);
       caseDataRef.current = updatedCaseData;
+      lastSavedHtmlRef.current = html;
 
       openSnackbar({
         open: true,
@@ -640,6 +693,11 @@ export default function EditCasePage() {
               </Menu>
             
             </>
+            {hasAnyPermission(['ai.cases.update']) && autoSaveStatus !== 'idle' && (
+              <Typography variant="caption" color={autoSaveStatus === 'saving' ? 'text.secondary' : 'success.main'}>
+                {autoSaveStatus === 'saving' ? 'Salvando…' : 'Salvo'}
+              </Typography>
+            )}
             <Button
               variant="contained"
               startIcon={<SaveOutlined />}
