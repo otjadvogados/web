@@ -22,7 +22,7 @@ import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
 import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
 import { openSnackbar } from 'api/snackbar';
-import { CONTESTATION_CATEGORIES } from 'api/aiCases';
+import { CONTESTATION_CATEGORIES, getContestationCategoryLabel } from 'api/aiCases';
 import { BRAND_GOLD } from 'config';
 import { useCaseWizard } from '../CaseWizardContext';
 import { testOcr, type OcrTestResponse } from 'api/aiDocs';
@@ -291,11 +291,14 @@ export default function StepAttachments() {
     const byId = new Map(specs.map((s) => [s.id, s]));
     const result: { label: string; specs: typeof specs }[] = [];
     if (hasCategories) {
-      for (const { code, label } of CONTESTATION_CATEGORIES) {
+      for (const { code } of CONTESTATION_CATEGORIES) {
         const ids = topicSpecificsByCategory[code] || [];
         const categorySpecs = ids.map((id) => byId.get(id)).filter(Boolean) as typeof specs;
         if (categorySpecs.length > 0) {
-          result.push({ label, specs: categorySpecs });
+          result.push({
+            label: getContestationCategoryLabel(code, categorySpecs.length),
+            specs: categorySpecs,
+          });
         }
       }
       const inCategory = new Set(result.flatMap((r) => r.specs.map((s) => s.id)));

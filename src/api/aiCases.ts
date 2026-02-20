@@ -25,7 +25,7 @@ export type CaseCommonAttachmentMeta = {
   fileId?: string;
 };
 
-/** Códigos de categoria da contestação (ordem oficial: Preliminares → Prejudiciais → Mérito e demais) */
+/** Códigos de categoria da contestação (ordem oficial: Preliminares → Prejudiciais → Contrato → Mérito → Impugnação → Pedidos Finais) */
 export type ContestationCategoryCode =
   | 'PRELIMINARES'
   | 'PREJUDICIAIS'
@@ -34,25 +34,65 @@ export type ContestationCategoryCode =
   | 'IMPUGNACAO_DOCS'
   | 'PEDIDOS_FINAIS';
 
-/** Rótulos para UI (selects, filtros, cabeçalhos) */
+/** Lista fixa dos códigos na ordem de exibição/montagem */
+export const CONTESTATION_CATEGORY_CODES: readonly ContestationCategoryCode[] = [
+  'PRELIMINARES',
+  'PREJUDICIAIS',
+  'CONTRATO',
+  'MERITO',
+  'IMPUGNACAO_DOCS',
+  'PEDIDOS_FINAIS',
+];
+
+/** Retorna a ordem oficial de códigos (para ordenar listas, abas, seções). */
+export function getContestationCategoryOrder(): ContestationCategoryCode[] {
+  return [...CONTESTATION_CATEGORY_CODES];
+}
+
+/** Valida se uma string é código válido de categoria. */
+export function isContestationCategoryCode(code: string): code is ContestationCategoryCode {
+  return CONTESTATION_CATEGORY_CODES.includes(code as ContestationCategoryCode);
+}
+
+/** Rótulos no plural / padrão (uso quando não há contagem ou sempre plural). */
 export const CONTESTATION_CATEGORY_LABELS: Record<ContestationCategoryCode, string> = {
-  PRELIMINARES: 'Preliminares',
-  PREJUDICIAIS: 'Prejudiciais',
-  CONTRATO: 'Contrato',
+  PRELIMINARES: 'Preliminares de mérito',
+  PREJUDICIAIS: 'Prejudiciais de mérito',
+  CONTRATO: 'Contrato de trabalho',
   MERITO: 'Mérito',
-  IMPUGNACAO_DOCS: 'Impugnação aos Documentos',
+  IMPUGNACAO_DOCS: 'Impugnações aos Documentos',
   PEDIDOS_FINAIS: 'Pedidos Finais',
 };
 
-/** Categorias fixas: ordem oficial, código (API) e rótulo para UI (uso em listagens e montagem do documento) */
-export const CONTESTATION_CATEGORIES: { order: number; code: ContestationCategoryCode; label: string }[] = [
-  { order: 1, code: 'PRELIMINARES', label: CONTESTATION_CATEGORY_LABELS.PRELIMINARES },
-  { order: 2, code: 'PREJUDICIAIS', label: CONTESTATION_CATEGORY_LABELS.PREJUDICIAIS },
-  { order: 3, code: 'CONTRATO', label: CONTESTATION_CATEGORY_LABELS.CONTRATO },
-  { order: 4, code: 'MERITO', label: CONTESTATION_CATEGORY_LABELS.MERITO },
-  { order: 5, code: 'IMPUGNACAO_DOCS', label: CONTESTATION_CATEGORY_LABELS.IMPUGNACAO_DOCS },
-  { order: 6, code: 'PEDIDOS_FINAIS', label: CONTESTATION_CATEGORY_LABELS.PEDIDOS_FINAIS },
-];
+/** Rótulos no singular (quando há nenhum ou 1 documento anexado na categoria). */
+const CONTESTATION_CATEGORY_LABELS_SINGULAR: Partial<Record<ContestationCategoryCode, string>> = {
+  PRELIMINARES: 'Preliminar de mérito',
+  PREJUDICIAIS: 'Prejudicial de mérito',
+  IMPUGNACAO_DOCS: 'Impugnação aos Documentos',
+  PEDIDOS_FINAIS: 'Pedido Final',
+};
+
+/**
+ * Rótulo da categoria para exibição na UI.
+ * Singular quando attachedDocumentCount é 0 ou 1; plural quando mais de um documento ou quando não informado.
+ * @param code — código da categoria
+ * @param attachedDocumentCount — número de documentos anexados nessa categoria (ex.: tópicos específicos com arquivo na categoria)
+ */
+export function getContestationCategoryLabel(code: ContestationCategoryCode, attachedDocumentCount?: number): string {
+  if (attachedDocumentCount === 0 || attachedDocumentCount === 1) {
+    const singular = CONTESTATION_CATEGORY_LABELS_SINGULAR[code];
+    if (singular) return singular;
+  }
+  return CONTESTATION_CATEGORY_LABELS[code];
+}
+
+/** Categorias fixas: ordem oficial, código e rótulo (plural) para UI. */
+export const CONTESTATION_CATEGORIES: { order: number; code: ContestationCategoryCode; label: string }[] =
+  CONTESTATION_CATEGORY_CODES.map((code, i) => ({
+    order: i + 1,
+    code,
+    label: CONTESTATION_CATEGORY_LABELS[code],
+  }));
 
 export type CaseContextFields = {
   departmentId: string;

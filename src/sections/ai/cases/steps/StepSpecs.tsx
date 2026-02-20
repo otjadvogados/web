@@ -26,7 +26,7 @@ import FormControl from '@mui/material/FormControl';
 import Checkbox from '@mui/material/Checkbox';
 import { listTopicSpecifics, AiTopicSpecific, getTopicSpecific } from 'api/aiTopicSpecifics';
 import { listPromptFolders, type Prompt } from 'api/prompts';
-import { CONTESTATION_CATEGORIES, type ContestationCategoryCode } from 'api/aiCases';
+import { CONTESTATION_CATEGORIES, getContestationCategoryLabel, type ContestationCategoryCode } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
 import { useCaseWizard } from '../CaseWizardContext';
 import { useNavigate } from 'react-router-dom';
@@ -60,8 +60,14 @@ export default function StepSpecs() {
   /** Prompts da API /ai/prompts (folders) — usamos prompt.id como categoryPromptIds */
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [categoryDrag, setCategoryDrag] = useState<{ code: ContestationCategoryCode; index: number } | null>(null);
+  /** Ref do item arrastado (para o onDrop ler valor atual, sem depender de state) */
+  const categoryDragRef = useRef<{ code: ContestationCategoryCode; index: number } | null>(null);
   /** Zona de drop em hover (código da categoria) para highlight */
   const [dragOverCategory, setDragOverCategory] = useState<ContestationCategoryCode | null>(null);
+  /** Item da lista sobre o qual o mouse está no drag (para highlight e drop mais sensível) */
+  const [dragOverItem, setDragOverItem] = useState<{ code: ContestationCategoryCode; index: number } | null>(null);
+  /** Inserir entre dois itens: { code, index } = soltar antes do item na posição index (0 = antes do primeiro) */
+  const [dragOverInsertAt, setDragOverInsertAt] = useState<{ code: ContestationCategoryCode; index: number } | null>(null);
   /** ID do tópico específico sendo arrastado (do pool) para feedback visual */
   const [draggingSpecId, setDraggingSpecId] = useState<string | null>(null);
   /** IDs selecionados no pool (para adicionar à categoria em lote) */
@@ -310,14 +316,28 @@ export default function StepSpecs() {
   const handleDragLeaveCategory = (e: React.DragEvent, code: ContestationCategoryCode) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragOverCategory((prev) => (prev === code ? null : prev));
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverCategory((prev) => (prev === code ? null : prev));
+      setDragOverItem((prev) => (prev?.code === code ? null : prev));
+      setDragOverInsertAt((prev) => (prev?.code === code ? null : prev));
+    }
   };
 
   const handleDropOnCategory = (e: React.DragEvent, code: ContestationCategoryCode) => {
     e.preventDefault();
     e.stopPropagation();
     setDragOverCategory(null);
+    setDragOverItem(null);
+    setDragOverInsertAt(null);
     setDraggingSpecId(null);
+    // Se o arraste veio de um item da mesma categoria (reordenação), não adicionar ao final
+    if (categoryDragRef.current?.code === code) {
+      setCategoryDrag(null);
+      categoryDragRef.current = null;
+      return;
+    }
+    setCategoryDrag(null);
+    categoryDragRef.current = null;
     const specId = e.dataTransfer.getData('text/plain');
     if (specId) addToCategory(code, specId);
   };
@@ -603,14 +623,15 @@ export default function StepSpecs() {
             Categorias da contestação
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Arraste os tópicos da lista acima para cada categoria. A ordem no documento é: Preliminares → Contrato → Mérito → Impugnação aos docs → Pedidos Finais.
+            Arraste os tópicos da lista acima para cada categoria. A ordem no documento é: Preliminares de mérito → Prejudiciais de mérito → Contrato de trabalho → Mérito → Impugnações aos Documentos → Pedidos Finais.
           </Typography>
           <Stack spacing={2}>
-            {CONTESTATION_CATEGORIES.map(({ code, label }) => {
+            {CONTESTATION_CATEGORIES.map(({ code }) => {
               const idsInThis = topicSpecificsByCategory?.[code] || [];
               const specsInThis = idsInThis
                 .map((id) => allOpts.find((o) => o.id === id))
                 .filter(Boolean) as AiTopicSpecific[];
+              const categoryLabel = getContestationCategoryLabel(code, idsInThis.length);
               const isDragOver = dragOverCategory === code;
               return (
                 <Paper
@@ -627,7 +648,7 @@ export default function StepSpecs() {
                 >
                   <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
                     <Typography fontWeight={700} variant="body2">
-                      {label}
+                      {categoryLabel}
                     </Typography>
                     <FormControl size="small" sx={{ minWidth: 200 }} disabled={loadingPrompts}>
                       <InputLabel id={`prompt-label-${code}`} shrink>
@@ -680,49 +701,169 @@ export default function StepSpecs() {
                     </Typography>
                   </Box>
                   {specsInThis.length > 0 && (
-                    <Stack spacing={0.75} sx={{ mt: 1.5 }}>
-                      {specsInThis.map((s, idx) => (
-                        <Paper
-                          key={s.id}
-                          variant="outlined"
-                          sx={{
-                            px: 1,
-                            py: 0.5,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.5,
-                            cursor: 'grab',
-                            borderColor: categoryDrag?.code === code && categoryDrag?.index === idx ? 'primary.main' : 'divider'
-                          }}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('text/plain', s.id);
-                            e.dataTransfer.effectAllowed = 'move';
-                            setCategoryDrag({ code, index: idx });
-                          }}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={() => {
-                            if (categoryDrag?.code === code && categoryDrag?.index !== idx) {
-                              reorderInCategory(code, categoryDrag.index, idx);
+                    <Stack spacing={0} sx={{ mt: 1.5 }}>
+                      {specsInThis.map((s, idx) => {
+                        const isDraggingThis = categoryDrag?.code === code && categoryDrag?.index === idx;
+                        const isDropTarget = dragOverItem?.code === code && dragOverItem?.index === idx;
+                        const insertAt = dragOverInsertAt?.code === code ? dragOverInsertAt.index : -1;
+                        return (
+                          <Stack key={s.id} spacing={0}>
+                            {/* Zona de soltar ENTRE itens: antes do item na posição idx */}
+                            <Box
+                              sx={{
+                                minHeight: 20,
+                                py: 0.5,
+                                mx: -0.5,
+                                borderRadius: 1,
+                                transition: 'background-color 0.15s',
+                                bgcolor: insertAt === idx ? 'primary.lighter' : 'transparent',
+                                borderTop: insertAt === idx ? '3px solid' : '3px solid transparent',
+                                borderColor: insertAt === idx ? 'primary.main' : 'transparent'
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = 'move';
+                                setDragOverInsertAt({ code, index: idx });
+                                setDragOverItem(null);
+                              }}
+                              onDragLeave={(e) => {
+                                e.stopPropagation();
+                                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                  setDragOverInsertAt((prev) => (prev?.code === code && prev?.index === idx ? null : prev));
+                                }
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setDragOverInsertAt(null);
+                                setDragOverItem(null);
+                                const from = categoryDragRef.current;
+                                if (from?.code === code) {
+                                  const toIdx = idx;
+                                  if (from.index !== toIdx) {
+                                    reorderInCategory(code, from.index, toIdx);
+                                  }
+                                }
+                                setCategoryDrag(null);
+                                categoryDragRef.current = null;
+                              }}
+                            />
+                            <Paper
+                              variant="outlined"
+                              sx={{
+                                px: 1.5,
+                                py: 1.25,
+                                minHeight: 48,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                cursor: 'grab',
+                                transition: 'background-color 0.15s, border-color 0.15s',
+                                borderColor: isDraggingThis ? 'primary.main' : isDropTarget ? 'primary.main' : 'divider',
+                                borderWidth: isDropTarget ? 2 : 1,
+                                bgcolor: isDropTarget ? 'action.hover' : undefined
+                              }}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('text/plain', s.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                                const payload = { code, index: idx };
+                                setCategoryDrag(payload);
+                                categoryDragRef.current = payload;
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = 'move';
+                                setDragOverItem({ code, index: idx });
+                                setDragOverInsertAt(null);
+                              }}
+                              onDragLeave={(e) => {
+                                e.stopPropagation();
+                                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                  setDragOverItem((prev) => (prev?.code === code && prev?.index === idx ? null : prev));
+                                }
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setDragOverItem(null);
+                                setDragOverInsertAt(null);
+                                const from = categoryDragRef.current;
+                                if (from?.code === code && from.index !== idx) {
+                                  reorderInCategory(code, from.index, idx);
+                                }
+                                setCategoryDrag(null);
+                                categoryDragRef.current = null;
+                              }}
+                              onDragEnd={() => {
+                                setCategoryDrag(null);
+                                setDragOverItem(null);
+                                setDragOverInsertAt(null);
+                                categoryDragRef.current = null;
+                              }}
+                              title="Arraste para reordenar nesta categoria ou solte em outra categoria"
+                            >
+                              <Typography variant="body2" noWrap sx={{ flex: 1, maxWidth: 240 }}>
+                                {s.name}
+                              </Typography>
+                              <IconButton
+                                size="small"
+                                onClick={(ev) => {
+                                  ev.stopPropagation();
+                                  removeFromCategory(code, s.id);
+                                }}
+                                sx={{ p: 0.25 }}
+                                title="Remover da categoria"
+                              >
+                                <CloseCircleOutlined style={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Paper>
+                          </Stack>
+                        );
+                      })}
+                      {/* Zona de soltar após o último item */}
+                      <Box
+                        sx={{
+                          minHeight: 20,
+                          py: 0.5,
+                          mx: -0.5,
+                          borderRadius: 1,
+                          transition: 'background-color 0.15s',
+                          bgcolor: dragOverInsertAt?.code === code && dragOverInsertAt?.index === specsInThis.length ? 'primary.lighter' : 'transparent',
+                          borderTop: dragOverInsertAt?.code === code && dragOverInsertAt?.index === specsInThis.length ? '3px solid' : '3px solid transparent',
+                          borderColor: dragOverInsertAt?.code === code && dragOverInsertAt?.index === specsInThis.length ? 'primary.main' : 'transparent'
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          e.dataTransfer.dropEffect = 'move';
+                          setDragOverInsertAt({ code, index: specsInThis.length });
+                          setDragOverItem(null);
+                        }}
+                        onDragLeave={(e) => {
+                          e.stopPropagation();
+                          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                            setDragOverInsertAt((prev) => (prev?.code === code && prev?.index === specsInThis.length ? null : prev));
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOverInsertAt(null);
+                          setDragOverItem(null);
+                          const from = categoryDragRef.current;
+                          if (from?.code === code) {
+                            const toIdx = specsInThis.length;
+                            if (from.index !== toIdx) {
+                              reorderInCategory(code, from.index, toIdx);
                             }
-                            setCategoryDrag(null);
-                          }}
-                          onDragEnd={() => setCategoryDrag(null)}
-                          title="Arraste para reordenar nesta categoria ou solte em outra categoria"
-                        >
-                          <Typography variant="body2" noWrap sx={{ flex: 1, maxWidth: 240 }}>
-                            {s.name}
-                          </Typography>
-                          <IconButton
-                            size="small"
-                            onClick={() => removeFromCategory(code, s.id)}
-                            sx={{ p: 0.25 }}
-                            title="Remover da categoria"
-                          >
-                            <CloseCircleOutlined style={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Paper>
-                      ))}
+                          }
+                          setCategoryDrag(null);
+                          categoryDragRef.current = null;
+                        }}
+                      />
                     </Stack>
                   )}
                 </Paper>

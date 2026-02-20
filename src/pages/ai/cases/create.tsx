@@ -27,7 +27,7 @@ import AIIcon from 'components/icons/AIIcon';
 import { CaseWizardProvider, useCaseWizard } from 'sections/ai/cases/CaseWizardContext';
 import StepDepartment from 'sections/ai/cases/steps/StepDepartment';
 import { openSnackbar } from 'api/snackbar';
-import { postCaseContext, getCaseDraft, deleteCaseDraft, type CaseContextResponseData, type CaseDraftPayload, CONTESTATION_CATEGORIES, type CaseTopicSpecificInfo } from 'api/aiCases';
+import { postCaseContext, getCaseDraft, deleteCaseDraft, type CaseContextResponseData, type CaseDraftPayload, getContestationCategoryLabel, isContestationCategoryCode, type CaseTopicSpecificInfo } from 'api/aiCases';
 import StepCustomer from 'sections/ai/cases/steps/StepCustomer';
 import StepPiece from 'sections/ai/cases/steps/StepPiece';
 import StepTopic from 'sections/ai/cases/steps/StepTopic';
@@ -325,25 +325,37 @@ function CreateCaseWizardInner() {
         </Stack>
       </Stack>
       {Array.isArray(result?._infos?.phase07?.topicSpecifics) ? (
-        <Stack spacing={1}>
-          <Typography variant="subtitle2" fontWeight={600}>HTMLs dos Tópicos Específicos:</Typography>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-            {(result!._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[]).map((ts: CaseTopicSpecificInfo) => (
-              ts?.html && ts?.name ? (
-                <Button
-                  key={ts.id || ts.name}
-                  size="small"
-                  variant="outlined"
-                  startIcon={<EyeOutlined />}
-                  onClick={() => setOpenTopicSpecificHtml(ts.id || ts.name)}
-                  title={ts.categoryCode ? `[${CONTESTATION_CATEGORIES.find((c) => c.code === ts.categoryCode)?.label}] ${ts.name}` : `Visualizar HTML: ${ts.name}`}
-                >
-                  {ts.categoryCode ? `${CONTESTATION_CATEGORIES.find((c) => c.code === ts.categoryCode)?.label}: ${ts.name}` : ts.name}
-                </Button>
-              ) : null
-            ))}
-          </Stack>
-        </Stack>
+        (() => {
+          const topicSpecificsList = result!._infos.phase07.topicSpecifics as CaseTopicSpecificInfo[];
+          const countByCategory = topicSpecificsList.reduce<Record<string, number>>((acc, t) => {
+            const code = t.categoryCode;
+            if (code && isContestationCategoryCode(code)) {
+              acc[code] = (acc[code] ?? 0) + 1;
+            }
+            return acc;
+          }, {});
+          return (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2" fontWeight={600}>HTMLs dos Tópicos Específicos:</Typography>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                {topicSpecificsList.map((ts: CaseTopicSpecificInfo) =>
+                  ts?.html && ts?.name ? (
+                    <Button
+                      key={ts.id || ts.name}
+                      size="small"
+                      variant="outlined"
+                      startIcon={<EyeOutlined />}
+                      onClick={() => setOpenTopicSpecificHtml(ts.id || ts.name)}
+                      title={ts.categoryCode ? `[${getContestationCategoryLabel(ts.categoryCode, countByCategory[ts.categoryCode])}] ${ts.name}` : `Visualizar HTML: ${ts.name}`}
+                    >
+                      {ts.categoryCode ? `${getContestationCategoryLabel(ts.categoryCode, countByCategory[ts.categoryCode])}: ${ts.name}` : ts.name}
+                    </Button>
+                  ) : null
+                )}
+              </Stack>
+            </Stack>
+          );
+        })()
       ) : null}
       {!result ? (
         <Paper variant="outlined" sx={{ p: 2, color: 'text.secondary' }}>Nenhum resultado para exibir.</Paper>
