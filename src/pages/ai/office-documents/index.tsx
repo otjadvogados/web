@@ -306,7 +306,7 @@ export default function AIOfficeDocumentsPage() {
   ), []);
 
   return (
-    <Permission resources={['ai.office-documents.read']}>
+    <Permission resources={['office-documents.read']}>
       <Grid container spacing={3}>
         <Grid size={12}>
           <MainCard title={titleNode} contentSX={{ p: 0 }}>
@@ -327,7 +327,7 @@ export default function AIOfficeDocumentsPage() {
                 <Button variant="text" onClick={onClearFilters} disabled={loading}>
                   Limpar
                 </Button>
-                <Permission resources={['ai.office-documents.create']}>
+                <Permission resources={['office-documents.create']}>
                   <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>
                     Novo Documento
                   </Button>
@@ -380,12 +380,12 @@ export default function AIOfficeDocumentsPage() {
                         )}
                       </Stack>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <Permission resources={['ai.office-documents.update']}>
+                        <Permission resources={['office-documents.update']}>
                           <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(doc)}>
                             Editar
                           </Button>
                         </Permission>
-                        <Permission resources={['ai.office-documents.delete']}>
+                        <Permission resources={['office-documents.delete']}>
                           <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(doc)}>
                             Excluir
                           </Button>
@@ -413,7 +413,7 @@ export default function AIOfficeDocumentsPage() {
                       <TableCell>Descrição</TableCell>
                       <TableCell>Arquivo</TableCell>
                       <TableCell>Criado em</TableCell>
-                      {hasAnyPermission(['ai.office-documents.update', 'ai.office-documents.delete']) && (
+                      {hasAnyPermission(['office-documents.update', 'office-documents.delete']) && (
                         <TableCell align="right">Ações</TableCell>
                       )}
                     </TableRow>
@@ -448,15 +448,15 @@ export default function AIOfficeDocumentsPage() {
                           </Stack>
                         </TableCell>
                         <TableCell>{doc.createdAt ? new Date(doc.createdAt).toLocaleString() : '—'}</TableCell>
-                        {hasAnyPermission(['ai.office-documents.update', 'ai.office-documents.delete']) && (
+                        {hasAnyPermission(['office-documents.update', 'office-documents.delete']) && (
                           <TableCell align="right">
                             <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                              <Permission resources={['ai.office-documents.update']}>
+                              <Permission resources={['office-documents.update']}>
                                 <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(doc)}>
                                   Editar
                                 </Button>
                               </Permission>
-                              <Permission resources={['ai.office-documents.delete']}>
+                              <Permission resources={['office-documents.delete']}>
                                 <Button size="small" color="error" startIcon={<DeleteOutlined />} onClick={() => requestDelete(doc)}>
                                   Excluir
                                 </Button>
@@ -468,7 +468,7 @@ export default function AIOfficeDocumentsPage() {
                     ))}
                     {!items.length && (
                       <TableRow>
-                        <TableCell colSpan={hasAnyPermission(['ai.office-documents.update', 'ai.office-documents.delete']) ? 5 : 4}>
+                        <TableCell colSpan={hasAnyPermission(['office-documents.update', 'office-documents.delete']) ? 5 : 4}>
                           <Stack alignItems="center" sx={{ py: 6 }}>
                             <Typography variant="body2" color="text.secondary">
                               {loading ? 'Carregando...' : 'Nenhum documento encontrado.'}

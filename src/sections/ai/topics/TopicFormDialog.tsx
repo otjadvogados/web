@@ -12,6 +12,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 import * as Yup from 'yup';
 import { Formik } from 'formik';
 
@@ -36,13 +38,15 @@ type Props = {
 const schemaCreate = Yup.object({
   name: Yup.string().required('Nome é obrigatório').min(2, 'Mínimo 2 caracteres'),
   pieceId: Yup.string().required('Peça é obrigatória'),
-  description: Yup.string().nullable().optional()
+  description: Yup.string().nullable().optional(),
+  redigirResumoLigado: Yup.boolean().optional()
 });
 
 const schemaEdit = Yup.object({
   name: Yup.string().min(2, 'Mínimo 2 caracteres').optional(),
   pieceId: Yup.string().required('Peça é obrigatória'),
-  description: Yup.string().nullable().optional()
+  description: Yup.string().nullable().optional(),
+  redigirResumoLigado: Yup.boolean().optional()
 });
 
 export default function TopicFormDialog({ open, onClose, editingId, initial, onSaved }: Props) {
@@ -94,7 +98,14 @@ export default function TopicFormDialog({ open, onClose, editingId, initial, onS
         initialValues={{
           name: initial?.name || '',
           pieceId: initial?.pieceId || '',
-          description: initial?.description ?? ''
+          description: initial?.description ?? '',
+          // API: true = com resumo (botão ligado), false = sem resumo (botão desligado). Form armazena esse estado; ao salvar enviamos writeWithoutSummary: !estado.
+          redigirResumoLigado: (() => {
+            if (initial == null) return true;
+            const raw = (initial as any)?.writeWithoutSummary ?? (initial as any)?.write_without_summary;
+            if (raw === undefined || raw === null) return false;
+            return raw === true;
+          })()
         }}
         validationSchema={isEdit ? schemaEdit : schemaCreate}
         onSubmit={async (values, { setSubmitting, setErrors }) => {
@@ -104,7 +115,11 @@ export default function TopicFormDialog({ open, onClose, editingId, initial, onS
               const payload: UpdateTopicDTO = {
                 name: values.name?.trim() || initial?.name,
                 pieceId: values.pieceId,
-                description: typeof values.description === 'string' ? (values.description?.trim() || null) : values.description ?? undefined
+                description: typeof values.description === 'string' ? (values.description?.trim() || null) : values.description ?? undefined,
+                writeWithoutSummary: typeof values.redigirResumoLigado === 'boolean' ? values.redigirResumoLigado : (() => {
+                const raw = (initial as any)?.writeWithoutSummary ?? (initial as any)?.write_without_summary;
+                return raw === true;
+              })()
               };
               await updateTopic(editingId, payload);
               openSnackbar({ open: true, message: 'Tópico atualizado!', variant: 'alert', alert: { color: 'success' } } as any);
@@ -112,7 +127,8 @@ export default function TopicFormDialog({ open, onClose, editingId, initial, onS
               await createTopic({
                 name: values.name.trim(),
                 pieceId: values.pieceId,
-                description: values.description?.trim() || null
+                description: values.description?.trim() || null,
+                writeWithoutSummary: values.redigirResumoLigado ?? true
               });
               openSnackbar({ open: true, message: 'Tópico criado!', variant: 'alert', alert: { color: 'success' } } as any);
             }
@@ -128,7 +144,7 @@ export default function TopicFormDialog({ open, onClose, editingId, initial, onS
           }
         }}
       >
-        {({ values, errors, touched, handleBlur, handleChange, handleSubmit, isSubmitting }) => (
+        {({ values, errors, touched, handleBlur, handleChange, handleSubmit, isSubmitting, setFieldValue }) => (
           <>
             <DialogContent dividers>
               <Stack spacing={2}>
@@ -178,6 +194,17 @@ export default function TopicFormDialog({ open, onClose, editingId, initial, onS
                     minRows={2}
                   />
                 </Stack>
+
+                {/* true = com resumo (ligado). Na API enviamos writeWithoutSummary com o mesmo valor (true = ligado, false = desligado). */}
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={Boolean(values.redigirResumoLigado)}
+                      onChange={() => setFieldValue('redigirResumoLigado', !values.redigirResumoLigado)}
+                    />
+                  }
+                  label="Redigir Resumo"
+                />
               </Stack>
             </DialogContent>
             <DialogActions>

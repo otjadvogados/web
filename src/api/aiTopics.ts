@@ -6,6 +6,8 @@ export type AiTopic = {
   pieceId: string;
   name: string;
   description?: string | null;
+  /** false = redigir com resumo (padrão); true = redigir sem resumo */
+  writeWithoutSummary?: boolean;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -57,6 +59,8 @@ export type CreateTopicDTO = {
   pieceId: string;
   name: string;
   description?: string | null;
+  /** false = redigir com resumo (padrão); true = redigir sem resumo */
+  writeWithoutSummary?: boolean;
 };
 
 export async function createTopic(payload: CreateTopicDTO) {
@@ -68,6 +72,8 @@ export type UpdateTopicDTO = Partial<{
   pieceId: string;      // mover para outra peça (opcional)
   name: string;
   description: string | null;
+  /** false = redigir com resumo; true = redigir sem resumo */
+  writeWithoutSummary: boolean;
 }>;
 
 export async function updateTopic(id: string, payload: UpdateTopicDTO) {

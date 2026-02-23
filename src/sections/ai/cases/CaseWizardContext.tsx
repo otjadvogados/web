@@ -689,11 +689,11 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
 
       try {
         if (hasAnyAttachment && hasNewFiles) {
-          // PUT /ai/cases/draft/with-files: payload (JSON) + apenas arquivos NOVOS (sem fileId), na ordem: attachmentsMeta, depois commonAttachmentsMeta.
+          // PUT /ai/cases/draft/with-files: payload (JSON) + todos os arquivos na ordem: attachmentsMeta (por index), depois commonAttachmentsMeta. Total = attachmentsMeta.length + commonAttachmentsMeta.length.
           const fd = new FormData();
           fd.append('payload', JSON.stringify(currentPayload));
-          currentAttachments.filter((a) => !a.fileId).forEach((a) => fd.append('file', a.file, a.file.name));
-          currentCommon.filter((a) => !a.fileId).forEach((a) => fd.append('file', a.file, a.file.name));
+          currentAttachments.forEach((a) => fd.append('file', a.file, a.file.name));
+          currentCommon.forEach((a) => fd.append('file', a.file, a.file.name));
           await putCaseDraftWithFiles(fd);
         } else if (hasAnyAttachment && !hasNewFiles) {
           // Todos os anexos já têm fileId (restaurados do rascunho): salva só o payload (JSON).

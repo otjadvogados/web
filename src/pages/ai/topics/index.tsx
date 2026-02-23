@@ -24,7 +24,7 @@ import MainCard from 'components/MainCard';
 import AIIcon from 'components/icons/AIIcon';
 import { openSnackbar } from 'api/snackbar';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
-import { listTopics, deleteTopic, AiTopic } from 'api/aiTopics';
+import { listTopics, getTopic, deleteTopic, AiTopic } from 'api/aiTopics';
 import { listPieces } from 'api/aiPieces';
 import TopicFormDialog from 'sections/ai/topics/TopicFormDialog';
 import Permission from 'components/Permission';
@@ -56,6 +56,7 @@ export default function AITopicsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
 
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
@@ -105,7 +106,24 @@ export default function AITopicsPage() {
   const onClearFilters = () => { setSearch(''); setPieceId(''); setPage(0); };
 
   const openCreate = () => { setEditId(null); setEditInitial(null); setFormOpen(true); };
-  const openEdit = (row: AiTopic) => { setEditId(row.id); setEditInitial(row); setFormOpen(true); };
+  const openEdit = async (row: AiTopic) => {
+    setLoadingEdit(true);
+    try {
+      const full = await getTopic(row.id);
+      setEditId(row.id);
+      setEditInitial(full);
+      setFormOpen(true);
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || 'Falha ao carregar tópico',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setLoadingEdit(false);
+    }
+  };
   const requestDelete = (row: AiTopic) => { setDeleteTarget({ id: row.id, name: row.name }); setDeleteOpen(true); };
 
   const columns = useMemo(() => ([
@@ -193,7 +211,7 @@ export default function AITopicsPage() {
                       )}
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <Permission resources={['ai.topics.update']}>
-                          <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(t)}>
+                          <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(t)} disabled={loadingEdit}>
                             Editar
                           </Button>
                         </Permission>
@@ -254,7 +272,7 @@ export default function AITopicsPage() {
                           <TableCell align="right">
                             <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                               <Permission resources={['ai.topics.update']}>
-                                <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(t)}>
+                                <Button size="small" color="secondary" startIcon={<EditOutlined />} onClick={() => openEdit(t)} disabled={loadingEdit}>
                                   Editar
                                 </Button>
                               </Permission>

@@ -42,7 +42,6 @@ const schemaCreate = Yup.object({
   topicId: Yup.string().required('Tópico é obrigatório'),
   instruction: Yup.string().nullable().optional(),
   allowAiEdit: Yup.boolean().optional(),
-  writeWithoutSummary: Yup.boolean().optional(),
   promptId: Yup.string().nullable().optional()
 });
 
@@ -51,7 +50,6 @@ const schemaEdit = Yup.object({
   topicId: Yup.string().optional(),
   instruction: Yup.string().nullable().optional(),
   allowAiEdit: Yup.boolean().optional(),
-  writeWithoutSummary: Yup.boolean().optional(),
   promptId: Yup.string().nullable().optional()
 });
 
@@ -129,7 +127,6 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
           topicId: initial?.topicId || '',
           instruction: initial?.instruction ?? '',
           allowAiEdit: initial?.allowAiEdit ?? true,
-          writeWithoutSummary: initial?.writeWithoutSummary ?? false,
           promptId: initial?.promptId ?? ''
         }}
         validationSchema={isEdit ? schemaEdit : schemaCreate}
@@ -142,7 +139,6 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
                 topicId: values.topicId || initial?.topicId,
                 instruction: typeof values.instruction === 'string' ? (values.instruction?.trim() || null) : values.instruction ?? undefined,
                 allowAiEdit: typeof values.allowAiEdit === 'boolean' ? values.allowAiEdit : initial?.allowAiEdit,
-                writeWithoutSummary: typeof values.writeWithoutSummary === 'boolean' ? values.writeWithoutSummary : initial?.writeWithoutSummary,
                 promptId: values.promptId?.trim() || null
               };
               await updateTopicSpecific(editingId, payload);
@@ -153,7 +149,6 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
                 topicId: values.topicId,
                 instruction: values.instruction?.trim() || null,
                 allowAiEdit: !!values.allowAiEdit,
-                writeWithoutSummary: !!values.writeWithoutSummary,
                 promptId: values.promptId?.trim() || null
               });
               openSnackbar({ open: true, message: 'Tópico específico criado!', variant: 'alert', alert: { color: 'success' } } as any);
@@ -270,16 +265,10 @@ export default function TopicSpecificFormDialog({ open, onClose, editingId, init
                   />
                 </Stack>
 
-                <Stack direction="row" flexWrap="wrap" gap={2}>
-                  <FormControlLabel
-                    control={<Switch checked={!!values.allowAiEdit} onChange={(e) => setFieldValue('allowAiEdit', e.target.checked)} />}
-                    label="Permitir IA editar o texto"
-                  />
-                  <FormControlLabel
-                    control={<Switch checked={!!values.writeWithoutSummary} onChange={(e) => setFieldValue('writeWithoutSummary', e.target.checked)} />}
-                    label="Redigir Resumo"
-                  />
-                </Stack>
+                <FormControlLabel
+                  control={<Switch checked={!!values.allowAiEdit} onChange={(e) => setFieldValue('allowAiEdit', e.target.checked)} />}
+                  label="Permitir IA editar o texto"
+                />
               </Stack>
             </DialogContent>
             <DialogActions>
