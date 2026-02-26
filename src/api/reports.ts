@@ -394,6 +394,68 @@ export async function deleteReport(reportId: string): Promise<void> {
   await axios.delete(`/reports/${reportId}`);
 }
 
+/** Extrai nome do arquivo do header Content-Disposition (para export PDF/DOCX). */
+function getFilenameFromContentDisposition(headers: { [key: string]: string }): string | null {
+  const cd = (headers?.['content-disposition'] || '') as string;
+  const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
+  if (m?.[1]) {
+    try {
+      return decodeURIComponent(m[1]);
+    } catch {
+      return m[1];
+    }
+  }
+  return null;
+}
+
+export type ExportFileResult = { blob: Blob; filename: string | null };
+
+/**
+ * Exporta relatório em PDF (download).
+ * Rota depende de onde o relatório está:
+ * - Pasta geral (sem cliente): GET /reports/:reportId/export-pdf (customerId = "general" ou ausente).
+ * - Relatório de cliente: GET /customers/:customerId/reports/:reportId/export-pdf.
+ */
+export async function exportReportPdf(
+  customerId: string,
+  reportId: string
+): Promise<ExportFileResult> {
+  const url =
+    !customerId || customerId === 'general'
+      ? `/reports/${reportId}/export-pdf`
+      : `/customers/${customerId}/reports/${reportId}/export-pdf`;
+  const res = await axios.get<Blob>(url, { responseType: 'blob' });
+  const blob = res.data;
+  if (!(blob instanceof Blob) || blob.size === 0) {
+    throw new Error(`Falha ao exportar relatório em PDF (HTTP ${res.status})`);
+  }
+  const filename = getFilenameFromContentDisposition((res.headers as Record<string, string>) || {});
+  return { blob, filename };
+}
+
+/**
+ * Exporta relatório em DOCX (download).
+ * Rota depende de onde o relatório está:
+ * - Pasta geral (sem cliente): GET /reports/:reportId/export-docx (customerId = "general" ou ausente).
+ * - Relatório de cliente: GET /customers/:customerId/reports/:reportId/export-docx.
+ */
+export async function exportReportDocx(
+  customerId: string,
+  reportId: string
+): Promise<ExportFileResult> {
+  const url =
+    !customerId || customerId === 'general'
+      ? `/reports/${reportId}/export-docx`
+      : `/customers/${customerId}/reports/${reportId}/export-docx`;
+  const res = await axios.get<Blob>(url, { responseType: 'blob' });
+  const blob = res.data;
+  if (!(blob instanceof Blob) || blob.size === 0) {
+    throw new Error(`Falha ao exportar relatório em DOCX (HTTP ${res.status})`);
+  }
+  const filename = getFilenameFromContentDisposition((res.headers as Record<string, string>) || {});
+  return { blob, filename };
+}
+
 // ==============================|| E-MAILS ||============================== //
 
 /**

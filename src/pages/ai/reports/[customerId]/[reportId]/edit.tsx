@@ -9,15 +9,20 @@ import Toolbar from '@mui/material/Toolbar';
 import Paper from '@mui/material/Paper';
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
 import SaveOutlined from '@ant-design/icons/SaveOutlined';
 import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
+import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
 import HtmlEditor from 'sections/ai/edit-case/HtmlEditor';
 import { 
   getReport, 
   updateReport, 
   finalizeCustomerReport,
   finalizeGeneralReport,
+  exportReportPdf,
+  exportReportDocx,
   CustomerReport, 
   ReportType,
   getCustomerReportEmails,
@@ -38,6 +43,9 @@ export default function EditReportPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingDocx, setExportingDocx] = useState(false);
+  const [downloadMenuAnchor, setDownloadMenuAnchor] = useState<null | HTMLElement>(null);
   const [reportData, setReportData] = useState<CustomerReport | null>(null);
   const [html, setHtml] = useState('');
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
@@ -280,6 +288,75 @@ export default function EditReportPage() {
     }
   };
 
+  const downloadBlob = (blob: Blob, filename: string | null, fallback: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || fallback;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPdf = async () => {
+    if (!reportId || !reportData) return;
+    try {
+      setDownloadMenuAnchor(null);
+      setExportingPdf(true);
+      const customerIdToUse = reportData.customerId || customerId || 'general';
+      const { blob, filename } = await exportReportPdf(customerIdToUse, reportId);
+      downloadBlob(blob, filename, 'relatorio.pdf');
+      openSnackbar({
+        open: true,
+        message: 'PDF baixado com sucesso.',
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || err?.message || 'Falha ao exportar PDF',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleExportDocx = async () => {
+    if (!reportId || !reportData) return;
+    try {
+      setDownloadMenuAnchor(null);
+      setExportingDocx(true);
+      const customerIdToUse = reportData.customerId || customerId || 'general';
+      const { blob, filename } = await exportReportDocx(customerIdToUse, reportId);
+      downloadBlob(blob, filename, 'relatorio.docx');
+      openSnackbar({
+        open: true,
+        message: 'DOCX baixado com sucesso.',
+        variant: 'alert',
+        alert: { color: 'success' }
+      } as any);
+    } catch (err: any) {
+      openSnackbar({
+        open: true,
+        message: err?.response?.data?.message || err?.message || 'Falha ao exportar DOCX',
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+    } finally {
+      setExportingDocx(false);
+    }
+  };
+
+  const handleDownloadMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setDownloadMenuAnchor(event.currentTarget);
+  };
+
+  const handleDownloadMenuClose = () => {
+    setDownloadMenuAnchor(null);
+  };
+
   const getReportTypeLabel = (type: ReportType) => {
     const labels: Partial<Record<ReportType, string>> = {
       [ReportType.RELATORIO_SENTENCA]: 'Relatório de Sentença',
@@ -360,6 +437,35 @@ export default function EditReportPage() {
                   {finalizing ? 'Finalizando...' : 'Finalizar e Enviar'}
                 </Button>
               )}
+
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={exportingPdf || exportingDocx ? <CircularProgress size={16} /> : <DownloadOutlined />}
+                  onClick={handleDownloadMenuOpen}
+                  disabled={exportingPdf || exportingDocx}
+                >
+                  {exportingPdf || exportingDocx ? 'Baixando...' : 'Baixar'}
+                </Button>
+                <Menu
+                  anchorEl={downloadMenuAnchor}
+                  open={Boolean(downloadMenuAnchor)}
+                  onClose={handleDownloadMenuClose}
+                >
+                  <MenuItem
+                    onClick={handleExportDocx}
+                    disabled={exportingPdf || exportingDocx}
+                  >
+                    Baixar DOCX
+                  </MenuItem>
+                  <MenuItem
+                    onClick={handleExportPdf}
+                    disabled={exportingPdf || exportingDocx}
+                  >
+                    Baixar PDF
+                  </MenuItem>
+                </Menu>
+              </>
 
               <Button
                 variant="contained"
