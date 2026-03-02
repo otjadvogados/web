@@ -9,8 +9,14 @@ import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Autocomplete from '@mui/material/Autocomplete';
 import Avatar from '@mui/material/Avatar';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Alert from '@mui/material/Alert';
 import { useTheme, alpha } from '@mui/material/styles';
 import UploadOutlined from '@ant-design/icons/UploadOutlined';
+import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
 
 import MainCard from 'components/MainCard';
 import Permission from 'components/Permission';
@@ -20,6 +26,8 @@ import useDebounced from 'utils/useDebounced';
 import { listCustomersAdvanced, type Customer, sortCustomersMatrizFilialPF } from 'api/customers';
 import { ReportType, generateReportFromFile } from 'api/reports';
 import ReportTabsLayout from 'sections/ai/reports/ReportTabsLayout';
+import { useReportFilesWithOcr } from 'sections/ai/reports/useReportFilesWithOcr';
+import ReportFileListWithOcr from 'sections/ai/reports/ReportFileListWithOcr';
 import CircularProgress from '@mui/material/CircularProgress';
 
 type OptionCust = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
@@ -30,12 +38,21 @@ export default function ProcessualReportPage() {
   const navigate = useNavigate();
   const theme = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [files, setFiles] = useState<File[]>([]);
+  const {
+    filesWithOcr,
+    files,
+    addFiles,
+    removeFile,
+    hasOcrError,
+    ocrErrorFileNames,
+    isVerifying
+  } = useReportFilesWithOcr();
   const [instructions, setInstructions] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<OptionCust | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [ocrErrorConfirmOpen, setOcrErrorConfirmOpen] = useState(false);
   
   // Estados para seletor de clientes
   const [customerOptions, setCustomerOptions] = useState<OptionCust[]>([]);
@@ -131,22 +148,18 @@ export default function ProcessualReportPage() {
     e.preventDefault();
     setIsDragging(false);
     const droppedFiles = Array.from(e.dataTransfer.files);
-    setFiles((prev) => [...prev, ...droppedFiles]);
+    addFiles(droppedFiles);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
-    setFiles((prev) => [...prev, ...selectedFiles]);
+    addFiles(selectedFiles);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleRemoveFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleGenerate = async () => {
+  const handleGenerateClick = () => {
     if (files.length === 0) {
       openSnackbar({
         open: true,
@@ -156,7 +169,15 @@ export default function ProcessualReportPage() {
       } as any);
       return;
     }
+    if (hasOcrError) {
+      setOcrErrorConfirmOpen(true);
+      return;
+    }
+    handleGenerate();
+  };
 
+  const handleGenerate = async () => {
+    setOcrErrorConfirmOpen(false);
     try {
       setGenerating(true);
       const params = {
@@ -312,6 +333,16 @@ export default function ProcessualReportPage() {
                 <Typography variant="h6" sx={{ mb: 2 }}>
                   Upload de Documentos
                 </Typography>
+                {hasOcrError && (
+                  <Alert severity="error" icon={<CloseCircleOutlined />} sx={{ mb: 1 }}>
+                    <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+                      Erro: Existem arquivos com erro de OCR. Remova-os ou confirme ao gerar para continuar mesmo assim.
+                    </Typography>
+                    <Typography variant="body2">
+                      Arquivos com erro: <strong>{ocrErrorFileNames.join(', ')}</strong>
+                    </Typography>
+                  </Alert>
+                )}
                 <Paper
                   variant="outlined"
                   onDragOver={handleDragOver}
@@ -352,18 +383,7 @@ export default function ProcessualReportPage() {
                     accept=".pdf,.doc,.docx,.txt,image/*,video/*,audio/*"
                   />
                 </Paper>
-                {files.length > 0 && (
-                  <Stack spacing={1} sx={{ mt: 2 }}>
-                    {files.map((file, index) => (
-                      <Paper key={index} variant="outlined" sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="body2">{file.name}</Typography>
-                        <Button size="small" onClick={() => handleRemoveFile(index)}>
-                          Remover
-                        </Button>
-                      </Paper>
-                    ))}
-                  </Stack>
-                )}
+                <ReportFileListWithOcr filesWithOcr={filesWithOcr} onRemove={removeFile} />
               </Box>
 
               {/* Instruções Adicionais */}
@@ -438,8 +458,8 @@ export default function ProcessualReportPage() {
                 <Button
                   variant="contained"
                   size="large"
-                  onClick={handleGenerate}
-                  disabled={files.length === 0 || generating}
+                  onClick={handleGenerateClick}
+                  disabled={files.length === 0 || generating || isVerifying}
                   startIcon={generating ? <CircularProgress size={20} /> : null}
                 >
                   {generating ? 'Gerando...' : 'Gerar Relatório'}
@@ -450,6 +470,23 @@ export default function ProcessualReportPage() {
           </MainCard>
         </Grid>
       </Grid>
+
+      {/* Diálogo de confirmação quando há erro de OCR */}
+      <Dialog open={ocrErrorConfirmOpen} onClose={() => setOcrErrorConfirmOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Atenção: Erro de OCR</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mt: 1 }}>
+            Alguns arquivos apresentaram erro de OCR. Recomendamos reenviar com PDF nativo ou imagem de melhor qualidade.
+            Deseja continuar mesmo assim?
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOcrErrorConfirmOpen(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={handleGenerate} color="primary">
+            Continuar mesmo assim
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Permission>
   );
 }
