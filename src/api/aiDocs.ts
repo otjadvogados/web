@@ -91,6 +91,8 @@ export async function convertHtmlToPdf(
 export type OcrTestResponse = {
   ocr: 'Sucesso' | 'Atenção' | 'Erro';
   message: string;
+  /** Quando true, o backend retorna 200 mas há um teste já em andamento; tratar como sucesso e não exibir "aguarde terminar". */
+  alreadyRunning?: boolean;
 };
 
 /**

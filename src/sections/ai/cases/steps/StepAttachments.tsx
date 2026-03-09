@@ -106,43 +106,68 @@ export default function StepAttachments() {
       // em múltiplas requisições (o stream pode ser consumido na primeira)
       const fileClone = new File([file], file.name, { type: file.type, lastModified: file.lastModified });
       const result = await testOcr(fileClone);
-      
-      // Salva o resultado no anexo
-      if (isCommon) {
-        updateCommonAttachmentOcr(attachmentId, result);
+
+      if (result.alreadyRunning) {
+        openSnackbar({
+          open: true,
+          message: 'Teste em andamento.',
+          variant: 'alert',
+          alert: { color: 'default' }
+        } as any);
       } else {
-        updateAttachmentOcr(attachmentId, result);
+        if (isCommon) {
+          updateCommonAttachmentOcr(attachmentId, result);
+        } else {
+          updateAttachmentOcr(attachmentId, result);
+        }
+        if (result.ocr === 'Sucesso') {
+          const desc = result.message?.trim();
+          const msg = desc
+            ? `OCR verificado: ${file.name}. ${desc.length > 220 ? desc.slice(0, 220) + '...' : desc}`
+            : `OCR verificado: ${file.name}`;
+          openSnackbar({
+            open: true,
+            message: msg,
+            variant: 'alert',
+            alert: { color: 'success' }
+          } as any);
+        } else if (result.ocr === 'Atenção') {
+          const desc = result.message?.trim();
+          const msg = desc
+            ? `Atenção no OCR: ${file.name}. ${desc.length > 220 ? desc.slice(0, 220) + '...' : desc}`
+            : `Atenção no OCR: ${file.name}`;
+          openSnackbar({
+            open: true,
+            message: msg,
+            variant: 'alert',
+            alert: { color: 'warning' }
+          } as any);
+        } else {
+          openSnackbar({
+            open: true,
+            message: result.message?.trim() || `Erro no OCR: ${file.name}`,
+            variant: 'alert',
+            alert: { color: 'error' }
+          } as any);
+        }
       }
-      
-      if (result.ocr === 'Sucesso') {
+    } catch (err: any) {
+      const isAlreadyRunning = err?.response?.data?.alreadyRunning === true;
+      if (isAlreadyRunning) {
         openSnackbar({
           open: true,
-          message: `OCR verificado: ${file.name}`,
+          message: 'Teste em andamento.',
           variant: 'alert',
-          alert: { color: 'success' }
-        } as any);
-      } else if (result.ocr === 'Atenção') {
-        openSnackbar({
-          open: true,
-          message: `Atenção no OCR: ${file.name}`,
-          variant: 'alert',
-          alert: { color: 'warning' }
+          alert: { color: 'default' }
         } as any);
       } else {
         openSnackbar({
           open: true,
-          message: `Erro no OCR: ${file.name}`,
+          message: `Falha ao verificar OCR de ${file.name}: ${err?.response?.data?.message || err?.message || 'Erro desconhecido'}`,
           variant: 'alert',
           alert: { color: 'error' }
         } as any);
       }
-    } catch (err: any) {
-      openSnackbar({
-        open: true,
-        message: `Falha ao verificar OCR de ${file.name}: ${err?.response?.data?.message || err?.message || 'Erro desconhecido'}`,
-        variant: 'alert',
-        alert: { color: 'error' }
-      } as any);
     } finally {
       setVerifyingOcr((prev) => {
         const next = new Set(prev);
