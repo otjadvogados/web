@@ -7,6 +7,8 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
 import { generateCustomerReports, generateGeneralReports, ReportType } from 'api/reports';
 import { openSnackbar } from 'api/snackbar';
 
@@ -18,8 +20,16 @@ type Props = {
   onSuccess?: (reports: any[]) => void;
 };
 
+type AiModel = 'gpt-5.1' | 'claude-sonnet-4-6';
+
+const MODEL_OPTIONS: { value: AiModel; label: string }[] = [
+  { value: 'gpt-5.1', label: 'GPT-5.1' },
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' }
+];
+
 export default function GenerateReportsDialog({ open, onClose, customerId, transcriptionId, onSuccess }: Props) {
   const [generating, setGenerating] = useState(false);
+  const [model, setModel] = useState<AiModel>('gpt-5.1');
 
   const handleGenerate = async () => {
     try {
@@ -28,11 +38,13 @@ export default function GenerateReportsDialog({ open, onClose, customerId, trans
       const reports = customerId
         ? await generateCustomerReports(customerId, {
             transcriptionId, // Aceita UUID ou tr_xxx
-            reportTypes: [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA]
+            reportTypes: [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA],
+            model
           })
         : await generateGeneralReports({
             transcriptionId, // Aceita UUID ou tr_xxx
-            reportTypes: [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA]
+            reportTypes: [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA],
+            model
           });
 
       openSnackbar({
@@ -73,6 +85,20 @@ export default function GenerateReportsDialog({ open, onClose, customerId, trans
           <Typography variant="body2" color="text.secondary">
             Após a geração, você será redirecionado para a edição do relatório.
           </Typography>
+          <TextField
+            select
+            label="Modelo"
+            size="small"
+            value={model}
+            onChange={(e) => setModel(e.target.value as AiModel)}
+            sx={{ mt: 1, maxWidth: 260 }}
+          >
+            {MODEL_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
         </Stack>
       </DialogContent>
       <DialogActions>

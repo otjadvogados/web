@@ -13,6 +13,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Alert from '@mui/material/Alert';
+import MenuItem from '@mui/material/MenuItem';
 import { useTheme, alpha } from '@mui/material/styles';
 import UploadOutlined from '@ant-design/icons/UploadOutlined';
 import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
@@ -48,6 +49,7 @@ export default function ProvisionamentoReportPage() {
     isVerifying
   } = useReportFilesWithOcr();
   const [instructions, setInstructions] = useState('');
+  const [model, setModel] = useState<'gpt-5.1' | 'claude-sonnet-4-6'>('gpt-5.1');
   const [isDragging, setIsDragging] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<OptionCust | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
@@ -188,7 +190,8 @@ export default function ProvisionamentoReportPage() {
         customerId: selectedCustomer?.id,
         reportTypes: [ReportType.RELATORIO_PROVISIONAMENTO_RISCO],
         promptId: selectedPrompt?.id,
-        additionalInstructions: instructions.trim() || undefined
+        additionalInstructions: instructions.trim() || undefined,
+        model
       };
       
       console.log('Gerando relatório com parâmetros:', {
@@ -354,6 +357,31 @@ export default function ProvisionamentoReportPage() {
                     />
                   )}
                 />
+              </Box>
+
+              {/* Modelo de IA */}
+              <Box>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.5}
+                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  sx={{ mb: 1.5 }}
+                >
+                  <TextField
+                    select
+                    label="Modelo de IA"
+                    size="small"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value as 'gpt-5.1' | 'claude-sonnet-4-6')}
+                    sx={{
+                      width: { xs: '100%', sm: 260 },
+                      minWidth: 200
+                    }}
+                  >
+                    <MenuItem value="gpt-5.1">GPT-5.1</MenuItem>
+                    <MenuItem value="claude-sonnet-4-6">Claude Sonnet 4.6</MenuItem>
+                  </TextField>
+                </Stack>
               </Box>
 
               {/* Upload de Documentos */}

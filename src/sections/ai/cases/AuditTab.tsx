@@ -12,6 +12,8 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
 import RightOutlined from '@ant-design/icons/RightOutlined';
 import {
@@ -22,7 +24,8 @@ import {
   type SpellingError,
   type PlaceholderIssue,
   type JurisprudenceIssue,
-  type MissingTopicInfo
+  type MissingTopicInfo,
+  type AiModel
 } from 'api/aiCases';
 import { openSnackbar } from 'api/snackbar';
 
@@ -31,9 +34,15 @@ type Props = {
   hasAudit?: boolean;
 };
 
+const MODEL_OPTIONS: { value: AiModel; label: string }[] = [
+  { value: 'gpt-5.1', label: 'GPT-5.1' },
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' }
+];
+
 export default function AuditTab({ caseId, hasAudit }: Props) {
   const [generatingAudit, setGeneratingAudit] = useState(false);
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [model, setModel] = useState<AiModel>('gpt-5.1');
   
   const [inconsistencies, setInconsistencies] = useState<Inconsistency[]>([]);
   const [uncomprehendedContexts, setUncomprehendedContexts] = useState<UncomprehendedContext[]>([]);
@@ -49,7 +58,7 @@ export default function AuditTab({ caseId, hasAudit }: Props) {
   const handleGenerateAudit = async () => {
     try {
       setGeneratingAudit(true);
-      await generateAudit(caseId);
+      await generateAudit(caseId, model);
       
       // Aguarda um pouco para garantir que o backend salvou a auditoria
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -167,8 +176,22 @@ export default function AuditTab({ caseId, hasAudit }: Props) {
 
   return (
     <Stack spacing={3} sx={{ p: 2 }}>
-      {/* Botões de ação */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+      {/* Modelo e botões de ação */}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+        <TextField
+          select
+          label="Modelo"
+          size="small"
+          value={model}
+          onChange={(e) => setModel(e.target.value as AiModel)}
+          sx={{ minWidth: 220, maxWidth: 260 }}
+        >
+          {MODEL_OPTIONS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
         <Button
           variant="contained"
           startIcon={generatingAudit ? <CircularProgress size={16} /> : <FileTextOutlined />}

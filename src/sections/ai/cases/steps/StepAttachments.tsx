@@ -22,6 +22,7 @@ import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
 import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
 import { openSnackbar } from 'api/snackbar';
+import MenuItem from '@mui/material/MenuItem';
 import { CONTESTATION_CATEGORIES, getContestationCategoryLabel } from 'api/aiCases';
 import { BRAND_GOLD } from 'config';
 import { useCaseWizard } from '../CaseWizardContext';
@@ -29,8 +30,28 @@ import { testOcr, type OcrTestResponse } from 'api/aiDocs';
 import { listPromptFolders, type Prompt } from 'api/prompts';
 import useDebounced from 'utils/useDebounced';
 
-export default function StepAttachments() {
-  const { instruction, setInstruction, specs, attachments, addAttachments, removeAttachment, validateAttachments, topics, commonAttachments, addCommonAttachments, removeCommonAttachment, updateAttachmentOcr, updateCommonAttachmentOcr, hasOcrErrors, dept, customers, topicSpecificsByCategory } = useCaseWizard();
+function StepAttachments() {
+  const {
+    instruction,
+    setInstruction,
+    specs,
+    attachments,
+    addAttachments,
+    removeAttachment,
+    validateAttachments,
+    topics,
+    commonAttachments,
+    addCommonAttachments,
+    removeCommonAttachment,
+    updateAttachmentOcr,
+    updateCommonAttachmentOcr,
+    hasOcrErrors,
+    dept,
+    customers,
+    topicSpecificsByCategory,
+    model,
+    setModel
+  } = useCaseWizard();
   const [verifyingOcr, setVerifyingOcr] = useState<Set<string>>(new Set());
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [ocrMessageDialog, setOcrMessageDialog] = useState<{ open: boolean; message: string; fileName: string }>({ open: false, message: '', fileName: '' });
@@ -391,6 +412,24 @@ export default function StepAttachments() {
         </Alert>
       )}
       
+      {/* Modelo de IA */}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
+        <TextField
+          select
+          label="Modelo de IA"
+          size="small"
+          value={model || 'gpt-5.1'}
+          onChange={(e) => setModel(e.target.value || null)}
+          sx={{
+            width: { xs: '100%', sm: 260 },
+            minWidth: 200
+          }}
+        >
+          <MenuItem value="gpt-5.1">GPT-5.1</MenuItem>
+          <MenuItem value="claude-sonnet-4-6">Claude Sonnet 4.6</MenuItem>
+        </TextField>
+      </Stack>
+
       {/* Seletor de Prompts */}
       <Autocomplete
         options={prompts}
@@ -783,3 +822,5 @@ export default function StepAttachments() {
     </Stack>
   );
 }
+
+export default StepAttachments;

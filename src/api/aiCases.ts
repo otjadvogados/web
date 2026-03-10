@@ -123,6 +123,8 @@ export type CaseContextFields = {
   commonAttachmentsMeta?: CaseCommonAttachmentMeta[];
   /** NOVO: dados do checklist inicial (para salvar no Redis) */
   initialChecklist?: Record<string, boolean>;
+  /** Modelo opcional de IA usado na criação do caso (ex.: "gpt-4o-mini", "claude-sonnet-4-6") */
+  model?: string;
 };
 
 /** Item de infos.topicSpecifics na resposta (pode vir com categoryCode quando montado por categorias) */
@@ -652,12 +654,17 @@ export async function detectPlaceholders(topicSpecificIds: string[]) {
 
 // ==============================|| AUDIT & QUESTIONS APIs ||============================== //
 
+export type AiModel = 'gpt-5.1' | `claude-${string}`;
+
 /**
  * POST /ai/cases/results/:id/audit - Gera apenas auditoria (inconsistências e contextos não compreendidos)
+ * Body: { model?: "gpt-4o-mini" | "claude-..." }
  */
-export async function generateAudit(id: string) {
+export async function generateAudit(id: string, model?: AiModel) {
+  const body = model ? { model } : {};
   const { data } = await axios.post<{ message: string; data: AuditData }>(
-    `/ai/cases/results/${id}/audit`
+    `/ai/cases/results/${id}/audit`,
+    body
   );
   // Mapeia unclearContexts para uncomprehendedContexts se necessário
   const auditData = data.data;
@@ -670,9 +677,11 @@ export async function generateAudit(id: string) {
 /**
  * POST /ai/cases/results/:id/questions/generate - Gera apenas perguntas
  */
-export async function generateQuestions(id: string) {
+export async function generateQuestions(id: string, model?: AiModel) {
+  const body = model ? { model } : {};
   const { data } = await axios.post<{ message: string; data: QuestionsData }>(
-    `/ai/cases/results/${id}/questions/generate`
+    `/ai/cases/results/${id}/questions/generate`,
+    body
   );
   return data.data;
 }

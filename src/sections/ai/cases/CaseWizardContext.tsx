@@ -54,6 +54,8 @@ type WizardState = {
   /** Mapa categoria → promptId (quando usa prompts por categoria) */
   categoryPromptIds?: Partial<Record<ContestationCategoryCode, string>>;
   instruction: string;
+  /** Modelo de IA opcional (ex.: "gpt-4o-mini", "claude-sonnet-4-6") */
+  model: string | null;
   timestamp: number;
 };
 
@@ -88,6 +90,7 @@ type Ctx = {
   setSpecDetails: (m: Record<string, OptionSpec>) => void;
   // instructions + attachments
   instruction: string; setInstruction: (t: string) => void;
+  model: string | null; setModel: (m: string | null) => void;
   attachments: CaseAttachmentItem[];
   setAttachments: (f: CaseAttachmentItem[]) => void;
   addAttachments: (topicSpecificId: string, box: AttachmentBox, files: File[]) => string[];
@@ -171,6 +174,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const [specDetails, setSpecDetails] = useState<Record<string, OptionSpec>>({});
 
   const [instruction, setInstruction] = useState('');
+  const [model, setModel] = useState<string | null>('gpt-4o-mini');
   const [attachments, setAttachments] = useState<CaseAttachmentItem[]>([]);
   const [commonAttachments, setCommonAttachments] = useState<CaseCommonAttachmentItem[]>([]);
 
@@ -429,6 +433,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       if (ts.length) fields.topicSpecificIds = ts;
     }
     if (instruction.trim()) fields.instruction = instruction.trim();
+    if (model) fields.model = model;
 
     // --- NOVO: meta dos anexos por spec + caixa ---
     const attachmentsMeta: CaseAttachmentMeta[] = attachments.map((a, index) => ({
@@ -485,6 +490,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       payload.topicSpecificIds = specs.map(s => s.id);
     }
     if (instruction.trim()) payload.instruction = instruction.trim();
+    if (model) payload.model = model;
     const attachmentsMeta: CaseAttachmentMeta[] = attachments.map((a, index) => ({
       index,
       topicSpecificId: a.topicSpecificId,
@@ -505,7 +511,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     }));
     if (commonAttachmentsMeta.length) payload.commonAttachmentsMeta = commonAttachmentsMeta;
     return payload;
-  }, [dept?.id, customers, piece?.id, topic?.id, topics, specs, topicSpecificsByCategory, categoryPromptIds, instruction, attachments, commonAttachments]);
+  }, [dept?.id, customers, piece?.id, topic?.id, topics, specs, topicSpecificsByCategory, categoryPromptIds, instruction, model, attachments, commonAttachments]);
 
   /**
    * Aplica um rascunho ao formulário (após GET /ai/cases/draft).
@@ -638,6 +644,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
           : undefined,
         categoryPromptIds: Object.keys(categoryPromptIds || {}).length ? categoryPromptIds : undefined,
         instruction,
+        model,
         timestamp: Date.now()
       };
 
@@ -663,7 +670,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     } finally {
       isSavingRef.current = false;
     }
-  }, [step, dept?.id, customers, piece?.id, topics, specs, topicSpecificsByCategory, categoryPromptIds, instruction]);
+  }, [step, dept?.id, customers, piece?.id, topics, specs, topicSpecificsByCategory, categoryPromptIds, instruction, model]);
 
   // Auto-save do rascunho: debounce 45s após última alteração; salva também ao trocar de etapa. Com anexos: PUT /ai/cases/draft/with-files (payload + arquivos); sem anexos: PUT /ai/cases/draft (JSON).
   const prevStepRef = useRef(step);
@@ -754,7 +761,8 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
         type: a.file.type,
         size: a.file.size,
         isCommon: true as const
-      }))
+      })),
+      model: model || null
     },
     attachments: attachments.map(a => ({
       name: a.file.name,
@@ -768,7 +776,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       type: a.file.type,
       size: a.file.size
     }))
-  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, topics.map(t=>t.id).join('|'), specs.map(s=>s.id).join('|'), topicSpecificsByCategory, categoryPromptIds, instruction, attachments.map(a=>a.id).join('|'), commonAttachments.map(a=>a.id).join('|')]);
+  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, topics.map(t=>t.id).join('|'), specs.map(s=>s.id).join('|'), topicSpecificsByCategory, categoryPromptIds, instruction, model, attachments.map(a=>a.id).join('|'), commonAttachments.map(a=>a.id).join('|')]);
 
   const downloading = useRef(false);
   const downloadPieceDocx = async () => {
@@ -930,6 +938,11 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
         setInstruction(state.instruction);
       }
 
+      // Restaura modelo
+      if (state.model) {
+        setModel(state.model);
+      }
+
       // Aguarda um pouco para garantir que todos os estados foram atualizados
       await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -964,6 +977,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       topicDetail, setTopicDetail,
       specDetails, setSpecDetails,
       instruction, setInstruction,
+      model, setModel,
       attachments, setAttachments,
       addAttachments, removeAttachment, clearAttachments, updateAttachmentOcr,
       commonAttachments, addCommonAttachments, removeCommonAttachment, updateCommonAttachmentOcr,

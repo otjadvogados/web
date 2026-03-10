@@ -89,6 +89,8 @@ export type TranscriptionWithReports = {
 export type GenerateReportsRequest = {
   transcriptionId: string;
   reportTypes: ReportType[];
+  /** Modelo opcional para geração (ex.: "gpt-4o-mini", "claude-sonnet-4-6") */
+  model?: string;
 };
 
 export type GenerateReportFromFileParams = {
@@ -98,6 +100,8 @@ export type GenerateReportFromFileParams = {
   reportTypes: ReportType[]; // Array com tipos de relatório
   promptId?: string; // UUID do prompt salvo (opcional)
   additionalInstructions?: string; // Prompt customizado (opcional)
+  /** Modelo opcional para geração (ex.: "gpt-4o-mini", "claude-sonnet-4-6") */
+  model?: string;
 };
 
 export type UpdateReportRequest = {
@@ -296,7 +300,12 @@ export async function generateReportFromFile(
     formData.append('additionalInstructions', params.additionalInstructions);
   }
   
-  // 5. URL baseada no cliente
+  // 5. Modelo (opcional)
+  if (params.model) {
+    formData.append('model', params.model);
+  }
+  
+  // 6. URL baseada no cliente
   const url = params.customerId
     ? `/customers/${params.customerId}/reports/generate`
     : `/reports/generate`;
