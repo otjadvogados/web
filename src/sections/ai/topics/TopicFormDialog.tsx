@@ -99,7 +99,7 @@ export default function TopicFormDialog({ open, onClose, editingId, initial, onS
           name: initial?.name || '',
           pieceId: initial?.pieceId || '',
           description: initial?.description ?? '',
-          // API: true = com resumo (botão ligado), false = sem resumo (botão desligado). Form armazena esse estado; ao salvar enviamos writeWithoutSummary: !estado.
+          // API: true = com resumo (botão ligado), false = sem resumo (botão desligado). Form armazena esse estado; ao salvar enviamos writeWithoutSummary com o MESMO valor.
           redigirResumoLigado: (() => {
             if (initial == null) return true;
             const raw = (initial as any)?.writeWithoutSummary ?? (initial as any)?.write_without_summary;

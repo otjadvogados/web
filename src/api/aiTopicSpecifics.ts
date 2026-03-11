@@ -7,7 +7,11 @@ export type AiTopicSpecific = {
   name: string;
   instruction?: string | null;
   allowAiEdit: boolean;
-  /** Redigir sem Resumo: IA não cria introdução/síntese; vai direto à contestação */
+  /**
+   * Controle de resumo/introdução:
+   * true  = IA redige COM resumo/introdução antes da contestação
+   * false = IA redige SEM resumo (vai direto à contestação / modo combate)
+   */
   writeWithoutSummary?: boolean;
   /** UUID do prompt da caixa; null = desvinculado. Instrução efetiva = conteúdo do prompt + instruction */
   promptId?: string | null;
