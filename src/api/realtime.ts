@@ -145,20 +145,21 @@ function attachSocketHandlers(baseUrl?: string) {
   wsRef.onopen = () => {
     connecting = false;
     // eslint-disable-next-line no-console
-    console.info('[realtime] open', { url, hasToken: !!token });
+    console.info('[realtime] WebSocket OPEN', url.replace(/\?.*/, ''));
     flushResolvers(client);
   };
 
   wsRef.onclose = (ev) => {
     connecting = false;
     // eslint-disable-next-line no-console
-    console.info('[realtime] close', { code: ev.code, reason: ev.reason });
+    console.info('[realtime] WebSocket CLOSE', { code: ev.code, reason: ev.reason || '—' });
     wsRef = null;
   };
 
-  wsRef.onerror = (ev) => {
+  wsRef.onerror = () => {
+    connecting = false;
     // eslint-disable-next-line no-console
-    console.warn('[realtime] error', ev);
+    console.warn('[realtime] WebSocket ERROR — verifique URL, CORS e se o servidor WS está no ar');
   };
 
   wsRef.onmessage = (ev) => {
@@ -168,14 +169,41 @@ function attachSocketHandlers(baseUrl?: string) {
     } catch {
       return;
     }
+    let eventName: string | null = payload?.event ?? null;
+    let data: any = payload?.data;
 
-    const event = payload?.event;
-    if (!event) return;
+    // Backend pode enviar { event, data } ou o objeto direto { kind, message, runId, ... }
+    if (!eventName && payload && typeof payload.kind === 'string' && typeof payload.message === 'string') {
+      eventName = 'case:progress';
+      data = payload;
+    }
 
-    const subs = listeners[event];
-    if (!subs || !subs.size) return;
+    if (!eventName) {
+      if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('[realtime] mensagem ignorada (sem event e não é progresso)', {
+          keys: Object.keys(payload ?? {}),
+          hasKind: typeof payload?.kind,
+          hasMessage: typeof payload?.message,
+        });
+      }
+      return;
+    }
 
-    const data = payload?.data;
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV && (eventName === 'case:progress' || eventName === 'report:progress')) {
+      // eslint-disable-next-line no-console
+      console.info('[realtime]', eventName, data?.kind, data?.message?.slice?.(0, 50));
+    }
+
+    const subs = listeners[eventName];
+    if (!subs || !subs.size) {
+      if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('[realtime] evento recebido mas sem listeners', eventName, '(overlay pode ainda não ter aberto/inscrito)');
+      }
+      return;
+    }
+
     for (const cb of Array.from(subs)) {
       try {
         cb(data);
@@ -187,9 +215,18 @@ function attachSocketHandlers(baseUrl?: string) {
 export function getRealtimeSocket(baseUrl?: string): RealtimeClient {
   const state = wsRef?.readyState;
   if (state === WebSocket.OPEN || state === WebSocket.CONNECTING || connecting) {
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) {
+      // eslint-disable-next-line no-console
+      console.debug('[realtime] getRealtimeSocket: reutilizando', { state: state ?? 'null', url: buildWsUrl(baseUrl).replace(/\?.*/, '') });
+    }
     return client;
   }
 
+  const url = buildWsUrl(baseUrl);
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) {
+    // eslint-disable-next-line no-console
+    console.info('[realtime] getRealtimeSocket: nova conexão', url.replace(/\?.*/, ''));
+  }
   attachSocketHandlers(baseUrl);
   return client;
 }

@@ -123,7 +123,7 @@ export type CaseContextFields = {
   commonAttachmentsMeta?: CaseCommonAttachmentMeta[];
   /** NOVO: dados do checklist inicial (para salvar no Redis) */
   initialChecklist?: Record<string, boolean>;
-  /** Modelo opcional de IA usado na criação do caso (ex.: "gpt-4o-mini", "claude-sonnet-4-6") */
+  /** Modelo opcional de IA usado na criação do caso (ex.: "gpt-4o-mini", "claude-sonnet-4") */
   model?: string;
 };
 

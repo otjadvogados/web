@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -19,8 +20,10 @@ import DownloadOutlined from '@ant-design/icons/DownloadOutlined';
 import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import MainCard from 'components/MainCard';
 import { openSnackbar } from 'api/snackbar';
+import Portal from '@mui/material/Portal';
 import TranscriptionViewDialog from 'sections/ai/transcribe/TranscriptionViewDialog';
 import GenerateReportsDialog from 'sections/ai/transcribe/GenerateReportsDialog';
+import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import Permission from 'components/Permission';
 import { TranscriptionRecord, TranscriptionFolder, listTranscriptionFolders, deleteTranscription } from 'api/aiTranscribe';
@@ -38,6 +41,10 @@ export default function TranscriptionFolderPage() {
   const [deleting, setDeleting] = useState(false);
   const [generateReportsDialogOpen, setGenerateReportsDialogOpen] = useState(false);
   const [selectedTranscriptionForReport, setSelectedTranscriptionForReport] = useState<TranscriptionRecord | null>(null);
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [progressRunId, setProgressRunId] = useState<string | null>(null);
+  const [reportGenerating, setReportGenerating] = useState(false);
+  const subscribedResolverRef = useRef<(() => void) | null>(null);
   const [search, setSearch] = useState('');
 
   const loadFolder = async () => {
@@ -167,6 +174,7 @@ export default function TranscriptionFolderPage() {
   };
 
   return (
+    <>
     <Grid container spacing={3}>
       <Grid size={12}>
         <MainCard
@@ -446,6 +454,19 @@ export default function TranscriptionFolderPage() {
           }}
           customerId={selectedTranscriptionForReport.customerId || (folder?.type === 'customer' ? folder.customerId : null)}
           transcriptionId={selectedTranscriptionForReport.id}
+          onOpenProgress={() => {
+            const p = new Promise<void>((resolve) => {
+              subscribedResolverRef.current = resolve;
+            });
+            flushSync(() => {
+              setProgressOpen(true);
+              setReportGenerating(true);
+            });
+            return p;
+          }}
+          onCloseProgress={() => setProgressOpen(false)}
+          onRunId={setProgressRunId}
+          onGeneratingChange={setReportGenerating}
           onSuccess={(reports) => {
             // Navega para o primeiro relatório gerado para edição
             if (reports && reports.length > 0 && reports[0]?.id) {
@@ -473,5 +494,21 @@ export default function TranscriptionFolderPage() {
         />
       )}
     </Grid>
+
+    {/* Overlay de progresso em tempo real (igual ao criar caso) */}
+    <Portal container={typeof document !== 'undefined' ? document.body : undefined}>
+      <RealtimeProgressOverlay
+        open={progressOpen || reportGenerating}
+        knownRunId={progressRunId ?? undefined}
+        onDetectRunId={(rid) => setProgressRunId(rid ?? null)}
+        onRequestClose={() => setProgressOpen(false)}
+        onSubscribed={() => {
+          subscribedResolverRef.current?.();
+          subscribedResolverRef.current = null;
+        }}
+        fallbackLabel="Gerando relatório…"
+      />
+    </Portal>
+    </>
   );
 }

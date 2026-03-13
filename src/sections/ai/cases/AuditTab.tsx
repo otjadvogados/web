@@ -36,7 +36,7 @@ type Props = {
 
 const MODEL_OPTIONS: { value: AiModel; label: string }[] = [
   { value: 'gpt-5.1', label: 'GPT-5.1' },
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' }
+  { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' }
 ];
 
 export default function AuditTab({ caseId, hasAudit }: Props) {

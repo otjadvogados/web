@@ -426,7 +426,7 @@ function StepAttachments() {
           }}
         >
           <MenuItem value="gpt-5.1">GPT-5.1</MenuItem>
-          <MenuItem value="claude-sonnet-4-6">Claude Sonnet 4.6</MenuItem>
+          <MenuItem value="claude-sonnet-4-5-20250929">Claude Sonnet 4.5</MenuItem>
         </TextField>
       </Stack>
 

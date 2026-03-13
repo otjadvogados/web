@@ -9,43 +9,71 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
-import { generateCustomerReports, generateGeneralReports, ReportType } from 'api/reports';
+import { generateCustomerReports, generateGeneralReports, ReportType, type CustomerReport } from 'api/reports';
 import { openSnackbar } from 'api/snackbar';
+import { ensureRealtimeConnected, getRealtimeSocket } from 'api/realtime';
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  customerId: string | null; // null para relatórios gerais
-  transcriptionId: string; // Aceita UUID ou tr_xxx
-  onSuccess?: (reports: any[]) => void;
+  customerId: string | null;
+  transcriptionId: string;
+  onSuccess?: (reports: CustomerReport[]) => void;
+  /** Abre o overlay no pai; pode retornar Promise que resolve quando o overlay chamar onSubscribed */
+  onOpenProgress?: () => void | Promise<void>;
+  /** Chamado ao fechar a tela de andamento */
+  onCloseProgress?: () => void;
+  /** Chamado quando a resposta trouxer runId (para filtrar eventos no overlay) */
+  onRunId?: (runId: string | null) => void;
+  /** Igual ao criar caso: overlay usa open={progressOpen || reportGenerating}; chamado ao iniciar/finalizar */
+  onGeneratingChange?: (generating: boolean) => void;
 };
 
-type AiModel = 'gpt-5.1' | 'claude-sonnet-4-6';
+type AiModel = 'gpt-5.1' | 'claude-sonnet-4-5-20250929';
 
 const MODEL_OPTIONS: { value: AiModel; label: string }[] = [
   { value: 'gpt-5.1', label: 'GPT-5.1' },
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' }
+  { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' }
 ];
 
-export default function GenerateReportsDialog({ open, onClose, customerId, transcriptionId, onSuccess }: Props) {
+export default function GenerateReportsDialog({
+  open,
+  onClose,
+  customerId,
+  transcriptionId,
+  onSuccess,
+  onOpenProgress,
+  onCloseProgress,
+  onRunId,
+  onGeneratingChange
+}: Props) {
   const [generating, setGenerating] = useState(false);
   const [model, setModel] = useState<AiModel>('gpt-5.1');
 
   const handleGenerate = async () => {
     try {
       setGenerating(true);
-      // Sempre gera apenas RELATORIO_AUDIENCIA_TRABALHISTA (único tipo disponível)
-      const reports = customerId
+      if (onGeneratingChange) onGeneratingChange(true);
+      const openPromise = onOpenProgress?.();
+      getRealtimeSocket();
+      await Promise.resolve(openPromise);
+      await ensureRealtimeConnected(2500);
+
+      const result = customerId
         ? await generateCustomerReports(customerId, {
-            transcriptionId, // Aceita UUID ou tr_xxx
+            transcriptionId,
             reportTypes: [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA],
             model
           })
         : await generateGeneralReports({
-            transcriptionId, // Aceita UUID ou tr_xxx
+            transcriptionId,
             reportTypes: [ReportType.RELATORIO_AUDIENCIA_TRABALHISTA],
             model
           });
+
+      const reports: CustomerReport[] = Array.isArray(result) ? result : result.data;
+      const runId = Array.isArray(result) ? null : result.runId;
+      if (runId) onRunId?.(runId);
 
       openSnackbar({
         open: true,
@@ -55,7 +83,7 @@ export default function GenerateReportsDialog({ open, onClose, customerId, trans
       } as any);
 
       onSuccess?.(reports);
-      handleClose();
+      onClose();
     } catch (err: any) {
       openSnackbar({
         open: true,
@@ -65,13 +93,13 @@ export default function GenerateReportsDialog({ open, onClose, customerId, trans
       } as any);
     } finally {
       setGenerating(false);
+      onGeneratingChange?.(false);
+      setTimeout(() => onCloseProgress?.(), 800);
     }
   };
 
   const handleClose = () => {
-    if (!generating) {
-      onClose();
-    }
+    if (!generating) onClose();
   };
 
   return (

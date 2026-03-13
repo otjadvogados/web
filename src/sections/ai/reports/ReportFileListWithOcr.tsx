@@ -104,7 +104,6 @@ export default function ReportFileListWithOcr({ filesWithOcr, onRemove }: Report
                       <IconButton
                         size="small"
                         onClick={() => setOcrMessageDialog({ open: true, message: entry.ocrResult!.message, fileName: f.name })}
-                        title="Ver mensagem do OCR"
                       >
                         <InfoCircleOutlined />
                       </IconButton>

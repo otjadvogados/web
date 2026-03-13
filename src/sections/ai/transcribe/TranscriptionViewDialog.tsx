@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -27,6 +28,8 @@ import { getTranscription, summarizeTranscription, deleteTranscription, Transcri
 import { openSnackbar } from 'api/snackbar';
 import ConfirmDeleteDialog from 'components/ConfirmDeleteDialog';
 import Permission from 'components/Permission';
+import Portal from '@mui/material/Portal';
+import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
 import GenerateReportsDialog from './GenerateReportsDialog';
 
 type Props = {
@@ -47,7 +50,10 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [generateReportsDialogOpen, setGenerateReportsDialogOpen] = useState(false);
-  
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [progressRunId, setProgressRunId] = useState<string | null>(null);
+  const [reportGenerating, setReportGenerating] = useState(false);
+  const subscribedResolverRef = useRef<(() => void) | null>(null);
   // Resumo salvo no banco (vem do campo summary da transcrição)
   const savedSummary = transcription?.summary;
 
@@ -260,6 +266,7 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
   };
 
   return (
+    <>
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -632,6 +639,19 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
           onClose={() => setGenerateReportsDialogOpen(false)}
           customerId={transcription.customerId}
           transcriptionId={transcriptionId}
+          onOpenProgress={() => {
+            const p = new Promise<void>((resolve) => {
+              subscribedResolverRef.current = resolve;
+            });
+            flushSync(() => {
+              setProgressOpen(true);
+              setReportGenerating(true);
+            });
+            return p;
+          }}
+          onCloseProgress={() => setProgressOpen(false)}
+          onRunId={setProgressRunId}
+          onGeneratingChange={setReportGenerating}
           onSuccess={(reports) => {
             // Navega para o primeiro relatório gerado para edição
             if (reports && reports.length > 0 && reports[0]?.id && transcription?.customerId) {
@@ -652,6 +672,22 @@ export default function TranscriptionViewDialog({ open, onClose, transcriptionId
         />
       )}
     </Dialog>
+
+    {/* Overlay de progresso em tempo real (igual ao criar caso) */}
+    <Portal container={typeof document !== 'undefined' ? document.body : undefined}>
+      <RealtimeProgressOverlay
+        open={progressOpen || reportGenerating}
+        knownRunId={progressRunId ?? undefined}
+        onDetectRunId={(rid) => setProgressRunId(rid ?? null)}
+        onRequestClose={() => setProgressOpen(false)}
+        onSubscribed={() => {
+          subscribedResolverRef.current?.();
+          subscribedResolverRef.current = null;
+        }}
+        fallbackLabel="Gerando relatório…"
+      />
+    </Portal>
+    </>
   );
 }
 

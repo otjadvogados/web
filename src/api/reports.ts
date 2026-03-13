@@ -93,6 +93,9 @@ export type GenerateReportsRequest = {
   model?: string;
 };
 
+/** Resposta do POST de geração: array direto ou { runId, data } quando o backend emite eventos realtime */
+export type GenerateReportsResponse = CustomerReport[] | { runId: string; data: CustomerReport[] };
+
 export type GenerateReportFromFileParams = {
   /** Arquivos a serem processados (todos enviados para a API) */
   files: File[];
@@ -231,23 +234,25 @@ export async function getReport(customerId: string, reportId: string): Promise<C
 /**
  * Gera relatórios para uma transcrição vinculada a um cliente
  * Endpoint: POST /customers/:customerId/reports/generate
+ * Quando o backend emite eventos realtime, retorna { runId, data }; senão retorna CustomerReport[].
  */
 export async function generateCustomerReports(
   customerId: string,
   request: GenerateReportsRequest
-): Promise<CustomerReport[]> {
-  const { data } = await axios.post<CustomerReport[]>(`/customers/${customerId}/reports/generate`, request);
+): Promise<GenerateReportsResponse> {
+  const { data } = await axios.post<GenerateReportsResponse>(`/customers/${customerId}/reports/generate`, request);
   return data;
 }
 
 /**
  * Gera relatórios gerais (sem cliente vinculado)
  * Endpoint: POST /reports/generate
+ * Quando o backend emite eventos realtime, retorna { runId, data }; senão retorna CustomerReport[].
  */
 export async function generateGeneralReports(
   request: GenerateReportsRequest
-): Promise<CustomerReport[]> {
-  const { data } = await axios.post<CustomerReport[]>(`/reports/generate`, request);
+): Promise<GenerateReportsResponse> {
+  const { data } = await axios.post<GenerateReportsResponse>(`/reports/generate`, request);
   return data;
 }
 
