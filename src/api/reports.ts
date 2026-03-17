@@ -94,7 +94,7 @@ export type GenerateReportsRequest = {
 };
 
 export type GenerateReportFromFileParams = {
-  /** Arquivos a serem processados (todos enviados para a API) */
+  /** Arquivos principais (petição etc.). Enviados no campo multipart "file". */
   files: File[];
   customerId?: string; // UUID ou "general" ou undefined (pasta geral)
   reportTypes: ReportType[]; // Array com tipos de relatório
@@ -102,6 +102,8 @@ export type GenerateReportFromFileParams = {
   additionalInstructions?: string; // Prompt customizado (opcional)
   /** Modelo opcional para geração (ex.: "gpt-4o-mini", "claude-sonnet-4-6") */
   model?: string;
+  /** Documentos só para extrair Endereço/Link, Modalidade e Vara (intimações, convites). Enviados no campo "locationFile". */
+  locationFiles?: File[];
 };
 
 export type UpdateReportRequest = {
@@ -122,6 +124,13 @@ export type ReportEmail = {
   email: string;
   label: string | null;
   createdAt: string;
+};
+
+/** Resposta do endpoint de extração de local/audiência (documentos para endereço, modalidade, vara). */
+export type ExtractLocalInfoResponse = {
+  enderecoOuLink: string | null;
+  modalidade: 'Presencial' | 'Virtual' | null;
+  vara: string | null;
 };
 
 export type CreateReportEmailRequest = {
@@ -286,7 +295,13 @@ export async function generateReportFromFile(
   params.files.forEach((file) => {
     formData.append('file', file);
   });
-  
+
+  if (params.locationFiles?.length) {
+    params.locationFiles.forEach((file) => {
+      formData.append('locationFile', file);
+    });
+  }
+
   // 2. Tipos de relatório (obrigatório - array como JSON string)
   formData.append('reportTypes', JSON.stringify(params.reportTypes));
   
@@ -339,6 +354,32 @@ export async function generateReportFromFile(
   // Fallback: retorna array vazio se formato inesperado
   console.warn('Formato de resposta inesperado, retornando array vazio. Resposta:', data);
   return [];
+}
+
+/**
+ * Extrai endereço/link, modalidade (Presencial/Virtual) e vara a partir de documentos
+ * (ex.: intimações, convites de audiência). Usado no campo de upload separado
+ * "Documentos para local/audiência" para preencher dados no relatório Pré-Audiência.
+ * Endpoint: POST /customers/:customerId/reports/extract-local-info
+ * Auth: reports.create
+ */
+export async function extractLocalInfo(
+  customerId: string,
+  files: File[]
+): Promise<ExtractLocalInfoResponse> {
+  if (!files?.length) {
+    throw new Error('É necessário enviar pelo menos um arquivo.');
+  }
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append('file', file);
+  });
+  const effectiveCustomerId = customerId && customerId !== 'general' ? customerId : 'general';
+  const url = `/customers/${effectiveCustomerId}/reports/extract-local-info`;
+  const { data } = await axios.post<ExtractLocalInfoResponse>(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
 }
 
 /**
