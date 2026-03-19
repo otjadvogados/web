@@ -42,6 +42,13 @@ export type CaseCommonAttachmentItem = {
   ocrResult?: OcrTestResponse;
 };
 
+// Documentos de processo (ex.: capa/intimação com Autos nº, despacho/intimação com Vara)
+export type CaseProcessAttachmentItem = {
+  id: string;
+  file: File;
+  ocrResult?: OcrTestResponse;
+};
+
 type WizardState = {
   step: number;
   deptId: string | null;
@@ -102,6 +109,11 @@ type Ctx = {
   addCommonAttachments: (files: File[]) => string[];
   removeCommonAttachment: (id: string) => void;
   updateCommonAttachmentOcr: (id: string, ocrResult: OcrTestResponse) => void;
+  // process attachments (docs de processo para NR_AUTOS / NR_VARA)
+  processAttachments: CaseProcessAttachmentItem[];
+  addProcessAttachments: (files: File[]) => string[];
+  removeProcessAttachment: (id: string) => void;
+  updateProcessAttachmentOcr: (id: string, ocrResult: OcrTestResponse) => void;
   // helpers
   canNext: (s: number) => boolean;
   maxStep: number;
@@ -177,6 +189,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   const [model, setModel] = useState<string | null>('gpt-4o-mini');
   const [attachments, setAttachments] = useState<CaseAttachmentItem[]>([]);
   const [commonAttachments, setCommonAttachments] = useState<CaseCommonAttachmentItem[]>([]);
+  const [processAttachments, setProcessAttachments] = useState<CaseProcessAttachmentItem[]>([]);
 
   const genId = () => {
     try {
@@ -230,6 +243,24 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     setCommonAttachments((prev) => prev.map((a) => (a.id === id ? { ...a, ocrResult } : a)));
   };
 
+  const addProcessAttachments = (filesToAdd: File[]): string[] => {
+    if (!filesToAdd?.length) return [];
+    const items = filesToAdd.map((file) => ({
+      id: genId(),
+      file
+    }));
+    setProcessAttachments((prev) => [...prev, ...items]);
+    return items.map((i) => i.id);
+  };
+
+  const removeProcessAttachment = (id: string) => {
+    setProcessAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const updateProcessAttachmentOcr = (id: string, ocrResult: OcrTestResponse) => {
+    setProcessAttachments((prev) => prev.map((a) => (a.id === id ? { ...a, ocrResult } : a)));
+  };
+
   // encadeamento de resets (desabilitado durante restauração)
   useEffect(() => { 
     if (isRestoringRef.current) return;
@@ -266,13 +297,16 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     setTopic(topics[0] ?? null);
   }, [topics]);
 
-  // Valida se há documentos para processar: arquivos em comum OU pelo menos 1 anexo por tópico (reclamante OU reclamada)
+    // Valida se há documentos para processar:
+    // - arquivos em comum
+    // - OU arquivos de processo (capa/intimação com Autos nº, despacho/intimação com Vara)
+    // - OU pelo menos 1 anexo por tópico (reclamante OU reclamada)
   const validateAttachments = () => {
     if (specs.length === 0) {
       return { valid: true, missingSpecs: [], missingBoxes: [] }; // se não há specs, não precisa validar
     }
-    // Se há arquivos em comum (ex.: petição inicial), já pode gerar
-    if (commonAttachments.length > 0) {
+    // Se há arquivos em comum/processo (ex.: petição inicial, capa, intimação, despacho), já pode gerar
+    if (commonAttachments.length > 0 || processAttachments.length > 0) {
       return { valid: true, missingSpecs: [], missingBoxes: [] };
     }
     const specIds = new Set(specs.map(s => s.id));
@@ -319,6 +353,13 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       }
     });
     
+    // Verifica anexos de processo
+    processAttachments.forEach((a) => {
+      if (a.ocrResult && a.ocrResult.ocr === 'Erro') {
+        errorFiles.push(a.file.name);
+      }
+    });
+
     return {
       hasErrors: errorFiles.length > 0,
       errorFiles
@@ -462,9 +503,13 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
     attachments.forEach((a) => {
       fd.append('attachments', a.file, a.file.name);
     });
-    // arquivos comuns em campo separado
+    // arquivos em comum (ex.: petição inicial) continuam no campo "commonAttachments"
     commonAttachments.forEach((a) => {
       fd.append('commonAttachments', a.file, a.file.name);
+    });
+    // documentos de processo em campo separado "processFile" (ex.: capa/intimação com Autos nº; despacho/intimação com Vara)
+    processAttachments.forEach((a) => {
+      fd.append('processFile', a.file, a.file.name);
     });
     return fd;
   };
@@ -733,7 +778,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
   }, [step, dept?.id, customers.map(c => c.id).join('|'), piece?.id, topics.map(t => t.id).join('|'), specs.map(s => s.id).join('|'), topicSpecificsByCategory, categoryPromptIds, instruction, attachments, commonAttachments, buildDraftPayload, saveWizardState]);
 
   // Pré-visualização amigável para o Drawer
-  const formPreview = useMemo(() => ({
+    const formPreview = useMemo(() => ({
     contentType: 'multipart/form-data' as const,
     fields: {
       departmentId: dept?.id ?? null,
@@ -775,8 +820,13 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       name: a.file.name,
       type: a.file.type,
       size: a.file.size
+    })),
+    processAttachments: processAttachments.map((a) => ({
+      name: a.file.name,
+      type: a.file.type,
+      size: a.file.size
     }))
-  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, topics.map(t=>t.id).join('|'), specs.map(s=>s.id).join('|'), topicSpecificsByCategory, categoryPromptIds, instruction, model, attachments.map(a=>a.id).join('|'), commonAttachments.map(a=>a.id).join('|')]);
+  }), [dept?.id, customers.map(c=>c.id).join('|'), piece?.id, topic?.id, topics.map(t=>t.id).join('|'), specs.map(s=>s.id).join('|'), topicSpecificsByCategory, categoryPromptIds, instruction, model, attachments.map(a=>a.id).join('|'), commonAttachments.map(a=>a.id).join('|'), processAttachments.map(a => a.id).join('|')]);
 
   const downloading = useRef(false);
   const downloadPieceDocx = async () => {
@@ -981,6 +1031,7 @@ export function CaseWizardProvider({ children }: { children: React.ReactNode }) 
       attachments, setAttachments,
       addAttachments, removeAttachment, clearAttachments, updateAttachmentOcr,
       commonAttachments, addCommonAttachments, removeCommonAttachment, updateCommonAttachmentOcr,
+      processAttachments, addProcessAttachments, removeProcessAttachment, updateProcessAttachmentOcr,
       canNext, maxStep, payloadPreview, validateAttachments, hasOcrErrors,
       downloadPieceDocx, downloadSpecDocx,
       buildFormData, buildCaseContextFormData, formPreview,

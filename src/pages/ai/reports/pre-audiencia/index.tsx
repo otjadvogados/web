@@ -54,6 +54,7 @@ export default function PreAudienciaReportPage() {
   const theme = useTheme();
   const [tab, setTab] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const localInfoFileInputRef = useRef<HTMLInputElement>(null);
   const {
     filesWithOcr,
     files,
@@ -63,9 +64,19 @@ export default function PreAudienciaReportPage() {
     ocrErrorFileNames,
     isVerifying
   } = useReportFilesWithOcr();
+  const {
+    filesWithOcr: localInfoFilesWithOcr,
+    files: localInfoFiles,
+    addFiles: addLocalInfoFiles,
+    removeFile: removeLocalInfoFile,
+    hasOcrError: hasLocalInfoOcrError,
+    ocrErrorFileNames: localInfoOcrErrorFileNames,
+    isVerifying: isVerifyingLocalInfo
+  } = useReportFilesWithOcr();
   const [instructions, setInstructions] = useState('');
   const [model, setModel] = useState<'gpt-5.1' | 'claude-sonnet-4-5-20250929'>('gpt-5.1');
   const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingLocalInfo, setIsDraggingLocalInfo] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<OptionCust | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -174,12 +185,82 @@ export default function PreAudienciaReportPage() {
     addFiles(droppedFiles);
   };
 
+  const MAX_LOCAL_INFO_FILES = 20;
+  const MAX_LOCAL_INFO_TOTAL_MB = 100;
+
+  const handleLocalInfoDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingLocalInfo(true);
+  };
+  const handleLocalInfoDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingLocalInfo(false);
+  };
+  const handleLocalInfoDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingLocalInfo(false);
+    const dropped = Array.from(e.dataTransfer.files);
+    if (!dropped.length) return;
+    const currentCount = localInfoFiles.length;
+    const toAdd = dropped.slice(0, Math.max(0, MAX_LOCAL_INFO_FILES - currentCount));
+    if (toAdd.length === 0) {
+      openSnackbar({
+        open: true,
+        message: `Máximo de ${MAX_LOCAL_INFO_FILES} arquivos para documentos de local/audiência`,
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+      return;
+    }
+    const totalBytes = [...localInfoFiles, ...toAdd].reduce((acc, f) => acc + f.size, 0);
+    if (totalBytes > MAX_LOCAL_INFO_TOTAL_MB * 1024 * 1024) {
+      openSnackbar({
+        open: true,
+        message: `Tamanho total dos arquivos não pode ultrapassar ${MAX_LOCAL_INFO_TOTAL_MB} MB`,
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+      return;
+    }
+    addLocalInfoFiles(toAdd);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     addFiles(selectedFiles);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleLocalInfoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    if (selected.length === 0) return;
+    const currentCount = localInfoFiles.length;
+    const toAdd = selected.slice(0, Math.max(0, MAX_LOCAL_INFO_FILES - currentCount));
+    if (toAdd.length === 0) {
+      openSnackbar({
+        open: true,
+        message: `Máximo de ${MAX_LOCAL_INFO_FILES} arquivos para documentos de local/audiência`,
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+      if (localInfoFileInputRef.current) localInfoFileInputRef.current.value = '';
+      return;
+    }
+    const totalBytes = [...localInfoFiles, ...toAdd].reduce((acc, f) => acc + f.size, 0);
+    if (totalBytes > MAX_LOCAL_INFO_TOTAL_MB * 1024 * 1024) {
+      openSnackbar({
+        open: true,
+        message: `Tamanho total dos arquivos não pode ultrapassar ${MAX_LOCAL_INFO_TOTAL_MB} MB`,
+        variant: 'alert',
+        alert: { color: 'error' }
+      } as any);
+      if (localInfoFileInputRef.current) localInfoFileInputRef.current.value = '';
+      return;
+    }
+    addLocalInfoFiles(toAdd);
+    if (localInfoFileInputRef.current) localInfoFileInputRef.current.value = '';
   };
 
   const handleGenerateClick = () => {
@@ -192,7 +273,8 @@ export default function PreAudienciaReportPage() {
       } as any);
       return;
     }
-    if (hasOcrError) {
+    const localInfoHasOcrError = localInfoFiles.length > 0 && hasLocalInfoOcrError;
+    if (hasOcrError || localInfoHasOcrError) {
       setOcrErrorConfirmOpen(true);
       return;
     }
@@ -220,7 +302,8 @@ export default function PreAudienciaReportPage() {
         reportTypes: [ReportType.RELATORIO_PRE_AUDIENCIA],
         promptId: selectedPrompt?.id,
         additionalInstructions: instructions.trim() || undefined,
-        model
+        model,
+        locationFiles: localInfoFiles.length > 0 ? localInfoFiles : undefined
       };
 
       const reports = await generateReportFromFile(params);
@@ -500,6 +583,64 @@ export default function PreAudienciaReportPage() {
                 <ReportFileListWithOcr filesWithOcr={filesWithOcr} onRemove={removeFile} />
               </Box>
 
+              {/* Documentos para local/audiência (upload igual ao de cima: arrastar/clique) */}
+              <Box>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                  Documentos para local/audiência
+                </Typography>
+                {hasLocalInfoOcrError && (
+                  <Alert severity="error" icon={<CloseCircleOutlined />} sx={{ mb: 1 }}>
+                    <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+                      Erro de OCR nos documentos de local/audiência. Remova-os ou confirme ao gerar.
+                    </Typography>
+                    <Typography variant="body2">
+                      Arquivos com erro: <strong>{localInfoOcrErrorFileNames.join(', ')}</strong>
+                    </Typography>
+                  </Alert>
+                )}
+                <Paper
+                  variant="outlined"
+                  onDragOver={handleLocalInfoDragOver}
+                  onDragLeave={handleLocalInfoDragLeave}
+                  onDrop={handleLocalInfoDrop}
+                  onClick={() => localInfoFileInputRef.current?.click()}
+                  sx={{
+                    border: `2px dashed ${isDraggingLocalInfo ? theme.palette.primary.main : theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 4,
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    bgcolor: isDraggingLocalInfo ? alpha(theme.palette.primary.main, 0.05) : 'transparent',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: theme.palette.primary.main,
+                      bgcolor: alpha(theme.palette.primary.main, 0.05)
+                    }
+                  }}
+                >
+                  <Stack spacing={2} alignItems="center">
+                    <UploadOutlined style={{ fontSize: 48, color: theme.palette.primary.main }} />
+                    <Box>
+                      <Typography variant="body1" fontWeight={600}>
+                        Arraste arquivos ou clique para selecionar
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        PDF, DOC, DOCX, TXT, imagens
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <input
+                    ref={localInfoFileInputRef}
+                    type="file"
+                    multiple
+                    style={{ display: 'none' }}
+                    accept=".pdf,.doc,.docx,.txt,image/*"
+                    onChange={handleLocalInfoFileSelect}
+                  />
+                </Paper>
+                <ReportFileListWithOcr filesWithOcr={localInfoFilesWithOcr} onRemove={removeLocalInfoFile} />
+              </Box>
+
               {/* Instruções Adicionais */}
               <Box>
                 <Typography variant="h6" sx={{ mb: 2 }}>
@@ -579,7 +720,7 @@ export default function PreAudienciaReportPage() {
                   variant="contained"
                   size="large"
                   onClick={handleGenerateClick}
-                  disabled={files.length === 0 || generating || isVerifying}
+                  disabled={files.length === 0 || generating || isVerifying || isVerifyingLocalInfo}
                   startIcon={generating ? <CircularProgress size={20} /> : null}
                 >
                   {generating ? 'Gerando...' : 'Gerar Relatório'}
@@ -668,6 +809,17 @@ export default function PreAudienciaReportPage() {
           <Alert severity="warning" sx={{ mt: 1 }}>
             Alguns arquivos apresentaram erro de OCR. Recomendamos reenviar com PDF nativo ou imagem de melhor qualidade.
             Deseja continuar mesmo assim?
+            {(ocrErrorFileNames.length > 0 || localInfoOcrErrorFileNames.length > 0) && (
+              <Typography variant="body2" sx={{ mt: 1.5 }}>
+                {ocrErrorFileNames.length > 0 && (
+                  <>Documentos principais: <strong>{ocrErrorFileNames.join(', ')}</strong></>
+                )}
+                {ocrErrorFileNames.length > 0 && localInfoOcrErrorFileNames.length > 0 && ' • '}
+                {localInfoOcrErrorFileNames.length > 0 && (
+                  <>Local/audiência: <strong>{localInfoOcrErrorFileNames.join(', ')}</strong></>
+                )}
+              </Typography>
+            )}
           </Alert>
         </DialogContent>
         <DialogActions>
