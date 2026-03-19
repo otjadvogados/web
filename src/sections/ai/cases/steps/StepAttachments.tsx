@@ -43,6 +43,9 @@ function StepAttachments() {
     commonAttachments,
     addCommonAttachments,
     removeCommonAttachment,
+    processAttachments,
+    addProcessAttachments,
+    removeProcessAttachment,
     updateAttachmentOcr,
     updateCommonAttachmentOcr,
     hasOcrErrors,
@@ -289,6 +292,43 @@ function StepAttachments() {
     await processFilesCommon(f);
   };
 
+  const processFilesProcess = async (files: File[]) => {
+    if (!files.length) return;
+    const valid = files.filter(isValidType);
+    if (valid.length !== files.length) {
+      openSnackbar({
+        open: true,
+        message: 'Alguns arquivos foram ignorados (somente PDF, DOCX e imagens).',
+        variant: 'alert',
+        alert: { color: 'warning' }
+      } as any);
+      if (!valid.length) return;
+    }
+    const attachmentIds = addProcessAttachments(valid);
+    setUploadingFiles((prev) => {
+      const next = new Set(prev);
+      attachmentIds.forEach((id) => next.add(id));
+      return next;
+    });
+    try {
+      await Promise.all(
+        valid.map((file, index) => verifyFileOcr(file, attachmentIds[index], true))
+      );
+    } finally {
+      setUploadingFiles((prev) => {
+        const next = new Set(prev);
+        attachmentIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    }
+  };
+
+  const handlePickProcess = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = Array.from(e.target.files || []);
+    e.target.value = '';
+    await processFilesProcess(f);
+  };
+
   const handleDragOver = (e: React.DragEvent, zone: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -315,6 +355,8 @@ function StepAttachments() {
     if (!files.length) return;
     if (zone === 'common') {
       processFilesCommon(files);
+    } else if (zone === 'process') {
+      processFilesProcess(files);
     } else {
       const sep = '::';
       const idx = zone.indexOf(sep);
@@ -490,69 +532,72 @@ function StepAttachments() {
         helperText="Instruções adicionais para o processamento do caso"
       />
 
-      {/* Campo de Arquivos em comum */}
+      {/* Campos de Arquivos em comum e Documentos de processo (lado a lado) */}
       {specs.length > 0 && (
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 1.5,
-            transition: 'border-color 0.2s, background-color 0.2s',
-            ...(dragOverZone === 'common'
-              ? { borderColor: 'primary.main', borderWidth: 2, bgcolor: 'action.hover' }
-              : {})
-          }}
-          onDragOver={(e) => handleDragOver(e, 'common')}
-          onDragLeave={(e) => handleDragLeave(e, 'common')}
-          onDrop={(e) => handleDrop(e, 'common')}
-        >
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
-            <Stack>
-              <Typography fontWeight={700}>Arquivos em comum</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Arquivos que serão aplicados a todos os tópicos específicos. Arraste e solte ou clique na área para selecionar.
-              </Typography>
-            </Stack>
-            <input
-              id="common-attachments-input"
-              type="file"
-              multiple
-              accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif"
-              style={{ display: 'none' }}
-              onChange={handlePickCommon}
-            />
-          </Stack>
-          <Box
-            component="label"
-            htmlFor="common-attachments-input"
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+          {/* Arquivos em comum */}
+          <Paper
+            variant="outlined"
             sx={{
-              border: '2px dashed',
-              borderColor: dragOverZone === 'common' ? 'primary.main' : 'divider',
-              borderRadius: 1,
-              py: 2,
-              px: 2,
-              textAlign: 'center',
-              bgcolor: dragOverZone === 'common' ? 'action.hover' : 'grey.50',
+              flex: 1,
+              p: 1.5,
               transition: 'border-color 0.2s, background-color 0.2s',
-              minHeight: 80,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 0.5,
-              cursor: isProcessingFiles ? 'not-allowed' : 'pointer'
+              ...(dragOverZone === 'common'
+                ? { borderColor: 'primary.main', borderWidth: 2, bgcolor: 'action.hover' }
+                : {})
             }}
+            onDragOver={(e) => handleDragOver(e, 'common')}
+            onDragLeave={(e) => handleDragLeave(e, 'common')}
+            onDrop={(e) => handleDrop(e, 'common')}
           >
-            <UploadOutlined style={{ fontSize: 28, color: dragOverZone === 'common' ? 'var(--mui-palette-primary-main)' : undefined }} />
-            <Typography variant="body2" color={dragOverZone === 'common' ? 'primary.main' : 'text.secondary'} fontWeight={500}>
-              {dragOverZone === 'common' ? 'Solte os arquivos aqui' : 'Arraste e solte ou clique para selecionar'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              PDF, DOCX ou imagens (PNG, JPEG, WebP, GIF)
-            </Typography>
-          </Box>
-          {commonAttachments.length > 0 && (
-            <Stack spacing={1} sx={{ mt: 1.5 }}>
-              {commonAttachments.map((a) => {
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
+              <Stack>
+                <Typography fontWeight={700}>Arquivos em comum</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Arquivos que serão aplicados a todos os tópicos específicos (ex.: petição inicial completa).
+                </Typography>
+              </Stack>
+              <input
+                id="common-attachments-input"
+                type="file"
+                multiple
+                accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif"
+                style={{ display: 'none' }}
+                onChange={handlePickCommon}
+              />
+            </Stack>
+            <Box
+              component="label"
+              htmlFor="common-attachments-input"
+              sx={{
+                border: '2px dashed',
+                borderColor: dragOverZone === 'common' ? 'primary.main' : 'divider',
+                borderRadius: 1,
+                py: 2,
+                px: 2,
+                textAlign: 'center',
+                bgcolor: dragOverZone === 'common' ? 'action.hover' : 'grey.50',
+                transition: 'border-color 0.2s, background-color 0.2s',
+                minHeight: 80,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0.5,
+                cursor: isProcessingFiles ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <UploadOutlined style={{ fontSize: 28, color: dragOverZone === 'common' ? 'var(--mui-palette-primary-main)' : undefined }} />
+              <Typography variant="body2" color={dragOverZone === 'common' ? 'primary.main' : 'text.secondary'} fontWeight={500}>
+                {dragOverZone === 'common' ? 'Solte os arquivos aqui' : 'Arraste e solte ou clique para selecionar'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                PDF, DOCX ou imagens (PNG, JPEG, WebP, GIF)
+              </Typography>
+            </Box>
+            {commonAttachments.length > 0 && (
+              <Stack spacing={1} sx={{ mt: 1.5 }}>
+                {commonAttachments.map((a) => {
                 const f = a.file as File;
                 const isImg = /^image\//i.test(f.type);
                 const isPdf = /^application\/pdf$/i.test(f.type);
@@ -601,11 +646,129 @@ function StepAttachments() {
                       </Stack>
                     </Stack>
                   </Paper>
-                );
-              })}
+                  );
+                })}
+              </Stack>
+            )}
+          </Paper>
+
+          {/* Documentos de processo (capa/intimação, despacho, etc.) */}
+          <Paper
+            variant="outlined"
+            sx={{
+              flex: 1,
+              p: 1.5,
+              transition: 'border-color 0.2s, background-color 0.2s',
+              ...(dragOverZone === 'process'
+                ? { borderColor: 'primary.main', borderWidth: 2, bgcolor: 'action.hover' }
+                : {})
+            }}
+            onDragOver={(e) => handleDragOver(e, 'process')}
+            onDragLeave={(e) => handleDragLeave(e, 'process')}
+            onDrop={(e) => handleDrop(e, 'process')}
+          >
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
+              <Stack>
+                <Typography fontWeight={700}>Documentos de processo</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Use para capa/intimação com Autos nº ou despacho/intimação com Vara (usado para extrair NR_AUTOS e NR_VARA).
+                </Typography>
+              </Stack>
+              <input
+                id="process-attachments-input"
+                type="file"
+                multiple
+                accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif"
+                style={{ display: 'none' }}
+                onChange={handlePickProcess}
+              />
             </Stack>
-          )}
-        </Paper>
+            <Box
+              component="label"
+              htmlFor="process-attachments-input"
+              sx={{
+                border: '2px dashed',
+                borderColor: dragOverZone === 'process' ? 'primary.main' : 'divider',
+                borderRadius: 1,
+                py: 2,
+                px: 2,
+                textAlign: 'center',
+                bgcolor: dragOverZone === 'process' ? 'action.hover' : 'grey.50',
+                transition: 'border-color 0.2s, background-color 0.2s',
+                minHeight: 80,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0.5,
+                cursor: isProcessingFiles ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <UploadOutlined style={{ fontSize: 28, color: dragOverZone === 'process' ? 'var(--mui-palette-primary-main)' : undefined }} />
+              <Typography variant="body2" color={dragOverZone === 'process' ? 'primary.main' : 'text.secondary'} fontWeight={500}>
+                {dragOverZone === 'process' ? 'Solte os arquivos aqui' : 'Arraste e solte ou clique para selecionar'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                PDF, DOCX ou imagens (PNG, JPEG, WebP, GIF)
+              </Typography>
+            </Box>
+            {processAttachments.length > 0 && (
+              <Stack spacing={1} sx={{ mt: 1.5 }}>
+                {processAttachments.map((a) => {
+                  const f = a.file as File;
+                  const isImg = /^image\//i.test(f.type);
+                  const isPdf = /^application\/pdf$/i.test(f.type);
+                  const isDocx = /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$/i.test(f.type);
+                  const url = URL.createObjectURL(f);
+                  const isUploading = uploadingFiles.has(a.id);
+                  const isVerifying = verifyingOcr.has(a.id);
+                  const isLoading = isUploading || isVerifying;
+                  const ocrStatusIcon = getOcrStatusIcon(a.ocrResult);
+                  return (
+                    <Paper variant="outlined" sx={{ p: 1 }} key={a.id}>
+                      <Stack direction="row" spacing={1.25} alignItems="center">
+                        <Box sx={{ width: 48, height: 48, borderRadius: 1, overflow: 'hidden', bgcolor: 'grey.100', display: 'grid', placeItems: 'center' }}>
+                          {isImg ? (
+                            <img src={url} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <Typography variant="caption">{isDocx ? 'DOCX' : (isPdf ? 'PDF' : 'ARQ')}</Typography>
+                          )}
+                        </Box>
+                        <Stack flex={1} minWidth={0}>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Typography noWrap title={f.name}>{f.name}</Typography>
+                            {isLoading && <CircularProgress size={12} />}
+                            {ocrStatusIcon && !isLoading && ocrStatusIcon}
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary">{(f.size / 1024).toFixed(1)} KB</Typography>
+                        </Stack>
+                        <Stack direction="row" spacing={0.5}>
+                          {a.ocrResult && (
+                            <Tooltip title="Ver mensagem do OCR">
+                              <IconButton 
+                                size="small" 
+                                onClick={() => handleShowOcrMessage(a.ocrResult!.message, f.name)}
+                                title="Ver mensagem do OCR"
+                              >
+                                <InfoCircleOutlined />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          <IconButton size="small" onClick={() => window.open(url, '_blank') as any} title="Visualizar arquivo">
+                            <EyeOutlined />
+                          </IconButton>
+                          <IconButton size="small" color="error" onClick={() => removeProcessAttachment(a.id)} title="Remover">
+                            <CloseOutlined />
+                          </IconButton>
+                        </Stack>
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            )}
+          </Paper>
+        </Stack>
       )}
 
       {!specs.length ? (
