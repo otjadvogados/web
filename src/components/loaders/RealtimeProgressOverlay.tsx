@@ -31,6 +31,7 @@ const PROGRESS_BY_PHASE: Record<string, number> = {
   '8': 80,
   '9': 95
 };
+const PROGRESS_EVENTS = ['case:progress', 'report:progress', 'reports:progress', 'ai:progress'] as const;
 
 function normalizeTs(ts?: string): number {
   if (!ts) return Date.now();
@@ -59,10 +60,11 @@ export default function RealtimeProgressOverlay({ open, knownRunId, onDetectRunI
     if (!open) return;
     const socket = getRealtimeSocket();
 
-    const onEvt = (evt: CaseProgressEvent) => {
+    const onEvt = (evt: CaseProgressEvent, eventName = 'unknown') => {
       // Proteção: só eventos posteriores à abertura do overlay
       const tsNum = normalizeTs(evt.ts);
-      if (tsNum + 10 < startRef.current) return;
+      // Tolerância maior para diferenças de relógio entre cliente/servidor.
+      if (evt.ts && tsNum + 120000 < startRef.current) return;
 
       // Seta runId, se ainda não temos e o evento trouxe algum
       if (activeRunId === undefined || activeRunId === null) {
@@ -82,10 +84,15 @@ export default function RealtimeProgressOverlay({ open, knownRunId, onDetectRunI
       ]);
     };
 
-    socket.on('case:progress', onEvt);
+    const handlers: Array<{ eventName: string; handler: (evt: CaseProgressEvent) => void }> = [];
+    PROGRESS_EVENTS.forEach((eventName) => {
+      const handler = (evt: CaseProgressEvent) => onEvt(evt, eventName);
+      handlers.push({ eventName, handler });
+      socket.on(eventName, handler);
+    });
 
     return () => {
-      socket.off('case:progress', onEvt);
+      handlers.forEach(({ eventName, handler }) => socket.off(eventName, handler));
     };
   }, [open, activeRunId, onDetectRunId]);
 

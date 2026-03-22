@@ -30,6 +30,8 @@ import ReportTabsLayout from 'sections/ai/reports/ReportTabsLayout';
 import { useReportFilesWithOcr } from 'sections/ai/reports/useReportFilesWithOcr';
 import ReportFileListWithOcr from 'sections/ai/reports/ReportFileListWithOcr';
 import CircularProgress from '@mui/material/CircularProgress';
+import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
+import { ensureRealtimeConnected } from 'api/realtime';
 
 type OptionCust = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
 
@@ -66,6 +68,8 @@ export default function ProcessualReportPage() {
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [generating, setGenerating] = useState(false);
   const [ocrErrorConfirmOpen, setOcrErrorConfirmOpen] = useState(false);
+  const [rtOpen, setRtOpen] = useState(false);
+  const [rtRunId, setRtRunId] = useState<string | null>(null);
   
   // Estados para seletor de clientes
   const [customerOptions, setCustomerOptions] = useState<OptionCust[]>([]);
@@ -266,6 +270,9 @@ export default function ProcessualReportPage() {
     setOcrErrorConfirmOpen(false);
     try {
       setGenerating(true);
+      setRtRunId(null);
+      setRtOpen(true);
+      await ensureRealtimeConnected(2500);
       const params = {
         files,
         customerId: selectedCustomer?.id,
@@ -314,6 +321,7 @@ export default function ProcessualReportPage() {
       } as any);
     } finally {
       setGenerating(false);
+      setTimeout(() => setRtOpen(false), 800);
     }
   };
 
@@ -669,6 +677,13 @@ export default function ProcessualReportPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <RealtimeProgressOverlay
+        open={rtOpen || generating}
+        knownRunId={rtRunId ?? undefined}
+        onDetectRunId={(rid) => setRtRunId(rid)}
+        onRequestClose={() => setRtOpen(false)}
+      />
     </Permission>
   );
 }

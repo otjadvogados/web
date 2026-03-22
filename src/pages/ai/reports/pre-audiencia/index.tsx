@@ -37,6 +37,8 @@ import {
 import FolderTile from 'sections/ai/transcribe/FolderTile';
 import { useReportFilesWithOcr } from 'sections/ai/reports/useReportFilesWithOcr';
 import ReportFileListWithOcr from 'sections/ai/reports/ReportFileListWithOcr';
+import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
+import { ensureRealtimeConnected } from 'api/realtime';
 
 type OptionCust = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
 
@@ -83,6 +85,8 @@ export default function PreAudienciaReportPage() {
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [generating, setGenerating] = useState(false);
   const [ocrErrorConfirmOpen, setOcrErrorConfirmOpen] = useState(false);
+  const [rtOpen, setRtOpen] = useState(false);
+  const [rtRunId, setRtRunId] = useState<string | null>(null);
   
   // Estados para pastas
   const [folders, setFolders] = useState<ReportFolderResponse[]>([]);
@@ -285,6 +289,9 @@ export default function PreAudienciaReportPage() {
     setOcrErrorConfirmOpen(false);
     try {
       setGenerating(true);
+      setRtRunId(null);
+      setRtOpen(true);
+      await ensureRealtimeConnected(2500);
 
       const params = {
         files,
@@ -354,6 +361,7 @@ export default function PreAudienciaReportPage() {
       } as any);
     } finally {
       setGenerating(false);
+      setTimeout(() => setRtOpen(false), 800);
     }
   };
 
@@ -829,6 +837,13 @@ export default function PreAudienciaReportPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <RealtimeProgressOverlay
+        open={rtOpen || generating}
+        knownRunId={rtRunId ?? undefined}
+        onDetectRunId={(rid) => setRtRunId(rid)}
+        onRequestClose={() => setRtOpen(false)}
+      />
     </Permission>
   );
 }

@@ -37,6 +37,8 @@ import { listReportFolders, type ReportFolderResponse, ReportType, generateRepor
 import FolderTile from 'sections/ai/transcribe/FolderTile';
 import { useReportFilesWithOcr } from 'sections/ai/reports/useReportFilesWithOcr';
 import ReportFileListWithOcr from 'sections/ai/reports/ReportFileListWithOcr';
+import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
+import { ensureRealtimeConnected } from 'api/realtime';
 
 type OptionCust = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
 
@@ -83,6 +85,8 @@ export default function DecisoesReportPage() {
   const [generating, setGenerating] = useState(false);
   const [ocrErrorConfirmOpen, setOcrErrorConfirmOpen] = useState(false);
   const [selectedReportType, setSelectedReportType] = useState<ReportType>(ReportType.RELATORIO_DECISOES_SENTENCA);
+  const [rtOpen, setRtOpen] = useState(false);
+  const [rtRunId, setRtRunId] = useState<string | null>(null);
   
   // Estados para tabs principais
   const [mainTab, setMainTab] = useState(0); // 0 = Gerar Relatório, 1 = Pastas
@@ -347,6 +351,9 @@ export default function DecisoesReportPage() {
     setOcrErrorConfirmOpen(false);
     try {
       setGenerating(true);
+      setRtRunId(null);
+      setRtOpen(true);
+      await ensureRealtimeConnected(2500);
       
       const params = {
         files,
@@ -405,6 +412,7 @@ export default function DecisoesReportPage() {
       } as any);
     } finally {
       setGenerating(false);
+      setTimeout(() => setRtOpen(false), 800);
     }
   };
 
@@ -967,6 +975,13 @@ export default function DecisoesReportPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <RealtimeProgressOverlay
+        open={rtOpen || generating}
+        knownRunId={rtRunId ?? undefined}
+        onDetectRunId={(rid) => setRtRunId(rid)}
+        onRequestClose={() => setRtOpen(false)}
+      />
     </Permission>
   );
 }

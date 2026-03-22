@@ -32,6 +32,8 @@ import { listReportFolders, type ReportFolderResponse, ReportType, generateRepor
 import FolderTile from 'sections/ai/transcribe/FolderTile';
 import { useReportFilesWithOcr } from 'sections/ai/reports/useReportFilesWithOcr';
 import ReportFileListWithOcr from 'sections/ai/reports/ReportFileListWithOcr';
+import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
+import { ensureRealtimeConnected } from 'api/realtime';
 
 type OptionCust = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
 
@@ -78,6 +80,8 @@ export default function PosAudienciaReportPage() {
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [generating, setGenerating] = useState(false);
   const [ocrErrorConfirmOpen, setOcrErrorConfirmOpen] = useState(false);
+  const [rtOpen, setRtOpen] = useState(false);
+  const [rtRunId, setRtRunId] = useState<string | null>(null);
   
   // Estados para pastas
   const [folders, setFolders] = useState<ReportFolderResponse[]>([]);
@@ -282,6 +286,9 @@ export default function PosAudienciaReportPage() {
     setOcrErrorConfirmOpen(false);
     try {
       setGenerating(true);
+      setRtRunId(null);
+      setRtOpen(true);
+      await ensureRealtimeConnected(2500);
       const params = {
         files,
         customerId: selectedCustomer?.id,
@@ -293,7 +300,30 @@ export default function PosAudienciaReportPage() {
       };
       const reports = await generateReportFromFile(params);
 
-      if (!reports || reports.length === 0) {
+      let reportToOpen = reports?.[0];
+
+      // Fallback: em alguns cenários a API pode criar o relatório, mas não retornar o array esperado.
+      // Nesse caso, busca o mais recente de pós-audiência para abrir automaticamente.
+      if (!reportToOpen) {
+        const foldersData = await listReportFolders();
+        const latestPosReport = foldersData
+          .flatMap((folder) => folder.reports || [])
+          .filter((report) => report.reportType === ReportType.RELATORIO_POS_AUDIENCIA)
+          .sort((a, b) => {
+            const aTs = new Date(a.updatedAt || a.createdAt).getTime();
+            const bTs = new Date(b.updatedAt || b.createdAt).getTime();
+            return bTs - aTs;
+          })[0];
+
+        if (latestPosReport) {
+          reportToOpen = {
+            ...(latestPosReport as any),
+            customerId: (latestPosReport as any).customerId ?? null
+          } as any;
+        }
+      }
+
+      if (!reportToOpen) {
         openSnackbar({
           open: true,
           message: 'Nenhum relatório foi criado. Verifique os logs do servidor.',
@@ -305,21 +335,16 @@ export default function PosAudienciaReportPage() {
 
       openSnackbar({
         open: true,
-        message: `Relatório gerado com sucesso! ${reports.length} relatório(s) criado(s).`,
+        message: `Relatório gerado com sucesso!`,
         variant: 'alert',
         alert: { color: 'success' }
       } as any);
 
-      if (reports.length > 0) {
-        const firstReport = reports[0];
-        const customerIdToUse = firstReport.customerId || 'general';
-        const backToParams = new URLSearchParams();
-        backToParams.set('reportTypeFilter', ReportType.RELATORIO_POS_AUDIENCIA);
-        const backTo = `/ai/reports/${customerIdToUse}?${backToParams.toString()}`;
-        navigate(`/ai/reports/${customerIdToUse}/${firstReport.id}/edit`, { state: { backTo } });
-      } else {
-        setTimeout(() => navigate('/ai/reports'), 1500);
-      }
+      const customerIdToUse = (reportToOpen as any).customerId || 'general';
+      const backToParams = new URLSearchParams();
+      backToParams.set('reportTypeFilter', ReportType.RELATORIO_POS_AUDIENCIA);
+      const backTo = `/ai/reports/${customerIdToUse}?${backToParams.toString()}`;
+      navigate(`/ai/reports/${(reportToOpen as any).customerId || 'general'}/${reportToOpen.id}/edit`, { state: { backTo } });
     } catch (err: any) {
       console.error('Erro ao gerar relatório:', err);
       openSnackbar({
@@ -330,6 +355,7 @@ export default function PosAudienciaReportPage() {
       } as any);
     } finally {
       setGenerating(false);
+      setTimeout(() => setRtOpen(false), 800);
     }
   };
 
@@ -559,7 +585,7 @@ export default function PosAudienciaReportPage() {
                 <ReportFileListWithOcr filesWithOcr={filesWithOcr} onRemove={removeFile} />
               </Box>
 
-              {/* Documentos para local/audiência */}
+              {/* Documentos para local/audiência (upload igual ao de cima: arrastar/clique) */}
               <Box>
                 <Typography variant="h6" sx={{ mb: 2 }}>
                   Documentos para local/audiência
@@ -627,6 +653,8 @@ export default function PosAudienciaReportPage() {
                 <Autocomplete
                   options={prompts}
                   loading={loadingPrompts}
+                  value={selectedPrompt}
+                  onChange={(_, value) => setSelectedPrompt(value)}
                   getOptionLabel={(option) => option.name}
                   filterOptions={(x) => {
                     if (!dPromptSearch.trim()) return x;
@@ -636,10 +664,9 @@ export default function PosAudienciaReportPage() {
                       p.description.toLowerCase().includes(term)
                     );
                   }}
-                  value={selectedPrompt}
                   inputValue={promptSearch}
                   onInputChange={(_, value) => setPromptSearch(value)}
-                  onChange={(_, value) => setSelectedPrompt(value)}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -666,7 +693,6 @@ export default function PosAudienciaReportPage() {
                       </Stack>
                     </Box>
                   )}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
                   sx={{ mb: 2 }}
                 />
                 
@@ -799,6 +825,13 @@ export default function PosAudienciaReportPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <RealtimeProgressOverlay
+        open={rtOpen || generating}
+        knownRunId={rtRunId ?? undefined}
+        onDetectRunId={(rid) => setRtRunId(rid)}
+        onRequestClose={() => setRtOpen(false)}
+      />
     </Permission>
   );
 }
