@@ -20,11 +20,11 @@ type Props = {
   onSuccess?: (reports: any[]) => void;
 };
 
-type AiModel = 'gpt-5.1' | 'claude-sonnet-4-6';
+type AiModel = 'gpt-5.1' | 'claude-sonnet-4-5';
 
 const MODEL_OPTIONS: { value: AiModel; label: string }[] = [
   { value: 'gpt-5.1', label: 'GPT-5.1' },
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' }
+  { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' }
 ];
 
 export default function GenerateReportsDialog({ open, onClose, customerId, transcriptionId, onSuccess }: Props) {

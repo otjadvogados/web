@@ -77,7 +77,7 @@ export default function DecisoesReportPage() {
     isVerifying: isVerifyingLocalInfo
   } = useReportFilesWithOcr();
   const [instructions, setInstructions] = useState('');
-  const [model, setModel] = useState<'gpt-5.1' | 'claude-sonnet-4-6'>('gpt-5.1');
+  const [model, setModel] = useState<'gpt-5.1' | 'claude-sonnet-4-5'>('gpt-5.1');
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingLocalInfo, setIsDraggingLocalInfo] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<OptionCust | null>(null);
@@ -561,14 +561,14 @@ export default function DecisoesReportPage() {
                         label="Modelo de IA"
                         size="small"
                         value={model}
-                        onChange={(e) => setModel(e.target.value as 'gpt-5.1' | 'claude-sonnet-4-6')}
+                        onChange={(e) => setModel(e.target.value as 'gpt-5.1' | 'claude-sonnet-4-5')}
                         sx={{
                           width: { xs: '100%', sm: 260 },
                           minWidth: 200
                         }}
                       >
                         <MenuItem value="gpt-5.1">GPT-5.1</MenuItem>
-                        <MenuItem value="claude-sonnet-4-6">Claude Sonnet 4.6</MenuItem>
+                        <MenuItem value="claude-sonnet-4-5">Claude Sonnet 4.5</MenuItem>
                       </TextField>
                     </Stack>
                   </Box>

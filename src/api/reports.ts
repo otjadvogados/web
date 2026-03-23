@@ -89,7 +89,7 @@ export type TranscriptionWithReports = {
 export type GenerateReportsRequest = {
   transcriptionId: string;
   reportTypes: ReportType[];
-  /** Modelo opcional para geração (ex.: "gpt-4o-mini", "claude-sonnet-4-6") */
+  /** Modelo opcional para geração (ex.: "gpt-4o-mini", "claude-sonnet-4-5") */
   model?: string;
 };
 
@@ -100,7 +100,7 @@ export type GenerateReportFromFileParams = {
   reportTypes: ReportType[]; // Array com tipos de relatório
   promptId?: string; // UUID do prompt salvo (opcional)
   additionalInstructions?: string; // Prompt customizado (opcional)
-  /** Modelo opcional para geração (ex.: "gpt-4o-mini", "claude-sonnet-4-6") */
+  /** Modelo opcional para geração (ex.: "gpt-4o-mini", "claude-sonnet-4-5") */
   model?: string;
   /** Documentos só para extrair Endereço/Link, Modalidade e Vara (intimações, convites). Enviados no campo "locationFile". */
   locationFiles?: File[];
