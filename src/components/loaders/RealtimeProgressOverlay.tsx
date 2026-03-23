@@ -35,6 +35,7 @@ const PROGRESS_BY_PHASE: Record<string, number> = {
   '8': 80,
   '9': 95
 };
+const PROGRESS_EVENTS = ['case:progress', 'report:progress', 'reports:progress', 'ai:progress'] as const;
 
 function normalizeTs(ts?: string | number): number {
   if (ts == null) return Date.now();
@@ -88,7 +89,7 @@ export default function RealtimeProgressOverlay({ open, knownRunId, onDetectRunI
     if (!open) return;
     const socket = getRealtimeSocket();
 
-    const onEvt = (evt: CaseProgressEvent, eventName: string) => {
+    const onEvt = (evt: CaseProgressEvent, eventName = 'unknown') => {
       const tsNum = normalizeTs(evt.ts);
       if (tsNum + 300000 < startRef.current) {
         if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) {
@@ -130,19 +131,16 @@ export default function RealtimeProgressOverlay({ open, knownRunId, onDetectRunI
       ]);
     };
 
-    const handlerCase = (data: CaseProgressEvent) => onEvt(data, 'case:progress');
-    const handlerReport = (data: CaseProgressEvent) => onEvt(data, 'report:progress');
-    socket.on('case:progress', handlerCase);
-    socket.on('report:progress', handlerReport);
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) {
-      // eslint-disable-next-line no-console
-      console.debug('[RealtimeProgressOverlay] inscrito em case:progress e report:progress');
-    }
+    const handlers: Array<{ eventName: string; handler: (evt: CaseProgressEvent) => void }> = [];
+    PROGRESS_EVENTS.forEach((eventName) => {
+      const handler = (evt: CaseProgressEvent) => onEvt(evt, eventName);
+      handlers.push({ eventName, handler });
+      socket.on(eventName, handler);
+    });
     onSubscribedRef.current?.();
 
     return () => {
-      socket.off('case:progress', handlerCase);
-      socket.off('report:progress', handlerReport);
+      handlers.forEach(({ eventName, handler }) => socket.off(eventName, handler));
     };
   }, [open]);
 

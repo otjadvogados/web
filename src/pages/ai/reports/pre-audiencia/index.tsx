@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { flushSync } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -30,7 +29,7 @@ import { openSnackbar } from 'api/snackbar';
 import useDebounced from 'utils/useDebounced';
 import { listCustomersAdvanced, type Customer, sortCustomersMatrizFilialPF } from 'api/customers';
 import { listReportFolders, type ReportFolderResponse, ReportType, generateReportFromFile } from 'api/reports';
-import { ensureRealtimeConnected, getRealtimeSocket } from 'api/realtime';
+import { ensureRealtimeConnected } from 'api/realtime';
 import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
 import FolderTile from 'sections/ai/transcribe/FolderTile';
 import { useReportFilesWithOcr } from 'sections/ai/reports/useReportFilesWithOcr';
@@ -74,16 +73,15 @@ export default function PreAudienciaReportPage() {
     isVerifying: isVerifyingLocalInfo
   } = useReportFilesWithOcr();
   const [instructions, setInstructions] = useState('');
-  const [model, setModel] = useState<'gpt-5.1' | 'claude-sonnet-4-5-20250929'>('gpt-5.1');
+  const [model, setModel] = useState<'gpt-5.1' | 'claude-sonnet-4-5'>('gpt-5.1');
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingLocalInfo, setIsDraggingLocalInfo] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<OptionCust | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [generating, setGenerating] = useState(false);
   const [ocrErrorConfirmOpen, setOcrErrorConfirmOpen] = useState(false);
-  const [progressOpen, setProgressOpen] = useState(false);
-  const [progressRunId, setProgressRunId] = useState<string | null>(null);
-  const subscribedResolverRef = useRef<(() => void) | null>(null);
+  const [rtOpen, setRtOpen] = useState(false);
+  const [rtRunId, setRtRunId] = useState<string | null>(null);
   // Estados para pastas
   const [folders, setFolders] = useState<ReportFolderResponse[]>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
@@ -284,16 +282,9 @@ export default function PreAudienciaReportPage() {
   const handleGenerate = async () => {
     setOcrErrorConfirmOpen(false);
     try {
-      const subscribedPromise = new Promise<void>((resolve) => {
-        subscribedResolverRef.current = resolve;
-      });
-      flushSync(() => {
-        setGenerating(true);
-        setProgressOpen(true);
-        setProgressRunId(null);
-      });
-      getRealtimeSocket();
-      await subscribedPromise;
+      setGenerating(true);
+      setRtRunId(null);
+      setRtOpen(true);
       await ensureRealtimeConnected(2500);
 
       const params = {
@@ -353,7 +344,7 @@ export default function PreAudienciaReportPage() {
       } as any);
     } finally {
       setGenerating(false);
-      setTimeout(() => setProgressOpen(false), 800);
+      setTimeout(() => setRtOpen(false), 800);
     }
   };
 
@@ -513,14 +504,14 @@ export default function PreAudienciaReportPage() {
                     label="Modelo de IA"
                     size="small"
                     value={model}
-                    onChange={(e) => setModel(e.target.value as 'gpt-5.1' | 'claude-sonnet-4-5-20250929')}
+                    onChange={(e) => setModel(e.target.value as 'gpt-5.1' | 'claude-sonnet-4-5')}
                     sx={{
                       width: { xs: '100%', sm: 260 },
                       minWidth: 200
                     }}
                   >
                     <MenuItem value="gpt-5.1">GPT-5.1</MenuItem>
-                    <MenuItem value="claude-sonnet-4-5-20250929">Claude Sonnet 4.5</MenuItem>
+                    <MenuItem value="claude-sonnet-4-5">Claude Sonnet 4.5</MenuItem>
                   </TextField>
                 </Stack>
               </Box>
@@ -830,17 +821,11 @@ export default function PreAudienciaReportPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Overlay de progresso em tempo real — mesmo uso que em criar caso (sem Portal) */}
       <RealtimeProgressOverlay
-        open={progressOpen || generating}
-        knownRunId={progressRunId ?? undefined}
-        onDetectRunId={(rid) => setProgressRunId(rid ?? null)}
-        onRequestClose={() => setProgressOpen(false)}
-        onSubscribed={() => {
-          subscribedResolverRef.current?.();
-          subscribedResolverRef.current = null;
-        }}
-        fallbackLabel="Gerando relatório pré-audiência…"
+        open={rtOpen || generating}
+        knownRunId={rtRunId ?? undefined}
+        onDetectRunId={(rid) => setRtRunId(rid)}
+        onRequestClose={() => setRtOpen(false)}
       />
     </Permission>
   );

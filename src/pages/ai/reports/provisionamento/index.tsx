@@ -30,6 +30,8 @@ import ReportFileListWithOcr from 'sections/ai/reports/ReportFileListWithOcr';
 import { generateReportFromFile, ReportType } from 'api/reports';
 import { useNavigate } from 'react-router-dom';
 import CircularProgress from '@mui/material/CircularProgress';
+import RealtimeProgressOverlay from 'components/loaders/RealtimeProgressOverlay';
+import { ensureRealtimeConnected } from 'api/realtime';
 
 type OptionCust = Pick<Customer, 'id' | 'displayName' | 'name' | 'kind' | 'isMatriz' | 'isFilial'>;
 
@@ -59,13 +61,15 @@ export default function ProvisionamentoReportPage() {
     isVerifying: isVerifyingLocalInfo
   } = useReportFilesWithOcr();
   const [instructions, setInstructions] = useState('');
-  const [model, setModel] = useState<'gpt-5.1' | 'claude-sonnet-4-5-20250929'>('gpt-5.1');
+  const [model, setModel] = useState<'gpt-5.1' | 'claude-sonnet-4-5'>('gpt-5.1');
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingLocalInfo, setIsDraggingLocalInfo] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<OptionCust | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [generating, setGenerating] = useState(false);
   const [ocrErrorConfirmOpen, setOcrErrorConfirmOpen] = useState(false);
+  const [rtOpen, setRtOpen] = useState(false);
+  const [rtRunId, setRtRunId] = useState<string | null>(null);
   
   // Estados para seletor de clientes
   const [customerOptions, setCustomerOptions] = useState<OptionCust[]>([]);
@@ -268,6 +272,9 @@ export default function ProvisionamentoReportPage() {
     setOcrErrorConfirmOpen(false);
     try {
       setGenerating(true);
+      setRtRunId(null);
+      setRtOpen(true);
+      await ensureRealtimeConnected(2500);
       
       const params = {
         files,
@@ -342,6 +349,7 @@ export default function ProvisionamentoReportPage() {
       } as any);
     } finally {
       setGenerating(false);
+      setTimeout(() => setRtOpen(false), 800);
     }
   };
 
@@ -457,14 +465,14 @@ export default function ProvisionamentoReportPage() {
                     label="Modelo de IA"
                     size="small"
                     value={model}
-                    onChange={(e) => setModel(e.target.value as 'gpt-5.1' | 'claude-sonnet-4-5-20250929')}
+                    onChange={(e) => setModel(e.target.value as 'gpt-5.1' | 'claude-sonnet-4-5')}
                     sx={{
                       width: { xs: '100%', sm: 260 },
                       minWidth: 200
                     }}
                   >
                     <MenuItem value="gpt-5.1">GPT-5.1</MenuItem>
-                    <MenuItem value="claude-sonnet-4-5-20250929">Claude Sonnet 4.5</MenuItem>
+                    <MenuItem value="claude-sonnet-4-5">Claude Sonnet 4.5</MenuItem>
                   </TextField>
                 </Stack>
               </Box>
@@ -702,6 +710,13 @@ export default function ProvisionamentoReportPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <RealtimeProgressOverlay
+        open={rtOpen || generating}
+        knownRunId={rtRunId ?? undefined}
+        onDetectRunId={(rid) => setRtRunId(rid)}
+        onRequestClose={() => setRtOpen(false)}
+      />
     </Permission>
   );
 }

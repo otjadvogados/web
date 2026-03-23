@@ -29,11 +29,11 @@ type Props = {
   onGeneratingChange?: (generating: boolean) => void;
 };
 
-type AiModel = 'gpt-5.1' | 'claude-sonnet-4-5-20250929';
+type AiModel = 'gpt-5.1' | 'claude-sonnet-4-5';
 
 const MODEL_OPTIONS: { value: AiModel; label: string }[] = [
   { value: 'gpt-5.1', label: 'GPT-5.1' },
-  { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' }
+  { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' }
 ];
 
 export default function GenerateReportsDialog({
