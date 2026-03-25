@@ -46,6 +46,7 @@ function StepAttachments() {
     processAttachments,
     addProcessAttachments,
     removeProcessAttachment,
+    updateProcessAttachmentOcr,
     updateAttachmentOcr,
     updateCommonAttachmentOcr,
     hasOcrErrors,
@@ -119,7 +120,11 @@ function StepAttachments() {
   const isValidType = (file: File) =>
     /(^application\/pdf$)|(^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$)|(^image\/(png|jpeg|jpg|webp|gif)$)/i.test(file.type);
 
-  const verifyFileOcr = async (file: File, attachmentId: string, isCommon: boolean = false): Promise<void> => {
+  const verifyFileOcr = async (
+    file: File,
+    attachmentId: string,
+    target: 'topic' | 'common' | 'process' = 'topic'
+  ): Promise<void> => {
     // Usa apenas attachmentId como chave para garantir unicidade por anexo
     // Isso evita conflitos quando o mesmo arquivo é usado em múltiplos tópicos
     const fileKey = attachmentId;
@@ -139,8 +144,10 @@ function StepAttachments() {
           alert: { color: 'default' }
         } as any);
       } else {
-        if (isCommon) {
+        if (target === 'common') {
           updateCommonAttachmentOcr(attachmentId, result);
+        } else if (target === 'process') {
+          updateProcessAttachmentOcr(attachmentId, result);
         } else {
           updateAttachmentOcr(attachmentId, result);
         }
@@ -237,7 +244,7 @@ function StepAttachments() {
     });
     try {
       await Promise.all(valid.map((file, index) =>
-        verifyFileOcr(file, attachmentIds[index], false)
+        verifyFileOcr(file, attachmentIds[index], 'topic')
       ));
     } finally {
       setUploadingFiles(prev => {
@@ -268,7 +275,7 @@ function StepAttachments() {
     });
     try {
       await Promise.all(valid.map((file, index) =>
-        verifyFileOcr(file, attachmentIds[index], true)
+        verifyFileOcr(file, attachmentIds[index], 'common')
       ));
     } finally {
       setUploadingFiles(prev => {
@@ -312,7 +319,7 @@ function StepAttachments() {
     });
     try {
       await Promise.all(
-        valid.map((file, index) => verifyFileOcr(file, attachmentIds[index], true))
+        valid.map((file, index) => verifyFileOcr(file, attachmentIds[index], 'process'))
       );
     } finally {
       setUploadingFiles((prev) => {
